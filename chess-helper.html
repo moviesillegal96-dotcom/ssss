@@ -825,7 +825,7 @@ function createChess() {
       const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
       const w = new Worker(url);
       w.onmessage = e => onEngineMsg(e.data);
-      w.onerror = () => { worker = null; };
+      w.onerror = () => { worker = null; if (thinking) analyze(); };
       return w;
     } catch (err) { return null; }
   }
@@ -1078,7 +1078,26 @@ function createChess() {
     $("moves").scrollTop = 1e9;
   }
 
+  // Keep the game across app restarts (per-device only; ignored if storage is unavailable).
+  const SAVE_KEY = "chess-helper-game";
+  function save() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ startFen, played, myColor, flipped })); } catch (_) {}
+  }
+  function restore() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+      if (!s) return;
+      startFen = s.startFen; played = s.played; myColor = s.myColor; flipped = s.flipped;
+      rebuild();
+      $("selColor").value = myColor === 1 ? "w" : "b";
+    } catch (_) {
+      startFen = game.START; played = []; myColor = 1; flipped = false;
+      try { rebuild(); } catch (__) {}
+    }
+  }
+
   function renderAll() {
+    if (!setup) save();
     renderBoard(); renderArrows(); renderStatus(); renderMoves(); updateEngineUI();
     if (document.activeElement !== $("fen")) $("fen").value = setup ? "" : game.fen();
   }
@@ -1192,6 +1211,7 @@ function createChess() {
     renderBoard();
   };
 
+  restore();
   renderAll();
   if ($("chkAuto").checked) analyze();
 })();
