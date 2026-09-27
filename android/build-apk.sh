@@ -30,7 +30,7 @@ if [ ! -f "$KEYSTORE" ]; then
   keytool -genkeypair -keystore "$KEYSTORE" -alias chesshelper -keyalg RSA -keysize 2048 -validity 10000 \
     -storepass chesshelper -keypass chesshelper -dname "CN=Chess Helper" 2>/dev/null
 fi
-"$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:chesshelper --key-pass pass:chesshelper \
+"$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:chesshelper --key-pass pass:chesshelper --v4-signing-enabled false \
   --out ../ChessHelper.apk "$OUT/aligned.apk"
 "$BT/apksigner" verify --verbose ../ChessHelper.apk | head -4
 echo "Built $(cd .. && pwd)/ChessHelper.apk"
