@@ -1,0 +1,23 @@
+# Chess Helper
+
+A chess engine in one file (`chess-helper.html`) for analysing games you play on a real board.
+
+## How to run
+Open `chess-helper.html` in any browser (desktop or phone). There is nothing to install and it works offline.
+
+## How to use
+1. Choose **I play: White / Black**.
+2. Enter every move made on the real board, both yours and your opponent's: tap a piece, then tap the square it moves to.
+3. With **Auto-analyze** on, the engine thinks after every move:
+   - **On your turn:** it shows your best move (green arrow) and the reply it expects from your opponent (red dashed arrow).
+   - **On your opponent's turn:** it shows their most dangerous move, so you can see threats coming.
+4. The evaluation tells you who is ahead. "White mates in N" means the engine has found a forced mate.
+5. Joining a game partway through? Use **Set up position** to place the pieces as they stand on the board, or paste a FEN.
+
+Use **Think** to give the engine more time; longer searches find deeper tactics.
+
+## Notes
+- The engine uses alpha-beta search with iterative deepening, a transposition table, quiescence search,
+  null-move pruning and late-move reductions. It usually searches 9–12 plies in 3 seconds.
+- Using an engine during rated or tournament games is against FIDE and club rules.
+  Use it for casual games, practice and post-game analysis.
