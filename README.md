@@ -1,43 +1,61 @@
 # Chess Helper
 
-A chess engine in one file (`chess-helper.html`) for analysing games you play on a real board.
+A chess assistant for games you play on a real board: enter the moves, and it tells you the best move,
+predicts your opponent, warns you about blunders and mates, and reviews the game afterwards.
 
 ## How to run
 **Android app:** download [`ChessHelper.apk`](ChessHelper.apk) to your phone and open it. Android will ask you to allow
 installing apps from your browser or file manager; allow it once, then tap **Install**. The app works offline,
 keeps the screen on while it's open, and remembers your game if you close it.
 
-**Any browser:** open `chess-helper.html` (desktop or phone). There is nothing to install and it works offline.
+**Any browser:** open `chess-helper.html`. Opened as a local file it uses the built-in engine; served over http(s)
+next to the `stockfish/` folder it uses Stockfish too.
 
-## How to use
-1. Choose **I play: White / Black**.
-2. Enter every move made on the real board, both yours and your opponent's: tap a piece, then tap the square it moves to.
-3. With **Auto-analyze** on, the engine thinks after every move:
-   - **On your turn:** it shows your best move (green arrow) and the reply it expects from your opponent (red dashed arrow).
-   - **On your opponent's turn:** it shows their most dangerous move, so you can see threats coming.
-4. The evaluation tells you who is ahead. "White mates in N" means the engine has found a forced mate.
-5. Joining a game partway through? Use **Set up position** to place the pieces as they stand on the board, or paste a FEN.
+## Features
+**Entering moves**
+- Tap a piece, then its destination.
+- **🎤 Voice:** say "knight f3", "e4", "bishop takes c6", "castle kingside", "e8 promote to queen".
+- **Typed moves:** `e4`, `Nf3`, `O-O`, or plain words like `knight f3`.
+- **📷 Camera move detection:** hold the phone above the board, line up the grid, tap *Set reference*. After each move the app
+  compares every square and suggests the move it sees for you to accept. It works best top-down with even lighting;
+  always check the suggestion.
+- **Set up position** or paste a FEN to start from any position.
 
-Use **Think** to give the engine more time; longer searches find deeper tactics.
+**Engine**
+- **Stockfish 19** in the Android app (far stronger than any human player), with the built-in engine as a fallback.
+- **Top 3 moves** with their lines and scores, plus the reply the engine expects (arrows on the board).
+- **Opening book:** names the opening (111 lines: Sicilian, Ruy Lopez, Queen's Gambit, …) and shows the main book moves.
+- **Endgame knowledge** in the built-in engine: unstoppable passed pawns (rule of the square), drawn material, mating a lone king.
 
-### Alerts
-With **Mate alerts** on, a banner pops up with a sound and vibration when:
-- **you checkmate your opponent** (or get checkmated),
-- **you have a forced mate**: "Checkmate in 1! Play Rd8#" or "Forced mate in 4 moves! Start with Qe5",
-- **you're about to win**: whatever your opponent plays next, you can still force mate,
-- **your opponent threatens mate** next move (so you can defend it), or has a forced mate against you,
-- **you're clearly winning** (about a rook up or more; shown once per game).
+**While you play**
+- **Mate alerts** (sound + vibration): checkmate, forced mate for you ("Checkmate in 1! Play Rd8#"), your opponent threatening mate.
+- **Blunder check:** "Opponent blundered! Punish it with Nxg5", or a warning when your move threw away the advantage.
+- **Hint mode:** clues first ("Look for a fork"), then the piece to move, then the answer only if you ask.
+- **🔊 Speak the best move** out loud (Android text-to-speech).
+- **Chess clock** with presets (1, 3|2, 5, 5|3, 10, 10|5, 15|10, 30 min); switches when a move is entered.
 
-Sound starts working after your first tap on the screen (a browser rule).
+**After the game**
+- **Game review:** accuracy for each side, an evaluation graph, and every move marked Best / Excellent / Good /
+  Inaccuracy / Mistake / Blunder / Book. Tap a move to see the position with the move played (blue) and the best move (green).
+- **Saved games:** finished games are saved automatically. Share or copy them as **PGN** (opens in Lichess/Chess.com), or import a PGN.
+
+**Look**
+- 6 board themes, 3 piece sets (Classic, Staunty, Simple), dark mode, and a **Big board** mode.
 
 ## Notes
-- The engine uses alpha-beta search with iterative deepening, a transposition table, quiescence search,
-  null-move pruning and late-move reductions. It usually searches 9–12 plies in 3 seconds.
-- Using an engine during rated or tournament games is against FIDE and club rules.
-  Use it for casual games, practice and post-game analysis.
+- Using an engine during rated or tournament games breaks FIDE and club rules. Use it for casual games, practice and analysis.
+- The Android back button closes review, setup, camera and big-board mode before leaving the app.
+
+## Credits and licenses
+- Stockfish 19 (WebAssembly build by nmrugg/stockfish.js), GPLv3; see `stockfish/`.
+- "Classic" pieces by Cburnett, CC BY-SA 3.0. "Staunty" pieces from Lichess, CC BY-NC-SA 4.0 (non-commercial).
+  Both come via cm-chessboard.
 
 ## Rebuilding the APK
-`android/build-apk.sh` builds `ChessHelper.apk` from `chess-helper.html` with the Android SDK build tools
-(no Gradle needed). On Ubuntu: `apt install android-sdk android-sdk-platform-23 dalvik-exchange python3-pil`.
+`android/build-apk.sh` builds `ChessHelper.apk` from `chess-helper.html` and `stockfish/` using the Android SDK
+build tools directly (no Gradle). On Ubuntu: `apt install android-sdk android-sdk-platform-23 dalvik-exchange python3-pil`.
 The script creates a signing key (`android/chess-helper.keystore`, not committed) on first run. Keep that file:
 an APK signed with a different key can't be installed over the old app without uninstalling it first.
+
+The app serves its files from `https://appassets.androidplatform.net/`, which is intercepted and never touches the
+network, so Web Workers, WebAssembly and the camera work inside the WebView.

@@ -12,17 +12,19 @@ OUT=build
 KEYSTORE=${KEYSTORE:-chess-helper.keystore}
 
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/res"
+rm -rf assets && mkdir -p assets/stockfish
 cp ../chess-helper.html assets/index.html
+cp ../stockfish/stockfish-19-lite-single.js ../stockfish/stockfish-19-lite-single.wasm ../stockfish/COPYING.txt assets/stockfish/
 cp -r res/. "$OUT/res/"
 python3 make_icons.py "$OUT/res"
 
 "$BT/aapt" package -f -m -J "$OUT/gen" -M AndroidManifest.xml -S "$OUT/res" -I "$PLATFORM_JAR"
-javac -nowarn --release 8 -classpath "$PLATFORM_JAR" -d "$OUT/classes" \
-  $(find src "$OUT/gen" -name '*.java') 2>&1 | grep -v "warning: \[options\]" || true
+javac -nowarn -Xlint:-options --release 8 -classpath "$PLATFORM_JAR" -d "$OUT/classes" \
+  $(find src "$OUT/gen" -name '*.java')
 "$DX" --dex --output="$OUT/classes.dex" "$OUT/classes"
 
 "$BT/aapt" package -f -M AndroidManifest.xml -S "$OUT/res" -A assets -I "$PLATFORM_JAR" \
-  -0 arsc -F "$OUT/unsigned.apk"
+  -0 arsc -0 wasm -F "$OUT/unsigned.apk"
 (cd "$OUT" && "$BT/aapt" add unsigned.apk classes.dex >/dev/null)
 "$BT/zipalign" -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 

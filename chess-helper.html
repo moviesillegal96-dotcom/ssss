@@ -2,135 +2,249 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Chess Helper</title>
+<link rel="icon" href="data:,">
 <style>
   :root {
     --bg: #f4f1ea; --panel: #ffffff; --text: #1f1d1a; --muted: #6b665d; --border: #ddd6c8;
-    --light: #efe3c8; --dark: #b3875a; --accent: #2f7d4f; --accent-text: #fff; --warn: #b3412e;
-    --sel: rgba(255, 214, 0, .55); --last: rgba(155, 199, 0, .45); --check: rgba(220, 40, 40, .7);
-    --arrow-best: #1f8f4e; --arrow-reply: #d0452f;
+    --accent: #2f7d4f; --accent-text: #fff; --warn: #b3412e;
+    --light: #efe3c8; --dark: #b3875a;
+    --sel: rgba(255, 214, 0, .55); --last: rgba(155, 199, 0, .45); --check: rgba(220, 40, 40, .75);
+    --arrow-best: #1f8f4e; --arrow-reply: #d0452f; --arrow-alt: #2c6fb3;
+    --c-best: #1f8f4e; --c-excellent: #56a86b; --c-good: #8a8f86; --c-inaccuracy: #d9a400; --c-mistake: #e07a1f; --c-blunder: #c9342a; --c-book: #8a6d4b;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #1b1a18; --panel: #262421; --text: #ece8e1; --muted: #a39d92; --border: #3b3833;
-      --light: #d9c9a6; --dark: #8f6a44; --accent: #3fa568; --accent-text: #0e1a12; --warn: #e0705d;
+      --accent: #3fa568; --accent-text: #0e1a12; --warn: #e0705d;
     }
   }
   :root[data-theme="dark"] {
     --bg: #1b1a18; --panel: #262421; --text: #ece8e1; --muted: #a39d92; --border: #3b3833;
-    --light: #d9c9a6; --dark: #8f6a44; --accent: #3fa568; --accent-text: #0e1a12; --warn: #e0705d;
+    --accent: #3fa568; --accent-text: #0e1a12; --warn: #e0705d;
   }
+  body[data-board="green"]  { --light: #eeeed2; --dark: #769656; }
+  body[data-board="blue"]   { --light: #dee3e6; --dark: #8ca2ad; }
+  body[data-board="gray"]   { --light: #e3e3e3; --dark: #9a9a9a; }
+  body[data-board="purple"] { --light: #ece4f4; --dark: #9b7bb8; }
+  body[data-board="coral"]  { --light: #f2e6dc; --dark: #d07c6a; }
+
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  header { padding: 12px 16px 4px; }
-  header h1 { margin: 0; font-size: 20px; }
-  header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-  .layout { display: flex; flex-wrap: wrap; gap: 16px; padding: 12px 16px 32px; align-items: flex-start; }
-  .boardcol { display: flex; gap: 8px; width: min(100%, 600px); }
-  #evalbar { width: 14px; flex: none; border-radius: 4px; overflow: hidden; background: #222;
-    position: relative; border: 1px solid var(--border); }
-  #evalwhite { position: absolute; left: 0; right: 0; bottom: 0; background: #f7f7f7; height: 50%;
-    transition: height .3s; }
-  .boardwrap { position: relative; flex: 1; aspect-ratio: 1; touch-action: manipulation; user-select: none; }
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+  header { padding: 10px 16px 2px; display: flex; align-items: center; gap: 10px; }
+  header h1 { margin: 0; font-size: 20px; flex: 1; }
+  #engineBadge { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px; white-space: nowrap; }
+  .layout { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 16px 32px; align-items: flex-start; }
+  .boardcol { display: flex; flex-direction: column; gap: 8px; width: min(100%, 600px); }
+  .boardrow { display: flex; gap: 8px; }
+  #evalbar { width: 14px; flex: none; border-radius: 4px; overflow: hidden; background: #222; position: relative; border: 1px solid var(--border); }
+  #evalwhite { position: absolute; left: 0; right: 0; bottom: 0; background: #f7f7f7; height: 50%; transition: height .3s; }
+  .boardwrap { position: relative; flex: 1; aspect-ratio: 1; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
   #board { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
     width: 100%; height: 100%; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
   .sq { position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .sq.l { background: var(--light); } .sq.d { background: var(--dark); }
-  .sq.last::before, .sq.sel::before, .sq.chk::before { content: ""; position: absolute; inset: 0; }
+  .sq.last::before, .sq.sel::before, .sq.chk::before, .sq.hint::before { content: ""; position: absolute; inset: 0; }
   .sq.last::before { background: var(--last); }
   .sq.sel::before { background: var(--sel); }
   .sq.chk::before { background: radial-gradient(circle, var(--check) 20%, transparent 75%); }
-  .pc { position: relative; font-size: min(10.5vw, 60px); line-height: 1; z-index: 1;
+  .sq.hint::before { box-shadow: inset 0 0 0 4px #2c6fb3; animation: glow 1.2s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow: inset 0 0 0 8px rgba(44,111,179,.5); } }
+  .pc { position: relative; line-height: 1; z-index: 1; font-size: min(10.5vw, 60px);
     font-family: "Segoe UI Symbol", "DejaVu Sans", "Noto Sans Symbols2", "Arial Unicode MS", sans-serif; }
   .pc.w { color: #fff; text-shadow: 0 0 1px #000, 0 0 1px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; }
   .pc.b { color: #111; text-shadow: 0 0 1px #fff4; }
+  svg.pcs { position: relative; z-index: 1; width: 100%; height: 100%; display: block; }
   .dot { position: absolute; width: 28%; height: 28%; border-radius: 50%; background: rgba(0,0,0,.25); z-index: 2; }
   .ring { position: absolute; inset: 4%; border-radius: 50%; border: 5px solid rgba(0,0,0,.25); z-index: 2; }
-  .coord { position: absolute; font-size: 10px; font-weight: 600; opacity: .75; z-index: 1; }
-  .coord.f { right: 3px; bottom: 1px; } .coord.r { left: 3px; top: 1px; }
+  .coord { position: absolute; font-size: 10px; font-weight: 600; opacity: .8; z-index: 1; pointer-events: none; }
+  .coord.r { right: 3px; top: 1px; } .coord.f { left: 3px; bottom: 1px; }
   .sq.l .coord { color: var(--dark); } .sq.d .coord { color: var(--light); }
   #arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
-  .panel { flex: 1 1 300px; max-width: 520px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+  .clock { display: none; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--border); cursor: pointer; user-select: none; }
+  body.clock-on .clock { display: flex; }
+  .clock .who { font-size: 13px; color: var(--muted); }
+  .clock .time { font: 700 28px/1 ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .clock.running { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+  .clock.low .time { color: var(--warn); }
+  .clock.flag { background: var(--warn); color: #fff; } .clock.flag .who { color: #fff; }
+
+  .panel { flex: 1 1 300px; max-width: 540px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
-  .card h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .card h2, details.card > summary { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+  details.card > summary { cursor: pointer; margin: 0; list-style: none; display: flex; justify-content: space-between; }
+  details.card > summary::after { content: "▸"; } details.card[open] > summary::after { content: "▾"; }
+  details.card[open] > summary { margin-bottom: 10px; }
   #status { font-weight: 600; }
   #status.over { color: var(--warn); }
+  #opening { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  #viewBar { display: none; margin-top: 8px; padding: 8px; border-radius: 8px; background: color-mix(in srgb, var(--arrow-alt) 14%, transparent); }
+  body.viewing #viewBar { display: block; }
   .best { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   #bestLabel { color: var(--muted); font-size: 13px; width: 100%; }
   #bestMove { font-size: 30px; font-weight: 700; color: var(--arrow-best); min-height: 38px; }
   #bestEval { font-size: 16px; font-weight: 600; }
-  #bestInfo { color: var(--muted); font-size: 12px; }
-  #reply { margin-top: 6px; }
-  #reply b { color: var(--arrow-reply); }
-  #pv { margin-top: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: var(--muted);
-    word-break: break-word; }
+  #bestInfo { color: var(--muted); font-size: 12px; width: 100%; }
+  #reply { margin-top: 4px; } #reply b { color: var(--arrow-reply); }
+  #hintBox { display: none; margin-top: 6px; padding: 10px; border-radius: 8px; background: color-mix(in srgb, var(--arrow-alt) 14%, transparent); }
+  #top3 { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  #top3 .line { display: flex; gap: 8px; align-items: baseline; font-size: 14px; padding: 4px 8px; border-radius: 6px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+  #top3 .line .n { color: var(--muted); width: 1.2em; } #top3 .line .mv { font-weight: 700; min-width: 3.5em; } #top3 .line .sc { margin-left: auto; font-variant-numeric: tabular-nums; }
+  #top3 .line .rest { color: var(--muted); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; min-width: 0; }
+  #pv { margin-top: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-word; }
+  #book { margin-top: 8px; font-size: 13px; }
+  .chip { display: inline-block; margin: 2px 4px 2px 0; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; font-size: 13px; color: var(--text); }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  button, select, input[type=text] { font: inherit; color: var(--text); background: var(--panel);
-    border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+  .row + .row { margin-top: 8px; }
+  button, select, input[type=text], textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
   button { cursor: pointer; }
   button:hover { border-color: var(--muted); }
   button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button.danger { color: var(--warn); }
   button:disabled { opacity: .5; cursor: default; }
-  input[type=text] { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  button.small { padding: 4px 10px; font-size: 13px; }
+  input[type=text] { flex: 1; min-width: 0; }
+  input.mono, textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  textarea { width: 100%; min-height: 90px; resize: vertical; }
   label { display: inline-flex; align-items: center; gap: 6px; }
   #moves { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; max-height: 160px; overflow: auto; }
-  #moves span.n { color: var(--muted); margin-right: 4px; }
-  #moves span.m { margin-right: 10px; }
-  #palette { display: none; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
-  #palette button { width: 42px; height: 42px; padding: 0; font-size: 26px; background: var(--light); }
+  #moves span.n { color: var(--muted); margin-right: 4px; } #moves span.m { margin-right: 10px; }
+  #moveChoices .chip { font-weight: 600; }
+  .muted { color: var(--muted); font-size: 12px; }
+  #palette { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+  #palette button { width: 44px; height: 44px; padding: 2px; font-size: 26px; background: var(--light); }
   #palette button.on { outline: 3px solid var(--accent); }
   #palette .pc { font-size: 26px; }
   .setup-only { display: none; }
   body.setup .setup-only { display: flex; }
   body.setup .play-only { display: none; }
-  #alert { position: fixed; left: 50%; top: 12px; transform: translate(-50%, -150%); z-index: 20;
+  body.focus header, body.focus .hide-focus { display: none !important; }
+  body.focus .layout { padding-top: 6px; }
+  body.focus .boardcol { width: min(100%, calc(100vh - 150px)); min-width: min(100%, 360px); }
+  #btnFocusExit { display: none; }
+  body.focus #btnFocusExit { display: inline-block; }
+
+  #cameraCard { display: none; }
+  body.camera-on #cameraCard { display: block; }
+  .camwrap { position: relative; width: 100%; max-width: 360px; aspect-ratio: 1; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
+  .camwrap canvas { width: 100%; height: 100%; display: block; }
+  .camgrid { position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(to right, rgba(0,255,120,.7) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,255,120,.7) 1px, transparent 1px);
+    background-size: 12.5% 12.5%; box-shadow: inset 0 0 0 2px rgba(0,255,120,.9); }
+  #camVideo { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  #camProposal { display: none; margin-top: 8px; padding: 10px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 15%, transparent); }
+
+  #graph { width: 100%; height: 110px; display: block; border-radius: 6px; cursor: pointer; background: #3a3a3a; }
+  #reviewSummary table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  #reviewSummary td, #reviewSummary th { padding: 3px 4px; text-align: center; } #reviewSummary td:first-child, #reviewSummary th:first-child { text-align: left; }
+  #reviewList { margin-top: 8px; max-height: 260px; overflow: auto; font-size: 13px; }
+  #reviewList .rv { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+  #reviewList .rv:hover, #reviewList .rv.cur { background: color-mix(in srgb, var(--text) 8%, transparent); }
+  #reviewList .rv .num { color: var(--muted); width: 3.2em; font-family: ui-monospace, monospace; }
+  #reviewList .rv .san { font-weight: 700; width: 4.2em; }
+  .badge { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px; color: #fff; white-space: nowrap; }
+  .b-best { background: var(--c-best); } .b-excellent { background: var(--c-excellent); } .b-good { background: var(--c-good); }
+  .b-inaccuracy { background: var(--c-inaccuracy); } .b-mistake { background: var(--c-mistake); } .b-blunder { background: var(--c-blunder); } .b-book { background: var(--c-book); }
+  #savedList .sg { padding: 8px 0; border-top: 1px solid var(--border); }
+  #savedList .sg:first-child { border-top: 0; }
+  #savedList .sg .t { font-weight: 600; font-size: 14px; } #savedList .sg .d { font-size: 12px; color: var(--muted); margin: 2px 0 6px; }
+
+  #promo { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 10; }
+  #promo .box { background: var(--panel); padding: 12px; border-radius: 10px; display: flex; gap: 8px; }
+  #promo button { width: 64px; height: 64px; font-size: 44px; padding: 2px; background: var(--light); }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: sp .8s linear infinite; vertical-align: -1px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .hint-text { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+
+  #alert { position: fixed; left: 50%; top: 12px; transform: translate(-50%, -160%); z-index: 20;
     width: min(calc(100% - 32px), 480px); padding: 14px 16px; border-radius: 12px; color: #fff;
     box-shadow: 0 6px 24px rgba(0,0,0,.35); transition: transform .25s ease; cursor: pointer; }
   #alert.show { transform: translate(-50%, 0); }
   #alert.win { background: #1f8f4e; } #alert.lose { background: #c0392b; } #alert.info { background: #2c6fb3; }
   #alert.win.pulse { animation: pulse 1s ease-in-out 3; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(31,143,78,.35), 0 6px 24px rgba(0,0,0,.35); } }
-  #alertTitle { font-size: 18px; font-weight: 700; }
-  #alertText { font-size: 14px; margin-top: 2px; opacity: .95; }
-  #alertClose { font-size: 12px; opacity: .8; margin-top: 6px; }
-  #promo { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center;
-    justify-content: center; z-index: 10; }
-  #promo .box { background: var(--panel); padding: 12px; border-radius: 10px; display: flex; gap: 8px; }
-  #promo button { width: 64px; height: 64px; font-size: 44px; padding: 0; background: var(--light); }
-  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--muted);
-    border-top-color: transparent; border-radius: 50%; animation: sp .8s linear infinite; vertical-align: -1px; }
-  @keyframes sp { to { transform: rotate(360deg); } }
-  .hint { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+  #alertTitle { font-size: 18px; font-weight: 700; } #alertText { font-size: 14px; margin-top: 2px; opacity: .95; } #alertClose { font-size: 12px; opacity: .8; margin-top: 6px; }
+  #toast { position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 200%); background: #222; color: #fff; padding: 10px 16px; border-radius: 10px;
+    z-index: 21; max-width: calc(100% - 32px); font-size: 14px; transition: transform .2s ease; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  #toast.show { transform: translate(-50%, 0); }
+  footer { padding: 0 16px 24px; color: var(--muted); font-size: 11px; }
+  footer a { color: inherit; }
 </style>
 </head>
-<body>
+<body data-board="wood">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="std-wk" stroke-linecap="round" stroke-linejoin="round" transform="translate(5.000000, 5.000000)" stroke="#000000" stroke-width="1.5"> <line x1="15" y1="4.96764706" x2="15" y2="0" /> <line x1="12.8571429" y1="1.76470588" x2="17.1428571" y2="1.76470588" /> <path d="M17.5714286,7.5 C17.5714286,7.5 16.7142857,5.29411765 15,5.29411765 C13.2857143,5.29411765 12.4285714,7.5 12.4285714,7.5 C11.1428571,10.1470588 15,16.7647059 15,16.7647059 C15,16.7647059 18.8571429,10.1470588 17.5714286,7.5 Z" fill="#FFFFFF" /> <path d="M5.57142857,27.3529412 C10.2857143,30.4411765 18.8571429,30.4411765 23.5714286,27.3529412 L23.5714286,21.1764706 C23.5714286,21.1764706 31.2857143,17.2058824 28.7142857,11.9117647 C25.2857143,6.17647059 17.1428571,8.82352941 15,15.4411765 L15,18.5294118 L15,15.4411765 C12,8.82352941 3.85714286,6.17647059 1.28571429,11.9117647 C-1.28571429,17.2058824 5.57142857,20.7352941 5.57142857,20.7352941 L5.57142857,27.3529412 Z" fill="#FFFFFF" /> <path d="M5.57142857,21.1764706 C10.2857143,18.5294118 18.8571429,18.5294118 23.5714286,21.1764706" fill-opacity="0" fill="#000000" /> <path d="M5.57142857,24.2647059 C10.2857143,21.6176471 18.8571429,21.6176471 23.5714286,24.2647059" fill-opacity="0" fill="#000000" stroke-linecap="square" /> <path d="M5.57142857,27.3529412 C10.2857143,24.7058824 18.8571429,24.7058824 23.5714286,27.3529412" fill-opacity="0" fill="#000000" /> </g> 
+<g id="std-wq" stroke-linecap="round" stroke-linejoin="round" transform="translate(4.000000, 5.000000)" stroke="#000000" stroke-width="1.5"> <path d="M3.45945946,6.2 C3.45945946,7.17833299 2.68503308,7.97142857 1.72972973,7.97142857 C0.774426379,7.97142857 0,7.17833299 0,6.2 C0,5.22166701 0.774426379,4.42857143 1.72972973,4.42857143 C2.68503308,4.42857143 3.45945946,5.22166701 3.45945946,6.2 Z" fill="#FFFFFF" /> <path d="M17.7297297,2.21428571 C17.7297297,3.1926187 16.9553034,3.98571429 16,3.98571429 C15.0446966,3.98571429 14.2702703,3.1926187 14.2702703,2.21428571 C14.2702703,1.23595273 15.0446966,0.442857143 16,0.442857143 C16.9553034,0.442857143 17.7297297,1.23595273 17.7297297,2.21428571 Z" fill="#FFFFFF" /> <path d="M32,6.2 C32,7.17833299 31.2255736,7.97142857 30.2702703,7.97142857 C29.3149669,7.97142857 28.5405405,7.17833299 28.5405405,6.2 C28.5405405,5.22166701 29.3149669,4.42857143 30.2702703,4.42857143 C31.2255736,4.42857143 32,5.22166701 32,6.2 Z" fill="#FFFFFF" /> <path d="M10.3783784,3.1 C10.3783784,4.07833299 9.603952,4.87142857 8.64864865,4.87142857 C7.6933453,4.87142857 6.91891892,4.07833299 6.91891892,3.1 C6.91891892,2.12166701 7.6933453,1.32857143 8.64864865,1.32857143 C9.603952,1.32857143 10.3783784,2.12166701 10.3783784,3.1 Z" fill="#FFFFFF" /> <path d="M25.0810811,3.54285714 C25.0810811,4.52119013 24.3066547,5.31428571 23.3513514,5.31428571 C22.396048,5.31428571 21.6216216,4.52119013 21.6216216,3.54285714 C21.6216216,2.56452416 22.396048,1.77142857 23.3513514,1.77142857 C24.3066547,1.77142857 25.0810811,2.56452416 25.0810811,3.54285714 Z" fill="#FFFFFF" /> <path d="M4.32432432,18.6 C11.6756757,17.2714286 22.4864865,17.2714286 27.6756757,18.6 L29.4054054,7.97142857 L23.3513514,17.7142857 L23.3513514,5.31428571 L18.5945946,17.2714286 L16,3.98571429 L13.4054054,17.2714286 L8.64864865,4.87142857 L8.64864865,17.7142857 L2.59459459,7.97142857 L4.32432432,18.6 Z" fill="#FFFFFF" /> <path d="M4.32432432,18.6 C4.32432432,20.3714286 5.62162162,20.3714286 6.48648649,22.1428571 C7.35135135,23.4714286 7.35135135,23.0285714 6.91891892,25.2428571 C5.62162162,26.1285714 5.62162162,27.4571429 5.62162162,27.4571429 C4.32432432,28.7857143 6.05405405,29.6714286 6.05405405,29.6714286 C11.6756757,30.5571429 20.3243243,30.5571429 25.9459459,29.6714286 C25.9459459,29.6714286 27.2432432,28.7857143 25.9459459,27.4571429 C25.9459459,27.4571429 26.3783784,26.1285714 25.0810811,25.2428571 C24.6486486,23.0285714 24.6486486,23.4714286 25.5135135,22.1428571 C26.3783784,20.3714286 27.6756757,20.3714286 27.6756757,18.6 C20.3243243,17.2714286 11.6756757,17.2714286 4.32432432,18.6 Z" fill="#FFFFFF" /> <path d="M6.48648649,22.1428571 C9.51351351,21.2571429 22.4864865,21.2571429 25.5135135,22.1428571" /> <path d="M6.91891892,25.2428571 C12.1081081,24.3571429 19.8918919,24.3571429 25.0810811,25.2428571" /> </g> 
+<g id="std-wb" stroke-linecap="round" stroke-linejoin="round" transform="translate(6.000000, 5.000000)" stroke="#000000" stroke-width="1.5"> <g fill="#FFFFFF"> <path d="M2.54545455,27.3529412 C5.42181818,26.4970588 11.1236364,27.7323529 14,25.5882353 C16.8763636,27.7323529 22.5781818,26.4970588 25.4545455,27.3529412 C25.4545455,27.3529412 26.8545455,27.8294118 28,29.1176471 C27.4230303,29.9735294 26.6,29.9911765 25.4545455,29.5588235 C22.5781818,28.7029412 16.8763636,29.9647059 14,28.6764706 C11.1236364,29.9647059 5.42181818,28.7029412 2.54545455,29.5588235 C1.39660606,29.9911765 0.574424242,29.9735294 0,29.1176471 C1.14884848,27.4058824 2.54545455,27.3529412 2.54545455,27.3529412 Z" /> <path d="M7.63636364,23.8235294 C9.75757576,26.0294118 18.2424242,26.0294118 20.3636364,23.8235294 C20.7878788,22.5 20.3636364,22.0588235 20.3636364,22.0588235 C20.3636364,19.8529412 18.2424242,18.5294118 18.2424242,18.5294118 C22.9090909,17.2058824 23.3333333,8.38235294 14,4.85294118 C4.66666667,8.38235294 5.09090909,17.2058824 9.75757576,18.5294118 C9.75757576,18.5294118 7.63636364,19.8529412 7.63636364,22.0588235 C7.63636364,22.0588235 7.21212121,22.5 7.63636364,23.8235294 Z" /> <path d="M16.1212121,2.64705882 C16.1212121,3.86533401 15.1715131,4.85294118 14,4.85294118 C12.8284869,4.85294118 11.8787879,3.86533401 11.8787879,2.64705882 C11.8787879,1.42878364 12.8284869,0.441176471 14,0.441176471 C15.1715131,0.441176471 16.1212121,1.42878364 16.1212121,2.64705882 Z" /> </g> <path d="M9.75757576,18.5294118 L18.2424242,18.5294118 M7.63636364,22.0588235 L20.3636364,22.0588235 M14,9.26470588 L14,13.6764706 M11.8787879,11.4705882 L16.1212121,11.4705882" /> </g> 
+<g id="std-wn" stroke-linecap="round" stroke-linejoin="round" transform="translate(6.000000, 6.000000)" stroke="#000000"> <path d="M13.5757576,2.625 C22.4848485,3.5 27.5757576,9.625 27.1515152,28 L7.63636364,28 C7.63636364,20.125 16.1212121,22.3125 14.4242424,9.625" stroke-width="1.5" fill="#FFFFFF" /> <path d="M15.2727273,9.625 C15.5951515,12.17125 10.5636364,16.07375 8.48484848,17.5 C5.93939394,19.25 6.09212121,21.2975 4.24242424,21 C3.35830303,20.1775 5.43878788,18.34 4.24242424,18.375 C3.39393939,18.375 4.40363636,19.45125 3.39393939,20.125 C2.54545455,20.125 -0.00254545455,21 -1.90580876e-06,16.625 C-1.90580876e-06,14.875 5.09090909,6.125 5.09090909,6.125 C5.09090909,6.125 6.69454545,4.4625 6.78787879,3.0625 C6.16848485,2.19275 6.36363636,1.3125 6.36363636,0.4375 C7.21212121,-0.4375 8.90909091,2.625 8.90909091,2.625 L10.6060606,2.625 C10.6060606,2.625 11.2678788,0.882 12.7272727,0 C13.5757576,0 13.5757576,2.625 13.5757576,2.625" stroke-width="1.5" fill="#FFFFFF" /> <path d="M2.96969697,16.1875 C2.96969697,16.4291246 2.77975717,16.625 2.54545455,16.625 C2.31115192,16.625 2.12121212,16.4291246 2.12121212,16.1875 C2.12121212,15.9458754 2.31115192,15.75 2.54545455,15.75 C2.77975717,15.75 2.96969697,15.9458754 2.96969697,16.1875 Z" stroke-width="1.5" fill="#000000" /> <path d="M7.6363543,7.4375 C7.6363543,8.16235779 7.44641868,8.74997112 7.21212121,8.74997112 C6.97782375,8.74997112 6.78788812,8.16235779 6.78788812,7.4375 C6.78788812,6.71264221 6.97782375,6.12502888 7.21212121,6.12502888 C7.44641868,6.12502888 7.6363543,6.71264221 7.6363543,7.4375 L7.6363543,7.4375 Z" stroke-width="1.499967" fill="#000000" transform="translate(7.212121, 7.437500) rotate(30.000728) translate(-7.212121, -7.437500) " /> </g> 
+<g id="std-wr" stroke-linecap="round" stroke-linejoin="round" transform="translate(9.000000, 8.000000)" stroke="#000000" stroke-width="1.5"> <polygon fill="#FFFFFF" points="0 26 22 26 22 23.4 0 23.4" /> <polygon fill="#FFFFFF" points="2.44444444 23.4 2.44444444 19.9333333 19.5555556 19.9333333 19.5555556 23.4" /> <polyline fill="#FFFFFF" points="1.62962963 4.33333333 1.62962963 0 4.88888889 0 4.88888889 1.73333333 8.96296296 1.73333333 8.96296296 0 13.037037 0 13.037037 1.73333333 17.1111111 1.73333333 17.1111111 0 20.3703704 0 20.3703704 4.33333333" /> <polyline fill="#FFFFFF" points="20.3703704 4.33333333 17.9259259 6.93333333 4.07407407 6.93333333 1.62962963 4.33333333" /> <polyline fill="#FFFFFF" points="17.9259259 6.93333333 17.9259259 17.7666667 4.07407407 17.7666667 4.07407407 6.93333333" /> <polyline fill="#FFFFFF" points="17.9259259 17.7666667 19.1481481 19.9333333 2.85185185 19.9333333 4.07407407 17.7666667" /> <line x1="1.62962963" y1="4.33333333" x2="20.3703704" y2="4.33333333" /> </g> 
+<g id="std-wp" transform="translate(10.000000, 9.000000)" fill="#FFFFFF" stroke="#000000" stroke-linecap="round" stroke-width="1.5"> <path d="M10,0 C8.15833333,0 6.66666667,1.50129032 6.66666667,3.35483871 C6.66666667,4.10129032 6.90833333,4.78903226 7.31666667,5.35096774 C5.69166667,6.29032258 4.58333333,8.04322581 4.58333333,10.0645161 C4.58333333,11.7670968 5.36666667,13.2851613 6.59166667,14.2832258 C4.09166667,15.1722581 0.416666667,18.9380645 0.416666667,25.5806452 L19.5833333,25.5806452 C19.5833333,18.9380645 15.9083333,15.1722581 13.4083333,14.2832258 C14.6333333,13.2851613 15.4166667,11.7670968 15.4166667,10.0645161 C15.4166667,8.04322581 14.3083333,6.29032258 12.6833333,5.35096774 C13.0916667,4.78903226 13.3333333,4.10129032 13.3333333,3.35483871 C13.3333333,1.50129032 11.8416667,0 10,0 Z" /> </g> 
+<g id="std-bk" stroke-linecap="round" stroke-linejoin="round" transform="translate(5.000000, 5.000000)" stroke-width="1.5"> <line x1="15" y1="4.96764706" x2="15" y2="0" stroke="#000000" /> <path d="M15,16.7647059 C15,16.7647059 18.8571429,10.1470588 17.5714286,7.5 C17.5714286,7.5 16.7142857,5.29411765 15,5.29411765 C13.2857143,5.29411765 12.4285714,7.5 12.4285714,7.5 C11.1428571,10.1470588 15,16.7647059 15,16.7647059" stroke="#000000" fill="#000000" /> <path d="M5.57142857,27.3529412 C10.2857143,30.4411765 18.8571429,30.4411765 23.5714286,27.3529412 L23.5714286,21.1764706 C23.5714286,21.1764706 31.2857143,17.2058824 28.7142857,11.9117647 C25.2857143,6.17647059 17.1428571,8.82352941 15,15.4411765 L15,18.5294118 L15,15.4411765 C12,8.82352941 3.85714286,6.17647059 1.28571429,11.9117647 C-1.28571429,17.2058824 5.57142857,20.7352941 5.57142857,20.7352941 L5.57142857,27.3529412 Z" stroke="#000000" fill="#000000" /> <line x1="12.8571429" y1="1.76470588" x2="17.1428571" y2="1.76470588" stroke="#000000" /> <path d="M23.1428571,20.7352941 C23.1428571,20.7352941 30.4285714,17.2058824 28.3114286,12.2205882 C24.9857143,7.05882353 17.1428571,10.5882353 15,16.3235294 L15.0085714,18.1764706 L15,16.3235294 C12.8571429,10.5882353 4.20514286,7.05882353 1.71171429,12.2205882 C-0.428571429,17.2058824 5.87142857,20.1617647 5.87142857,20.1617647" stroke="#FFFFFF" /> <path d="M5.57142857,21.1764706 C10.2857143,18.5294118 18.8571429,18.5294118 23.5714286,21.1764706 M5.57142857,24.2647059 C10.2857143,21.6176471 18.8571429,21.6176471 23.5714286,24.2647059 M5.57142857,27.3529412 C10.2857143,24.7058824 18.8571429,24.7058824 23.5714286,27.3529412" stroke="#FFFFFF" /> </g> 
+<g id="std-bq" stroke-linecap="round" stroke-linejoin="round" transform="translate(3.000000, 4.000000)"> <g fill="#000000"> <ellipse cx="2.61538462" cy="6.22222222" rx="2.3974359" ry="2.44444444" /> <ellipse cx="9.58974359" cy="3.55555556" rx="2.3974359" ry="2.44444444" /> <ellipse cx="17" cy="2.66666667" rx="2.3974359" ry="2.44444444" /> <ellipse cx="24.4102564" cy="3.55555556" rx="2.3974359" ry="2.44444444" /> <ellipse cx="31.3846154" cy="6.22222222" rx="2.3974359" ry="2.44444444" /> </g> <path d="M5.23076923,18.6666667 C12.6410256,17.3333333 23.5384615,17.3333333 28.7692308,18.6666667 L30.9487179,7.55555556 L24.4102564,17.7777778 L24.1487179,5.24444444 L19.6153846,17.3333333 L17,4.44444444 L14.3846154,17.3333333 L9.85128205,5.24444444 L9.58974359,17.7777778 L3.05128205,7.55555556 L5.23076923,18.6666667 Z" stroke="#000000" stroke-width="1.5" fill="#000000" /> <path d="M5.23076923,18.6666667 C5.23076923,20.4444444 6.53846154,20.4444444 7.41025641,22.2222222 C8.28205128,23.5555556 8.28205128,23.1111111 7.84615385,25.3333333 C6.53846154,26.2222222 6.53846154,27.5555556 6.53846154,27.5555556 C5.23076923,28.8888889 6.97435897,29.7777778 6.97435897,29.7777778 C12.6410256,30.6666667 21.3589744,30.6666667 27.025641,29.7777778 C27.025641,29.7777778 28.3333333,28.8888889 27.025641,27.5555556 C27.025641,27.5555556 27.4615385,26.2222222 26.1538462,25.3333333 C25.7179487,23.1111111 25.7179487,23.5555556 26.5897436,22.2222222 C27.4615385,20.4444444 28.7692308,20.4444444 28.7692308,18.6666667 C21.3589744,17.3333333 12.6410256,17.3333333 5.23076923,18.6666667 Z" stroke="#000000" stroke-width="1.5" fill="#000000" /> <path d="M6.97435897,29.7777778 C13.4672777,32.080866 20.5327223,32.080866 27.025641,29.7777778" stroke="#000000" stroke-width="1.5" /> <path d="M6.97435897,21.3333333 C13.4672777,19.0302452 20.5327223,19.0302452 27.025641,21.3333333" stroke="#FFFFFF" stroke-width="1.5" /> <line x1="8.28205128" y1="23.5555556" x2="25.7179487" y2="23.5555556" stroke="#FFFFFF" stroke-width="1.5" /> <path d="M7.41025641,26.2222222 C13.6372326,28.3241535 20.3627674,28.3241535 26.5897436,26.2222222" stroke="#FFFFFF" stroke-width="1.5" /> <path d="M6.53846154,28.8888889 C13.2948481,31.4031829 20.7051519,31.4031829 27.4615385,28.8888889" stroke="#FFFFFF" stroke-width="1.5" /> </g> 
+<g id="std-bb" stroke-linecap="round" stroke-linejoin="round" transform="translate(6.000000, 5.000000)" stroke-width="1.5"> <g fill="#000000" stroke="#000000"> <path d="M2.54545455,27.3529412 C5.42181818,26.4970588 11.1236364,27.7323529 14,25.5882353 C16.8763636,27.7323529 22.5781818,26.4970588 25.4545455,27.3529412 C25.4545455,27.3529412 26.8545455,27.8294118 28,29.1176471 C27.4230303,29.9735294 26.6,29.9911765 25.4545455,29.5588235 C22.5781818,28.7029412 16.8763636,29.9647059 14,28.6764706 C11.1236364,29.9647059 5.42181818,28.7029412 2.54545455,29.5588235 C1.39660606,29.9911765 0.574424242,29.9735294 0,29.1176471 C1.14884848,27.4058824 2.54545455,27.3529412 2.54545455,27.3529412 Z" /> <path d="M7.63636364,23.8235294 C9.75757576,26.0294118 18.2424242,26.0294118 20.3636364,23.8235294 C20.7878788,22.5 20.3636364,22.0588235 20.3636364,22.0588235 C20.3636364,19.8529412 18.2424242,18.5294118 18.2424242,18.5294118 C22.9090909,17.2058824 23.3333333,8.38235294 14,4.85294118 C4.66666667,8.38235294 5.09090909,17.2058824 9.75757576,18.5294118 C9.75757576,18.5294118 7.63636364,19.8529412 7.63636364,22.0588235 C7.63636364,22.0588235 7.21212121,22.5 7.63636364,23.8235294 Z" /> <path d="M16.1212121,2.64705882 C16.1212121,3.86533401 15.1715131,4.85294118 14,4.85294118 C12.8284869,4.85294118 11.8787879,3.86533401 11.8787879,2.64705882 C11.8787879,1.42878364 12.8284869,0.441176471 14,0.441176471 C15.1715131,0.441176471 16.1212121,1.42878364 16.1212121,2.64705882 Z" /> </g> <path d="M9.75757576,18.5294118 L18.2424242,18.5294118 M7.63636364,22.0588235 L20.3636364,22.0588235 M14,9.26470588 L14,13.6764706 M11.8787879,11.4705882 L16.1212121,11.4705882" stroke="#FFFFFF" /> </g> 
+<g id="std-bn" stroke-linecap="round" stroke-linejoin="round" transform="translate(6.000000, 6.000000)"> <path d="M13.5757576,2.63636364 C22.4848485,3.51515152 27.5757576,9.66666667 27.1515152,28.1212121 L7.63636364,28.1212121 C7.63636364,20.2121212 16.1212121,22.4090909 14.4242424,9.66666667" stroke="#000000" stroke-width="1.5" fill="#000000" /> <path d="M15.2727273,9.66666667 C15.5951515,12.2239394 10.5636364,16.1433333 8.48484848,17.5757576 C5.93939394,19.3333333 6.09212121,21.389697 4.24242424,21.0909091 C3.35830303,20.2648485 5.43878788,18.4193939 4.24242424,18.4545455 C3.39393939,18.4545455 4.40363636,19.5354545 3.39393939,20.2121212 C2.54545455,20.2121212 -0.00254545455,21.0909091 -1.90580876e-06,16.6969697 C-1.90580876e-06,14.9393939 5.09090909,6.15151515 5.09090909,6.15151515 C5.09090909,6.15151515 6.69454545,4.48181818 6.78787879,3.07575758 C6.16848485,2.20224242 6.36363636,1.31818182 6.36363636,0.439393939 C7.21212121,-0.439393939 8.90909091,2.63636364 8.90909091,2.63636364 L10.6060606,2.63636364 C10.6060606,2.63636364 11.2678788,0.885818182 12.7272727,0 C13.5757576,0 13.5757576,2.63636364 13.5757576,2.63636364" stroke="#000000" stroke-width="1.5" fill="#000000" /> <path d="M2.96969697,16.2575758 C2.96969697,16.5002463 2.77975717,16.6969697 2.54545455,16.6969697 C2.31115192,16.6969697 2.12121212,16.5002463 2.12121212,16.2575758 C2.12121212,16.0149052 2.31115192,15.8181818 2.54545455,15.8181818 C2.77975717,15.8181818 2.96969697,16.0149052 2.96969697,16.2575758 Z" stroke="#FFFFFF" stroke-width="1.5" fill="#FFFFFF" /> <path d="M7.6363543,7.46969697 C7.6363543,8.19769267 7.44641868,8.78784979 7.21212121,8.78784979 C6.97782375,8.78784979 6.78788812,8.19769267 6.78788812,7.46969697 C6.78788812,6.74170127 6.97782375,6.15154415 7.21212121,6.15154415 C7.44641868,6.15154415 7.6363543,6.74170127 7.6363543,7.46969697 L7.6363543,7.46969697 Z" stroke="#FFFFFF" stroke-width="1.499967" fill="#FFFFFF" transform="translate(7.212121, 7.469697) rotate(30.000728) translate(-7.212121, -7.469697) " /> <path d="M15.7393939,2.98787879 L15.3575758,4.26212121 L15.7818182,4.39393939 C18.4545455,5.27272727 20.5757576,6.58212121 22.4848485,10.3257576 C24.3939394,14.0693939 25.2424242,19.3860606 24.8181818,28.1212121 L24.7757576,28.5606061 L26.6848485,28.5606061 L26.7272727,28.1212121 C27.1515152,19.2806061 25.9806061,13.3136364 23.969697,9.36787879 C21.9587879,5.42212121 19.0569697,3.53272727 16.1721212,3.07575758 L15.7393939,2.98787879 Z" fill="#FFFFFF" /> </g> 
+<g id="std-br" stroke-linecap="round" stroke-linejoin="round" transform="translate(9.000000, 8.000000)"> <polygon stroke="#000000" stroke-width="1.5" fill="#000000" points="0 26 22 26 22 23.4 0 23.4" /> <polygon stroke="#000000" stroke-width="1.5" fill="#000000" points="2.85185185 19.9333333 4.07407407 17.7666667 17.9259259 17.7666667 19.1481481 19.9333333" /> <polygon stroke="#000000" stroke-width="1.5" fill="#000000" points="2.44444444 23.4 2.44444444 19.9333333 19.5555556 19.9333333 19.5555556 23.4" /> <polygon stroke="#000000" stroke-width="1.5" fill="#000000" points="4.07407407 17.7666667 4.07407407 6.5 17.9259259 6.5 17.9259259 17.7666667" /> <polygon stroke="#000000" stroke-width="1.5" fill="#000000" points="4.07407407 6.5 1.62962963 4.33333333 20.3703704 4.33333333 17.9259259 6.5" /> <polygon stroke="#000000" stroke-width="1.5" fill="#000000" points="1.62962963 4.33333333 1.62962963 0 4.88888889 0 4.88888889 1.73333333 8.96296296 1.73333333 8.96296296 0 13.037037 0 13.037037 1.73333333 17.1111111 1.73333333 17.1111111 0 20.3703704 0 20.3703704 4.33333333" /> <polyline stroke="#FFFFFF" points="2.44444444 22.9666667 19.5555556 22.9666667 19.5555556 22.9666667" /> <line x1="3.25925926" y1="19.5" x2="18.7407407" y2="19.5" stroke="#FFFFFF" /> <line x1="4.07407407" y1="17.7666667" x2="17.9259259" y2="17.7666667" stroke="#FFFFFF" /> <line x1="4.07407407" y1="6.5" x2="17.9259259" y2="6.5" stroke="#FFFFFF" /> <line x1="1.62962963" y1="4.33333333" x2="20.3703704" y2="4.33333333" stroke="#FFFFFF" /> </g> 
+<g id="std-bp" transform="translate(10.000000, 8.000000)" fill="#000000" stroke="#000000" stroke-linecap="round" stroke-width="1.5"> <path d="M10,0 C8.15833333,0 6.66666667,1.50129032 6.66666667,3.35483871 C6.66666667,4.10129032 6.90833333,4.78903226 7.31666667,5.35096774 C5.69166667,6.29032258 4.58333333,8.04322581 4.58333333,10.0645161 C4.58333333,11.7670968 5.36666667,13.2851613 6.59166667,14.2832258 C4.09166667,15.1722581 0.416666667,18.9380645 0.416666667,25.5806452 L19.5833333,25.5806452 C19.5833333,18.9380645 15.9083333,15.1722581 13.4083333,14.2832258 C14.6333333,13.2851613 15.4166667,11.7670968 15.4166667,10.0645161 C15.4166667,8.04322581 14.3083333,6.29032258 12.6833333,5.35096774 C13.0916667,4.78903226 13.3333333,4.10129032 13.3333333,3.35483871 C13.3333333,1.50129032 11.8416667,0 10,0 Z" /> </g> 
+<g id="sta-wk" transform="matrix(0.78030303,0,0,0.78030303,0.99250091,1.3663636)"> <path d="m 27.67,15.225 v -3.544 h 4.44 V 7.252 H 27.175 V 3.36 H 22.81 v 3.893 h -4.934 v 4.43 h 4.44 v 3.543" fill="#f0f0f0" stroke-linecap="round" stroke-width="1.2" stroke="#1e1e1e" /> <rect x="20.299" y="14.215" width="9.3979998" height="2.7869999" ry="1.3940001" fill="#f0f0f0" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 26.416,14.215 c 0.725,0 1.308,0.621 1.308,1.393 0,0.773 -0.583,1.394 -1.308,1.394 h 1.974 c 0.724,0 1.308,-0.621 1.308,-1.393 0,-0.773 -0.584,-1.394 -1.308,-1.394 z" opacity="0.15" /> <path d="m 21.631,14.842 c -0.402,0 -0.725,0.345 -0.725,0.773 0,0.427 0.323,0.772 0.725,0.772 h 0.874 c -0.402,0 -0.725,-0.345 -0.725,-0.772 0,-0.428 0.323,-0.773 0.725,-0.773 z" fill="#ffffff" /> <path d="m 33.635,36.986 c 0,0 7.776,-13.318 6.613,-15.916 -1.164,-2.596 -8.48,-4.497 -15.248,-4.497 -6.768,0 -14.084,1.9 -15.248,4.497 -1.164,2.597 6.612,15.916 6.612,15.916 z" fill="#f0f0f0" stroke-linecap="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 24.996,16.576 c 15.938,2.622 12.573,9.354 6.64,22.543 l 2.028,-1.729 c 0,0 7.747,-13.723 6.584,-16.32 -1.545,-2.833 -7.503,-4.159 -15.252,-4.494 z" opacity="0.15" /> <path d="m 23.765,17.295 c -3.904,-0.184 -14.621,1.801 -13.503,5.017 0.817,3.727 2.754,7.244 4.508,10.504 C 9.083,22.481 8.828,19.042 23.765,17.295 Z M 23.391,3.997 23.375,7.309 h 0.546 l 0.016,-3.312 z m -4.931,3.87 -0.008,3.208 h 0.774 l 0.007,-3.208 z m 4.413,3.213 0.025,2.486 h 0.52 L 23.393,11.08 Z" fill="#ffffff" /> <path d="m 26.189,3.358 v 3.894 h 0.987 V 3.358 Z m 4.441,3.894 v 4.945 h 1.48 V 7.252 Z m -4.44,4.429 v 2.492 h 1.48 v -2.492 z" opacity="0.15" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.57 -11.69,-1.619 -11.69,-1.619 z" fill="#f0f0f0" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 25,37.147 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.503,-0.613 0.887,-0.849 2.56,-1.571 11.691,-1.62 11.691,-1.62 0,0 9.132,0.049 11.692,1.62 0.391,0.24 0.592,0.532 0.856,0.87 0.025,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.136 25,37.148 25,37.148 Z" fill="#ffffff" /> </g> 
+<g id="sta-wq" transform="matrix(0.81370661,0,0,0.81370661,0.1573347,-0.13679755)"> <path d="m 24.959,5.094 a 2.958,3.316 90 0 0 -3.316,2.958 2.958,3.316 90 0 0 3.316,2.959 2.958,3.316 90 0 0 3.316,-2.959 2.958,3.316 90 0 0 -3.316,-2.958 z" fill="#f0f0f0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="M 24.836,5.732 C 24.46,5.522 21.112,6.538 22.651,9.308 22.416,7.763 23.089,6.105 24.836,5.732 Z" fill="#ffffff" /> <path d="m 24.959,11.011 c -6.507,0 -9.595,5.884 -9.595,10.358 h 19.263 c 0,-4.474 -3.16,-10.358 -9.668,-10.358 z" fill="#f0f0f0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 18.161,14.977 c 1.042,-1.478 2.92,-3.22 6.84,-3.38 -0.31,0.277 -4.788,1.138 -6.84,3.38 z" fill="#ffffff" /> <path d="m 24.836,5.007 c 0,0 0.046,0.238 0,0 2.48,1.129 2.05,3.847 0.817,5.547 7.354,3.803 2.213,8.669 2.212,8.668 h 2.701 c 1.762,1.287 7.209,-2.741 -3.835,-8.67 3.528,-3.115 0.097,-5.606 -1.895,-5.546 z" opacity="0.15" /> <path d="m 25,15.225 c -1.971,0 -2.348,2.65 -4.137,2.86 -1.82,0.213 -3.381,-2.312 -5.25,-1.737 -1.495,0.46 -0.778,2.6 -1.805,3.175 -1.402,0.785 -3.185,-1.832 -5.29,-0.298 6.838,8.829 8.085,12.377 7.983,18.819 h 16.998 c -0.103,-6.443 1.144,-9.99 7.983,-18.82 -2.106,-1.533 -3.889,1.084 -5.29,0.3 -1.027,-0.576 -0.311,-2.716 -1.806,-3.176 -1.868,-0.575 -3.429,1.95 -5.25,1.736 -1.789,-0.21 -2.166,-2.86 -4.137,-2.86 z" fill="#f0f0f0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 9.895,19.34 c -0.136,-0.01 -0.331,0.056 -0.458,0.085 3.081,4.1 6.575,9.537 7.099,12.417 -1.407,-4.933 -3.267,-9.562 -6.14,-12.472 z" fill="#ffffff" /> <path d="M 39.974,18.735 C 30.489,28.738 30.05,36.72 23.033,38.045 h 10.476 c -0.103,-6.443 1.145,-9.99 7.983,-18.819 0,0 -0.688,-0.756 -1.518,-0.491 z" opacity="0.15" /> <path d="m 14.912,18.945 c 0.203,-0.088 1.184,-1.808 1.98,-1.95 -1.42,-0.346 -1.618,-0.046 -1.98,1.95 z m 7.599,-1.069 c 0.953,-0.847 1.633,-2.655 3.238,-1.845 -0.798,-0.23 -2.215,1.04 -3.238,1.845 z m 8.609,0.257 c 0.21,0.07 2.176,-1.642 2.862,-1.218 0,0 -1.43,1.12 -2.862,1.218 z" fill="#ffffff" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.571 -11.69,-1.62 -11.69,-1.62 z" fill="#f0f0f0" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 25,37.147 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.502,-0.613 0.887,-0.849 2.56,-1.571 11.691,-1.62 11.691,-1.62 0,0 9.132,0.049 11.692,1.62 0.391,0.24 0.593,0.532 0.856,0.87 0.026,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.136 25,37.147 25,37.147 Z" fill="#ffffff" /> </g> 
+<g id="sta-wb" transform="matrix(0.77573871,0,0,0.77573871,1.1065042,1.5417581)"> <path d="m 25,5.767 c -2.106,0 -3.812,0.879 -3.812,1.963 l 1.517,2.65 C 6.655,24.47 16.998,37.516 16.998,37.516 h 16.005 c 0,0 7.05,-8.672 0.763,-19.51 l -2.99,4.827 c -0.67,1.084 -1.962,1.49 -2.897,0.911 -0.935,-0.578 -1.147,-1.917 -0.477,-3 l 3.887,-6.277 a 35.382,35.382 0 0 0 -3.993,-4.086 l 1.517,-2.65 c 0,-1.085 -1.707,-1.964 -3.812,-1.964 z" fill="#f0f0f0" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 25,5.767 c -0.816,0 -1.571,0.134 -2.191,0.358 4.338,0.848 4.976,1.12 2.56,4.351 l 3.246,3.567 c -3.657,8.24 -1.604,7.991 -1.604,7.991 0,0 0.696,-2.648 4.112,-7.768 A 35.696,35.696 0 0 0 27.296,10.38 L 28.812,7.73 C 28.812,6.646 27.106,5.767 25,5.767 Z m 8.765,12.238 -1.009,1.513 c 3.737,8.413 -4.134,17.997 -4.134,17.997 h 4.381 c 0.158,0.034 6.958,-8.844 0.762,-19.51 z" opacity="0.15" /> <path d="M 15.145,31.721 C 14.925,31.69 11.722,21.935 20.899,12.97 18.597,14.865 13.764,26.133 15.145,31.721 Z M 23.292,10.196 21.815,7.602 c 0,0 0.242,-0.722 1.78,-1.048 -1.726,1.35 -0.987,1.663 -0.303,3.642 z" fill="#ffffff" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.57 -11.69,-1.619 -11.69,-1.619 z" fill="#f0f0f0" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 25,37.147 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.502,-0.613 0.887,-0.85 C 15.869,37.784 25,37.736 25,37.736 c 0,0 9.132,0.048 11.692,1.619 0.391,0.24 0.592,0.532 0.856,0.87 0.026,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.136 25,37.147 25,37.147 Z" fill="#ffffff" /> </g> 
+<g id="sta-wn" transform="matrix(0.7833885,0,0,0.78330159,1.0320312,1.1996996)"> <path d="m 25.192,23.015 c -0.165,6.967 -11.758,5.219 -11.516,18.104 l 22.86,0.118 C 34.442,34.795 46.226,16.077 24.605,8.979 v 0 c 0,0 -2.438,-2.6 -5.965,-2.823 l 0.222,3.534 -4.558,4.582 c -2.63,3.145 -8.735,8.378 -7.751,9.611 3.115,5.304 6.33,4.432 6.33,4.432 4.242,-4.544 5.82,-2.09 12.31,-5.3 z" fill="#f0f0f0" stroke="#1e1e1e" stroke-linejoin="round" stroke-width="1.2" /> <path d="m 19.32,14.694 c -0.776,0.86 -0.69,1.116 -0.814,2.15 0.806,0.123 1.507,0.24 2.249,0.066 2.38,-1.262 0.075,-3.403 -1.435,-2.216 z" opacity="0.35" /> <path d="m 9.192,22.166 c -0.85,0.408 -0.999,0.96 -1.057,1.475 0.729,0.419 1.877,-0.125 2.041,-1.431 z" opacity="0.3" /> <path d="m 8.19,25.15 c 0,0 0.653,1.137 -1.101,-1.641 0.659,-1.977 8.263,-9.08 12.438,-13.534 L 19.343,6.889 c 0,0 1.069,1.69 1.248,3.468 C 16.2,14.747 8.37,21.19 7.767,23.57 c 0.023,0.674 0.24,1.028 0.423,1.58 z" fill="#ffffff" /> <path d="m 13.26,28.257 c 2.03,-3.337 8.391,-3.224 11.932,-5.242 0.323,0.102 0.13,1.37 0.24,1.23 0.847,-1.09 2.926,-3.28 0.868,-6.875 0.522,5.958 -13.718,5.591 -15.89,10.305 -0.2,0.436 2.182,0.793 2.85,0.582 z" opacity="0.15" /> <path d="M 25.8,23.781 C 24.787,29.594 16.255,29.898 14.812,36.422 17.645,30.016 25.574,30.708 25.8,23.781 Z" fill="#ffffff" /> <path d="m 18.64,6.156 c 0,0 3.051,0.738 4.904,3.982 20.5,7.154 7.642,27.937 5.789,31.073 l 7.203,0.026 C 34.55,37.994 46.084,15.64 24.606,8.98 22.83,7.91 21.837,6.37 18.64,6.155 Z" opacity="0.15" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.57 -11.69,-1.619 -11.69,-1.619 z" fill="#f0f0f0" stroke="#1e1e1e" stroke-linejoin="round" stroke-width="1.2" /> <path d="m 25,37.147 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.503,-0.613 0.887,-0.849 C 15.87,37.783 25,37.734 25,37.734 c 0,0 9.132,0.049 11.692,1.62 0.391,0.24 0.592,0.532 0.856,0.87 0.026,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.136 25,37.148 25,37.148 Z" fill="#ffffff" /> </g> 
+<g id="sta-wr" transform="matrix(0.84246687,0,0,0.84246687,-1.0662673,-1.4610091)"> <path d="m 17.932,20.414 c 4.906,-0.74 9.579,-0.578 14.136,0 M 14.183,9.662 c -1.06,8.767 1.103,10.677 3.748,10.752 L 14.616,38.573 H 35.383 L 32.067,20.414 c 2.645,-0.074 4.808,-1.985 3.749,-10.752 l -3.608,-0.53 -1.073,3.644 -3.142,-0.1 -0.522,-3.754 h -4.945 l -0.52,3.754 -3.143,0.1 -1.073,-3.643 z" fill="#f0f0f0" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 17.932,20.414 c 6.828,0 13.118,0.408 14.948,16.572 l 2.319,0.386 -3.131,-16.428 C 32.036,20.636 25.98,19.121 17.932,20.414 Z" opacity="0.15" /> <path d="m 14.777,10.219 2.277,-0.286 c -1.914,0.312 -2.313,5.296 -2.313,5.296 -0.238,-0.177 -0.188,-4.903 0.036,-5.01 z M 25.276,9.55 c -1.648,0 -2.52,2.748 -2.52,2.748 l 0.338,-2.729 z m 7.395,0.266 0.934,0.118 c -0.785,0.5 -1.59,1.989 -1.59,1.989 z m -14.199,11.148 2.62,-0.293 c -2.62,0.293 -4.888,13.113 -4.888,13.113 z" fill="#ffffff" /> <path d="m 34.013,9.398 c 0.357,6.363 -1.95,10.603 -8.041,10.536 l 4.777,0.563 c 7.523,0.31 5.101,-10.806 5.068,-10.835 z" opacity="0.15" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.57 -11.69,-1.619 -11.69,-1.619 z" fill="#f0f0f0" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 25,37.146 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.503,-0.613 0.887,-0.849 C 15.87,37.782 25,37.733 25,37.733 c 0,0 9.132,0.049 11.692,1.62 0.391,0.24 0.592,0.532 0.856,0.87 0.025,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.135 25,37.147 25,37.147 Z" fill="#ffffff" /> </g> 
+<g id="sta-wp" transform="matrix(0.82029849,0,0,0.82029849,-0.5120331,-0.50721691)"> <path d="m 21.503,27.594 h 6.994 M 19,17.508 c 0,1.732 0.712,3.387 1.966,4.587 l -3.65,2.1 0.43,3.399 h 4.306 c -0.794,3.559 -2.755,7.33 -5.062,8.617 -2.307,1.287 -5.3,3.097 -4.843,8.189 h 25.706 c 0.457,-5.092 -2.535,-6.902 -4.842,-8.189 -2.307,-1.286 -4.268,-5.058 -5.062,-8.617 h 4.306 l 0.43,-3.4 -3.65,-2.099 a 6.352,6.352 0 0 0 1.966,-4.587 c 0,-3.367 -2.628,-5.912 -6,-5.912 -3.373,0 -6.002,2.545 -6.001,5.912 z" fill="#f0f0f0" stroke-linejoin="round" stroke-width="1.2" stroke="#1e1e1e" /> <path d="m 24.962,11.537 c 1.17,-0.459 9.527,5.906 0.647,10.773 l 4.512,2.1 -0.562,3.125 h 2.659 l 0.428,-3.399 -3.65,-2.1 c 1.253,-1.2 1.962,-2.58 1.964,-4.312 -0.468,-5.416 -5.998,-6.186 -5.998,-6.186 z m -2.949,15.998 c 4.503,7.934 9.47,9.994 13.074,9.965 L 32.972,36.153 C 30.897,34.663 28.24,31.295 27.91,27.535 Z" opacity="0.15" /> <path d="m 21.983,22.213 -1.647,2.347 -2.356,-0.014 4.013,-2.324 z m 2.324,-9.946 c -2.542,0.138 -5.73,3.173 -4.385,6.918 l 0.199,0.643 c -0.33,-3.489 2.127,-7.116 4.186,-7.561 z m -6.444,25.358 c -3.984,2.305 -5.117,6.14 -5.117,6.14 -0.01,0 -0.548,-4.175 3.956,-6.654 4.504,-2.479 4.822,-6.15 5.86,-8.893 -0.636,3.704 -0.715,7.102 -4.699,9.407 z" fill="#ffffff" /> </g> 
+<g id="sta-bk" transform="matrix(0.78030303,0,0,0.78030303,0.4879357,1.3663636)"> <path d="m 27.67,15.225 v -3.544 h 4.44 V 7.252 H 27.175 V 3.36 H 22.81 v 3.893 h -4.934 v 4.43 h 4.44 v 3.543" fill="#5f5955" stroke-linecap="round" stroke-width="1.2" stroke="#010101" /> <rect x="20.299" y="14.215" width="9.3979998" height="2.7869999" ry="1.3940001" fill="#5f5955" stroke-linejoin="round" stroke-width="1.2" stroke="#010101" /> <path d="m 26.416,14.215 c 0.725,0 1.308,0.621 1.308,1.393 0,0.773 -0.583,1.394 -1.308,1.394 h 1.974 c 0.724,0 1.308,-0.621 1.308,-1.393 0,-0.773 -0.584,-1.394 -1.308,-1.394 z" opacity="0.18" /> <path d="m 21.631,14.842 c -0.402,0 -0.725,0.345 -0.725,0.773 0,0.427 0.323,0.772 0.725,0.772 h 0.874 c -0.402,0 -0.725,-0.345 -0.725,-0.772 0,-0.428 0.323,-0.773 0.725,-0.773 z" fill="#ffffff" opacity="0.25" /> <path d="m 33.635,36.986 c 0,0 7.776,-13.318 6.613,-15.916 -1.164,-2.596 -8.48,-4.497 -15.248,-4.497 -6.768,0 -14.084,1.9 -15.248,4.497 -1.164,2.597 6.612,15.916 6.612,15.916 z" fill="#5f5955" stroke-linecap="round" stroke-width="1.2" stroke="#010101" /> <path d="m 24.996,16.576 c 15.938,2.622 12.573,9.354 6.64,22.543 l 2.028,-1.729 c 0,0 7.747,-13.723 6.584,-16.32 -1.545,-2.833 -7.503,-4.159 -15.252,-4.494 z" opacity="0.18" /> <path d="m 23.765,17.295 c -3.904,-0.184 -14.621,1.801 -13.503,5.017 0.817,3.727 2.754,7.244 4.508,10.504 C 9.083,22.481 8.828,19.042 23.765,17.295 Z M 23.391,3.997 23.375,7.309 h 0.546 l 0.016,-3.312 z m -4.931,3.87 -0.008,3.208 h 0.774 l 0.007,-3.208 z m 4.413,3.213 0.025,2.486 h 0.52 L 23.393,11.08 Z" fill="#ffffff" opacity="0.25" /> <path d="m 26.189,3.358 v 3.894 h 0.987 V 3.358 Z m 4.441,3.894 v 4.945 h 1.48 V 7.252 Z m -4.44,4.429 v 2.492 h 1.48 v -2.492 z" opacity="0.18" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.57 -11.69,-1.619 -11.69,-1.619 z" fill="#5f5955" stroke-linejoin="round" stroke-width="1.2" stroke="#010101" /> <path d="m 25,37.147 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.503,-0.613 0.887,-0.849 2.56,-1.571 11.691,-1.62 11.691,-1.62 0,0 9.132,0.049 11.692,1.62 0.391,0.24 0.592,0.532 0.856,0.87 0.025,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.136 25,37.148 25,37.148 Z" fill="#ffffff" opacity="0.25" /> </g> 
+<g id="sta-bq" transform="matrix(0.81370661,0,0,0.81370661,-0.34679558,-0.13679747)"> <path d="m 24.959,5.094 a 2.958,3.316 90 0 0 -3.316,2.958 2.958,3.316 90 0 0 3.316,2.959 2.958,3.316 90 0 0 3.316,-2.959 2.958,3.316 90 0 0 -3.316,-2.958 z" fill="#5f5955" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="#010101" /> <path d="M 24.836,5.732 C 24.46,5.522 21.112,6.538 22.651,9.308 22.416,7.763 23.089,6.105 24.836,5.732 Z" fill="#ffffff" opacity="0.25" /> <path d="m 24.959,11.011 c -6.507,0 -9.595,5.884 -9.595,10.358 h 19.263 c 0,-4.474 -3.16,-10.358 -9.668,-10.358 z" fill="#5f5955" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="#010101" /> <path d="m 18.161,14.977 c 1.042,-1.478 2.92,-3.22 6.84,-3.38 -0.31,0.277 -4.788,1.138 -6.84,3.38 z" fill="#ffffff" opacity="0.25" /> <path d="m 24.836,5.007 c 0,0 0.046,0.238 0,0 2.48,1.129 2.05,3.847 0.817,5.547 7.354,3.803 2.213,8.669 2.212,8.668 h 2.701 c 1.762,1.287 7.209,-2.741 -3.835,-8.67 3.528,-3.115 0.097,-5.606 -1.895,-5.546 z" opacity="0.18" /> <path d="m 25,15.225 c -1.971,0 -2.348,2.65 -4.137,2.86 -1.82,0.213 -3.381,-2.312 -5.25,-1.737 -1.495,0.46 -0.778,2.6 -1.805,3.175 -1.402,0.785 -3.185,-1.832 -5.29,-0.298 6.838,8.829 8.085,12.377 7.983,18.819 h 16.998 c -0.103,-6.443 1.144,-9.99 7.983,-18.82 -2.106,-1.533 -3.889,1.084 -5.29,0.3 -1.027,-0.576 -0.311,-2.716 -1.806,-3.176 -1.868,-0.575 -3.429,1.95 -5.25,1.736 -1.789,-0.21 -2.166,-2.86 -4.137,-2.86 z" fill="#5f5955" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="#010101" /> <path d="m 9.895,19.34 c -0.136,-0.01 -0.331,0.056 -0.458,0.085 3.081,4.1 6.575,9.537 7.099,12.417 -1.407,-4.933 -3.267,-9.562 -6.14,-12.472 z" fill="#ffffff" opacity="0.25" /> <path d="M 39.974,18.735 C 30.489,28.738 30.05,36.72 23.033,38.045 h 10.476 c -0.103,-6.443 1.145,-9.99 7.983,-18.819 0,0 -0.688,-0.756 -1.518,-0.491 z" opacity="0.18" /> <path d="m 14.912,18.945 c 0.203,-0.088 1.184,-1.808 1.98,-1.95 -1.42,-0.346 -1.618,-0.046 -1.98,1.95 z m 7.599,-1.069 c 0.953,-0.847 1.633,-2.655 3.238,-1.845 -0.798,-0.23 -2.215,1.04 -3.238,1.845 z m 8.609,0.257 c 0.21,0.07 2.176,-1.642 2.862,-1.218 0,0 -1.43,1.12 -2.862,1.218 z" fill="#ffffff" opacity="0.25" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.571 -11.69,-1.62 -11.69,-1.62 z" fill="#5f5955" stroke-linejoin="round" stroke-width="1.2" stroke="#010101" /> <path d="m 25,37.147 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.502,-0.613 0.887,-0.849 2.56,-1.571 11.691,-1.62 11.691,-1.62 0,0 9.132,0.049 11.692,1.62 0.391,0.24 0.593,0.532 0.856,0.87 0.026,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.136 25,37.147 25,37.147 Z" fill="#ffffff" opacity="0.25" /> </g> 
+<g id="sta-bb" transform="matrix(0.20524753,0,0,0.20524753,-31.754618,-4.5982875)"> <path d="m 252.1347,51.711857 c -7.95969,0 -14.40756,3.322204 -14.40756,7.419212 l 5.73354,10.015748 C 182.79927,122.40036 221.89092,171.70808 221.89092,171.70808 h 60.49134 c 0,0 26.64567,-32.77606 2.88378,-73.738585 l -11.30079,18.243775 c -2.53228,4.09701 -7.41543,5.6315 -10.94929,3.44315 -3.53386,-2.18456 -4.33512,-7.24535 -1.80283,-11.33858 L 275.90415,84.593747 A 133.72725,133.72725 0 0 0 260.8125,69.150597 l 5.73354,-10.015748 c 0,-4.100788 -6.45165,-7.422992 -14.40756,-7.422992 z" fill="#5f5955" stroke-linejoin="round" stroke-width="4.53543" stroke="#010101" /> <path d="m 252.1347,51.711857 c -3.08409,0 -5.93764,0.506456 -8.28094,1.353071 16.39559,3.205039 18.80692,4.23307 9.67559,16.444724 l 12.26834,13.481575 c -13.82173,31.143303 -6.06236,30.202203 -6.06236,30.202203 0,0 2.63055,-10.00819 15.54142,-29.359368 A 134.91402,134.91402 0 0 0 260.8125,69.146817 l 5.72976,-10.015748 c 0,-4.097008 -6.44787,-7.419212 -14.40756,-7.419212 z m 33.12756,46.253858 -3.81354,5.718425 c 14.12409,31.79717 -15.62457,68.02016 -15.62457,68.02016 h 16.55811 c 0.59716,0.1285 26.29795,-33.42614 2.88,-73.738585 z" opacity="0.18" style="stroke-width:3.77953" /> <path d="m 214.88746,149.80572 c -0.8315,-0.11717 -12.93733,-36.98646 21.7474,-70.869926 -8.70048,7.162205 -26.96693,49.749926 -21.7474,70.869926 z M 245.67927,68.451384 240.0969,58.64729 c 0,0 0.91465,-2.728819 6.72756,-3.960945 -6.52346,5.102362 -3.73039,6.285354 -1.14519,13.765039 z" fill="#ffffff" opacity="0.25" style="stroke-width:3.77953" /> <path d="m 252.1347,167.70556 c 0,0 -34.50709,0.18142 -44.18646,6.12283 -6.52724,4.0063 -8.06929,13.79528 -7.1811,23.89796 h 102.73512 c 0.88819,-10.0989 -0.65008,-19.89544 -7.1811,-23.90174 -9.67559,-5.93385 -44.18268,-6.11905 -44.18268,-6.11905 z" fill="#5f5955" stroke-linejoin="round" stroke-width="4.53543" stroke="#010101" /> <path d="m 252.1347,170.31343 c 0,0 -32.92724,-0.51779 -43.93323,6.2967 -1.39842,0.86551 -2.64567,3.1748 -3.60567,5.25354 0.98646,-1.25102 1.89732,-2.31685 3.35244,-3.2126 9.67559,-5.93008 44.18646,-6.1115 44.18646,-6.1115 0,0 34.51465,0.18142 44.19024,6.11906 1.47779,0.90709 2.23748,2.01071 3.23527,3.28819 0.0983,-0.28725 -1.54582,-4.37669 -4.32378,-6.03213 -10.41638,-5.64283 -43.10173,-5.60126 -43.10173,-5.60126 z" fill="#ffffff" opacity="0.25" style="stroke-width:3.77953" /> </g> 
+<g id="sta-bn" transform="matrix(0.78338919,0,0,0.78338919,0.92902684,1.1976777)"> <path d="m 25.192,23.015 c -0.165,6.967 -11.758,5.219 -11.516,18.104 l 22.86,0.118 C 34.442,34.795 46.226,16.077 24.605,8.979 v 0 c 0,0 -2.438,-2.6 -5.965,-2.823 l 0.222,3.534 -4.558,4.582 c -2.63,3.145 -8.735,8.378 -7.751,9.611 3.115,5.304 6.33,4.432 6.33,4.432 4.242,-4.544 5.82,-2.09 12.31,-5.3 z" fill="#5f5955" stroke="#010101" stroke-linejoin="round" stroke-width="1.2" /> <path d="m 19.32,14.694 c -0.776,0.86 -0.69,1.116 -0.814,2.15 0.806,0.123 1.507,0.24 2.249,0.066 2.38,-1.262 0.075,-3.403 -1.435,-2.216 z" opacity="0.4" /> <path d="m 9.192,22.166 c -0.85,0.408 -0.999,0.96 -1.057,1.475 0.729,0.419 1.877,-0.125 2.041,-1.431 z" opacity="0.35" /> <path d="m 8.19,25.15 c 0,0 0.653,1.137 -1.101,-1.641 0.659,-1.977 8.263,-9.08 12.438,-13.534 L 19.343,6.889 c 0,0 1.069,1.69 1.248,3.468 C 16.2,14.747 8.37,21.19 7.767,23.57 c 0.023,0.674 0.24,1.028 0.423,1.58 z" fill="#ffffff" opacity="0.25" /> <path d="m 13.26,28.257 c 2.03,-3.337 8.391,-3.224 11.932,-5.242 0.323,0.102 0.13,1.37 0.24,1.23 0.847,-1.09 2.926,-3.28 0.868,-6.875 0.522,5.958 -13.718,5.591 -15.89,10.305 -0.2,0.436 2.182,0.793 2.85,0.582 z" opacity="0.18" /> <path d="M 25.8,23.781 C 24.787,29.594 16.255,29.898 14.812,36.422 17.645,30.016 25.574,30.708 25.8,23.781 Z" fill="#ffffff" opacity="0.25" /> <path d="m 18.64,6.156 c 0,0 3.051,0.738 4.904,3.982 20.5,7.154 7.642,27.937 5.789,31.073 l 7.203,0.026 C 34.55,37.994 46.084,15.64 24.606,8.98 22.83,7.91 21.837,6.37 18.64,6.155 Z" opacity="0.18" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.57 -11.69,-1.619 -11.69,-1.619 z" fill="#5f5955" stroke="#010101" stroke-linejoin="round" stroke-width="1.2" /> <path d="m 25,37.147 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.503,-0.613 0.887,-0.849 C 15.87,37.783 25,37.734 25,37.734 c 0,0 9.132,0.049 11.692,1.62 0.391,0.24 0.592,0.532 0.856,0.87 0.026,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.136 25,37.148 25,37.148 Z" fill="#ffffff" opacity="0.25" /> </g> 
+<g id="sta-br" transform="matrix(0.84246687,0,0,0.84246687,-1.1177673,-1.4608179)"> <path d="m 17.932,20.414 c 4.906,-0.74 9.579,-0.578 14.136,0 M 14.183,9.662 c -1.06,8.767 1.103,10.677 3.748,10.752 L 14.616,38.573 H 35.383 L 32.067,20.414 c 2.645,-0.074 4.808,-1.985 3.749,-10.752 l -3.608,-0.53 -1.073,3.644 -3.142,-0.1 -0.522,-3.754 h -4.945 l -0.52,3.754 -3.143,0.1 -1.073,-3.643 z" fill="#5f5955" stroke-width="1.2" stroke="#010101" /> <path d="m 17.932,20.414 c 6.828,0 13.118,0.408 14.948,16.572 l 2.319,0.386 -3.131,-16.428 C 32.036,20.636 25.98,19.121 17.932,20.414 Z" opacity="0.18" /> <path d="m 14.777,10.219 2.277,-0.286 c -1.914,0.312 -2.313,5.296 -2.313,5.296 -0.238,-0.177 -0.188,-4.903 0.036,-5.01 z M 25.276,9.55 c -1.648,0 -2.52,2.748 -2.52,2.748 l 0.338,-2.729 z m 7.395,0.266 0.934,0.118 c -0.785,0.5 -1.59,1.989 -1.59,1.989 z m -14.199,11.148 2.62,-0.293 c -2.62,0.293 -4.895,13.053 -4.906,13.113 z" fill="#ffffff" opacity="0.25" /> <path d="m 34.013,9.398 c 0.357,6.363 -1.95,10.603 -8.041,10.536 l 4.777,0.563 c 7.523,0.31 5.101,-10.806 5.068,-10.835 z" opacity="0.18" /> <path d="m 25,36.457 c 0,0 -9.13,0.048 -11.691,1.62 -1.727,1.06 -2.135,3.65 -1.9,6.323 h 27.182 c 0.235,-2.672 -0.172,-5.264 -1.9,-6.324 -2.56,-1.57 -11.69,-1.619 -11.69,-1.619 z" fill="#5f5955" stroke-linejoin="round" stroke-width="1.2" stroke="#010101" /> <path d="m 25,37.146 c 0,0 -8.712,-0.137 -11.624,1.666 -0.37,0.229 -0.7,0.84 -0.954,1.39 0.261,-0.331 0.503,-0.613 0.887,-0.849 C 15.87,37.782 25,37.733 25,37.733 c 0,0 9.132,0.049 11.692,1.62 0.391,0.24 0.592,0.532 0.856,0.87 0.025,-0.076 -0.409,-1.158 -1.144,-1.596 C 33.648,37.135 25,37.147 25,37.147 Z" fill="#ffffff" opacity="0.25" /> </g> 
+<g id="sta-bp" transform="matrix(0.82029849,0,0,0.82029849,-0.5635331,-0.50702576)"> <path d="m 21.503,27.594 h 6.994 M 19,17.508 c 0,1.732 0.712,3.387 1.966,4.587 l -3.65,2.1 0.43,3.399 h 4.306 c -0.794,3.559 -2.755,7.33 -5.062,8.617 -2.307,1.287 -5.3,3.097 -4.843,8.189 h 25.706 c 0.457,-5.092 -2.535,-6.902 -4.842,-8.189 -2.307,-1.286 -4.268,-5.058 -5.062,-8.617 h 4.306 l 0.43,-3.4 -3.65,-2.099 a 6.352,6.352 0 0 0 1.966,-4.587 c 0,-3.367 -2.628,-5.912 -6,-5.912 -3.373,0 -6.002,2.545 -6.001,5.912 z" fill="#5f5955" stroke-linejoin="round" stroke-width="1.2" stroke="#010101" /> <path d="m 24.962,11.537 c 1.17,-0.459 9.527,5.906 0.647,10.773 l 4.512,2.1 -0.562,3.125 h 2.659 l 0.428,-3.399 -3.65,-2.1 c 1.253,-1.2 1.962,-2.58 1.964,-4.312 -0.468,-5.416 -5.998,-6.186 -5.998,-6.186 z m -2.949,15.998 c 4.503,7.934 9.47,9.994 13.074,9.965 L 32.972,36.153 C 30.897,34.663 28.24,31.295 27.91,27.535 Z" opacity="0.18" /> <path d="m 21.983,22.213 -1.647,2.347 -2.356,-0.014 4.013,-2.324 z m 2.324,-9.946 c -2.542,0.138 -5.73,3.173 -4.385,6.918 l 0.199,0.643 c -0.33,-3.489 2.127,-7.116 4.186,-7.561 z m -6.444,25.358 c -3.984,2.305 -5.117,6.14 -5.117,6.14 -0.01,0 -0.548,-4.175 3.956,-6.654 4.504,-2.479 4.822,-6.15 5.86,-8.893 -0.636,3.704 -0.715,7.102 -4.699,9.407 z" fill="#ffffff" opacity="0.25" /> </g> 
+</defs></svg>
+
 <header>
   <h1>Chess Helper</h1>
-  <p>Enter the moves from your real board. The engine suggests your best move and predicts your opponent's reply.</p>
+  <span id="engineBadge">Built-in engine</span>
+  <button class="small" id="btnFocus" title="Big board mode">⤢ Big board</button>
 </header>
 
 <div class="layout">
   <div class="boardcol">
-    <div id="evalbar"><div id="evalwhite"></div></div>
-    <div class="boardwrap">
-      <div id="board"></div>
-      <svg id="arrows" viewBox="0 0 8 8" preserveAspectRatio="none">
-        <defs>
-          <marker id="hBest" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--arrow-best)"/></marker>
-          <marker id="hReply" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--arrow-reply)"/></marker>
-        </defs>
-        <g id="arrowLayer"></g>
-      </svg>
+    <div class="clock" id="clockTop"><span class="who"></span><span class="time">5:00</span></div>
+    <div class="boardrow">
+      <div id="evalbar"><div id="evalwhite"></div></div>
+      <div class="boardwrap">
+        <div id="board"></div>
+        <svg id="arrows" viewBox="0 0 8 8" preserveAspectRatio="none">
+          <defs>
+            <marker id="hBest" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arrow-best)"/></marker>
+            <marker id="hReply" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arrow-reply)"/></marker>
+            <marker id="hAlt" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--arrow-alt)"/></marker>
+          </defs>
+          <g id="arrowLayer"></g>
+        </svg>
+      </div>
     </div>
+    <div class="clock" id="clockBottom"><span class="who"></span><span class="time">5:00</span></div>
   </div>
 
   <div class="panel">
     <div class="card play-only">
-      <div id="status">White to move</div>
+      <div class="row" style="justify-content:space-between">
+        <div id="status">White to move</div>
+        <button class="small" id="btnFocusExit">⤡ Exit big board</button>
+      </div>
+      <div id="opening"></div>
+      <div id="viewBar">
+        <div id="viewText"></div>
+        <div class="row" style="margin-top:6px">
+          <button class="small" id="btnViewPrev">◀ Prev</button>
+          <button class="small" id="btnViewNext">Next ▶</button>
+          <button class="small primary" id="btnViewExit">Back to game</button>
+          <button class="small" id="btnViewPlay">Continue from here</button>
+        </div>
+      </div>
     </div>
 
     <div class="card play-only">
@@ -142,36 +256,68 @@
         <div id="bestInfo"></div>
       </div>
       <div id="reply"></div>
+      <div id="hintBox"></div>
+      <div id="top3"></div>
       <div id="pv"></div>
+      <div id="book"></div>
       <div class="row" style="margin-top:10px">
         <button class="primary" id="btnThink">Best move</button>
         <button id="btnPlay" disabled>Play it</button>
         <button id="btnStop" disabled>Stop</button>
+        <button id="btnSpeak" title="Say the best move out loud">🔊</button>
       </div>
-      <p class="hint">Green arrow = best move. Red dashed arrow = the reply the engine expects next.</p>
+      <p class="hint-text">Green = best move · red dashed = expected reply · blue = 2nd/3rd choices.</p>
     </div>
 
     <div class="card play-only">
+      <h2>Enter a move</h2>
+      <div class="row">
+        <button id="btnVoice" class="primary">🎤 Say a move</button>
+        <button id="btnCamera">📷 Camera</button>
+      </div>
+      <div class="row">
+        <input type="text" id="moveInput" placeholder="Type a move: e4, Nf3, O-O, knight f3" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button id="btnMoveGo">Go</button>
+      </div>
+      <div id="moveChoices" class="row"></div>
+      <p class="hint-text">Or tap a piece on the board, then tap where it goes.</p>
+    </div>
+
+    <div class="card play-only" id="cameraCard">
+      <h2>Camera move detection</h2>
+      <div class="camwrap"><canvas id="camCanvas" width="256" height="256"></canvas><div class="camgrid"></div></div>
+      <video id="camVideo" playsinline muted></video>
+      <p class="muted">Hold the phone straight above the board so the grid lines up with the squares and the orientation matches the board above.
+        Tap <b>Set reference</b> when the real board matches the app. After each move the app compares squares and suggests the move it sees.</p>
+      <div class="row">
+        <button class="primary" id="btnCamRef">Set reference</button>
+        <button id="btnCamDetect">Detect move</button>
+        <button id="btnCamRotate">⟳ Rotate</button>
+        <button id="btnCamStop" class="danger">Close</button>
+      </div>
+      <div class="row"><label><input type="checkbox" id="chkCamAuto"> Detect automatically when the board stops changing</label></div>
+      <div id="camStatus" class="muted" style="margin-top:6px"></div>
+      <div id="camProposal">
+        <div>Detected move: <b id="camMove"></b> <span id="camConf" class="muted"></span></div>
+        <div class="row" style="margin-top:6px"><button class="primary" id="btnCamYes">✓ Accept</button><button id="btnCamNo">✗ Wrong</button></div>
+      </div>
+    </div>
+
+    <div class="card play-only hide-focus">
       <h2>Game</h2>
       <div class="row">
-        <label>I play
-          <select id="selColor"><option value="w">White</option><option value="b">Black</option></select>
-        </label>
-        <label>Think
-          <select id="selTime">
-            <option value="1000">1 s</option>
-            <option value="3000" selected>3 s</option>
-            <option value="6000">6 s</option>
-            <option value="12000">12 s</option>
-            <option value="25000">25 s</option>
-          </select>
-        </label>
+        <label>I play <select id="selColor"><option value="w">White</option><option value="b">Black</option></select></label>
+        <label>Think <select id="selTime">
+          <option value="1000">1 s</option><option value="3000">3 s</option><option value="6000">6 s</option>
+          <option value="12000">12 s</option><option value="25000">25 s</option></select></label>
+        <label>Engine <select id="selEngine"><option value="auto">Stockfish (strongest)</option><option value="builtin">Built-in</option></select></label>
       </div>
-      <div class="row" style="margin-top:8px">
-        <label><input type="checkbox" id="chkAuto" checked> Auto-analyze after every move</label>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <label><input type="checkbox" id="chkAlerts" checked> Mate alerts (sound + vibration)</label>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:6px;margin-top:10px">
+        <label><input type="checkbox" id="chkAuto"> Auto-analyze after every move</label>
+        <label><input type="checkbox" id="chkAlerts"> Mate alerts (sound + vibration)</label>
+        <label><input type="checkbox" id="chkBlunders"> Blunder check (alert when a move throws away the advantage)</label>
+        <label><input type="checkbox" id="chkHint"> Hint mode (clues first, answer only if you ask)</label>
+        <label><input type="checkbox" id="chkSpeak"> Speak the best move out loud</label>
       </div>
       <div class="row" style="margin-top:10px">
         <button id="btnUndo">Undo</button>
@@ -183,16 +329,63 @@
       <div id="moves"></div>
     </div>
 
+    <details class="card play-only hide-focus" id="clockCard">
+      <summary>Chess clock</summary>
+      <div class="row">
+        <label><input type="checkbox" id="chkClock"> Show clock</label>
+        <select id="selClock">
+          <option value="60+0">1 min</option><option value="180+2">3 | 2</option><option value="300+0">5 min</option>
+          <option value="300+3">5 | 3</option><option value="600+0">10 min</option><option value="600+5">10 | 5</option>
+          <option value="900+10">15 | 10</option><option value="1800+0">30 min</option>
+        </select>
+      </div>
+      <div class="row"><label><input type="checkbox" id="chkClockAuto"> Switch the clock when a move is entered</label></div>
+      <div class="row"><button id="btnClockPause">Pause</button><button id="btnClockReset">Reset</button></div>
+      <p class="muted">Tap your clock after you move, or let it switch automatically when you enter moves in the app.</p>
+    </details>
+
+    <details class="card play-only hide-focus" id="reviewCard">
+      <summary>Game review</summary>
+      <div class="row"><button class="primary" id="btnReview">Review this game</button><span id="reviewProgress" class="muted"></span></div>
+      <div id="reviewOut" style="display:none">
+        <svg id="graph" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+        <div id="reviewSummary"></div>
+        <div id="reviewList"></div>
+      </div>
+    </details>
+
+    <details class="card play-only hide-focus" id="savedCard">
+      <summary>Saved games &amp; PGN</summary>
+      <div class="row">
+        <button class="primary" id="btnSaveGame">Save game</button>
+        <button id="btnSharePgn">Share PGN</button>
+        <button id="btnCopyPgn">Copy PGN</button>
+      </div>
+      <div id="savedList" style="margin-top:10px"></div>
+      <h2 style="margin-top:12px">Import PGN</h2>
+      <textarea id="pgnIn" placeholder="Paste a PGN here (from Lichess, Chess.com, …)"></textarea>
+      <div class="row" style="margin-top:6px"><button id="btnImportPgn">Import</button></div>
+    </details>
+
+    <details class="card play-only hide-focus" id="lookCard">
+      <summary>Appearance</summary>
+      <div class="row">
+        <label>Board <select id="selBoard">
+          <option value="wood">Wood</option><option value="green">Green</option><option value="blue">Blue</option>
+          <option value="gray">Gray</option><option value="purple">Purple</option><option value="coral">Coral</option></select></label>
+        <label>Pieces <select id="selPieces"><option value="std">Classic</option><option value="sta">Staunty</option><option value="uni">Simple (text)</option></select></label>
+      </div>
+      <div class="row"><button id="btnFocus2">⤢ Big board mode</button></div>
+    </details>
+
     <div class="card setup-only" style="flex-direction:column">
       <h2>Set up position</h2>
-      <div>Pick a piece, then tap squares to place it. Tap with the eraser to clear a square.</div>
-      <div id="palette" style="display:flex"></div>
+      <div>Pick a piece, then tap squares to place it. Tap a square again (or use the eraser) to clear it.</div>
+      <div id="palette"></div>
       <div class="row" style="margin-top:10px">
-        <label>Side to move
-          <select id="selSetupTurn"><option value="w">White</option><option value="b">Black</option></select>
-        </label>
+        <label>Side to move <select id="selSetupTurn"><option value="w">White</option><option value="b">Black</option></select></label>
       </div>
-      <div class="row" style="margin-top:10px">
+      <div class="row">
         <button class="primary" id="btnSetupDone">Done</button>
         <button id="btnSetupStart">Start position</button>
         <button id="btnSetupClear">Clear board</button>
@@ -201,21 +394,27 @@
       <div id="setupErr" style="color:var(--warn);margin-top:6px"></div>
     </div>
 
-    <div class="card">
-      <h2>FEN</h2>
+    <details class="card hide-focus">
+      <summary>FEN</summary>
       <div class="row">
-        <input type="text" id="fen" spellcheck="false" aria-label="FEN">
+        <input type="text" id="fen" class="mono" spellcheck="false" aria-label="FEN">
         <button id="btnFenLoad">Load</button>
         <button id="btnFenCopy">Copy</button>
       </div>
-    </div>
+    </details>
   </div>
 </div>
 
+<footer class="hide-focus">
+  Engines: <a href="https://stockfishchess.org" target="_blank" rel="noopener">Stockfish 19</a> (GPLv3) and a built-in engine.
+  Pieces: “Classic” by Cburnett (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0</a>),
+  “Staunty” from Lichess (<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>), via cm-chessboard.
+  Using an engine during rated or tournament games breaks FIDE and club rules.
+</footer>
+
 <div id="promo"><div class="box"></div></div>
-<div id="alert" role="alert" aria-live="assertive">
-  <div id="alertTitle"></div><div id="alertText"></div><div id="alertClose">Tap to dismiss</div>
-</div>
+<div id="alert" role="alert" aria-live="assertive"><div id="alertTitle"></div><div id="alertText"></div><div id="alertClose">Tap to dismiss</div></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <!-- ===================== ENGINE (runs in a Web Worker and on the page) ===================== -->
 <script id="engine-src" type="text/plain">
@@ -577,6 +776,39 @@ function createChess() {
     let score = (mg * phase + eg * (24 - phase)) / 24;
     if (bishops[0] >= 2) score += 30;
     if (bishops[1] >= 2) score -= 30;
+
+    // ---- Endgame knowledge ----
+    const npm = [mat[0] - pawns[0] * 100, mat[1] - pawns[1] * 100];
+    // Rule of the square: against a bare king (plus pawns), a passed pawn the king can't catch will queen.
+    for (let c = 0; c < 2; c++) {
+      if (npm[1 - c] !== 0 || pawns[c] === 0) continue;
+      const col = c === 0 ? 1 : -1, defK = kings[1 - c];
+      let best = 0;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & 0x88) { sq += 7; continue; }
+        if (board[sq] !== col * P) continue;
+        const file = sq & 7, rank = sq >> 4;
+        let blocked = false;
+        for (let r = rank + col; r >= 0 && r <= 7 && !blocked; r += col)
+          for (let f = Math.max(0, file - 1); f <= Math.min(7, file + 1); f++) {
+            const q = board[r * 16 + f];
+            if (q === -col * P || (f === file && q !== 0)) { blocked = true; break; }
+          }
+        if (blocked) continue;
+        const promo = (c === 0 ? 7 : 0) * 16 + file;
+        let pawnDist = Math.abs((promo >> 4) - rank);
+        if (rank === (c === 0 ? 1 : 6)) pawnDist--; // double step from the start rank
+        const kingDist = Math.max(Math.abs((defK >> 4) - (promo >> 4)), Math.abs((defK & 7) - file));
+        const defenderToMove = (turn > 0 ? 0 : 1) === 1 - c;
+        if (kingDist - (defenderToMove ? 1 : 0) > pawnDist) best = Math.max(best, 700 - pawnDist * 20);
+      }
+      score += col * best;
+    }
+    // Without pawns, being only a minor piece up (or less) is not enough to win.
+    const lead = npm[0] - npm[1];
+    if (lead > 0 && pawns[0] === 0 && lead < 400) score /= 8;
+    else if (lead < 0 && pawns[1] === 0 && -lead < 400) score /= 8;
+    else if (lead === 0 && (pawns[0] === 0 || pawns[1] === 0) && npm[0] > 0 && (pawns[0] + pawns[1]) <= 1) score /= 2;
     // Mop-up: help the winning side drive the lone king to the edge and deliver mate.
     const diff = mat[0] - mat[1];
     if (phase <= 8 && Math.abs(diff) >= 300) {
@@ -602,10 +834,16 @@ function createChess() {
 
   // ---- Search ----
   const TT_BITS = 20, TT_SIZE = 1 << TT_BITS, TT_MASK = TT_SIZE - 1;
-  const ttK = new Int32Array(TT_SIZE), ttM = new Int32Array(TT_SIZE), ttS = new Int32Array(TT_SIZE);
-  const ttD = new Int8Array(TT_SIZE), ttF = new Int8Array(TT_SIZE); // flag: 1 exact, 2 lower, 3 upper
+  // Allocated on first search only: boards used just for move validation stay small.
+  let ttK = null, ttM = null, ttS = null, ttD = null, ttF = null; // ttF flag: 1 exact, 2 lower, 3 upper
+  function ensureTT() {
+    if (ttK) return;
+    ttK = new Int32Array(TT_SIZE); ttM = new Int32Array(TT_SIZE); ttS = new Int32Array(TT_SIZE);
+    ttD = new Int8Array(TT_SIZE); ttF = new Int8Array(TT_SIZE);
+  }
   const moveKey = m => m.f | (m.t << 7) | ((m.pr ? Math.abs(m.pr) : 0) << 14);
   let nodes = 0, stopTime = 0, stopped = false, rootBest = null, stopFlag = null;
+  let rootExclude = null; // move keys skipped at the root (used to find the 2nd/3rd best moves)
   const killers = [];
   const histTab = new Int32Array(128 * 128);
 
@@ -687,6 +925,7 @@ function createChess() {
     let best = -MATE - 1, bestMove = 0, legal = 0;
     const alpha0 = alpha;
     for (const m of moves) {
+      if (ply === 0 && rootExclude && rootExclude.has(moveKey(m))) continue;
       make(m);
       if (attacked(kings[side(-turn)], turn)) { undo(); continue; }
       legal++;
@@ -745,32 +984,72 @@ function createChess() {
     return line;
   }
 
-  // Returns best move for the side to move. score is from the side-to-move's view (centipawns).
-  function think(ms, onInfo, shouldStop) {
-    const legal = legalMoves();
-    if (!legal.length) return null;
-    nodes = 0; stopped = false; stopFlag = shouldStop || null;
+  // Iterative deepening for one root line. Returns { move, score, depth, pv } or null.
+  function searchLine(legal, ms, onInfo) {
+    stopped = false;
     const t0 = Date.now();
     stopTime = t0 + ms;
     histTab.fill(0); killers.length = 0;
-    let best = legal[0], bestScore = 0, depthDone = 0, pv = [];
+    const cands = rootExclude ? legal.filter(m => !rootExclude.has(moveKey(m))) : legal;
+    if (!cands.length) return null;
+    let best = cands[0], bestScore = 0, depthDone = 0, pv = [];
     for (let d = 1; d <= 64; d++) {
       rootBest = null;
       const s = search(d, -MATE - 1, MATE + 1, 0, false);
       if (stopped) {
         // Accept a partially searched iteration only if it improved on the previous best move.
-        if (rootBest && moveKey(rootBest) !== moveKey(best) && s > bestScore) { best = rootBest; pv = getPV(best, 1); }
+        if (rootBest && depthDone && moveKey(rootBest) !== moveKey(best) && s > bestScore) { best = rootBest; pv = getPV(best, 1); }
         break;
       }
       best = rootBest || best; bestScore = s; depthDone = d;
       pv = getPV(best, Math.min(d, 12));
-      const info = { depth: d, score: s, pv, nodes, time: Date.now() - t0 };
-      if (onInfo) onInfo(info);
+      if (onInfo) onInfo({ move: best, score: s, depth: d, pv });
       if (Math.abs(s) > MATE - 1000 && d >= MATE - Math.abs(s)) break; // shortest mate found
-      if (legal.length === 1 && d >= 3) break;
+      if (cands.length === 1 && d >= 3) break;
       if (Date.now() - t0 > ms * 0.5) break; // next depth would not finish in time
     }
-    return { move: { f: best.f, t: best.t, pr: best.pr }, score: bestScore, depth: depthDone, pv, nodes, time: Date.now() - t0 };
+    if (!depthDone) pv = getPV(best, 1);
+    return { move: { f: best.f, t: best.t, pr: best.pr }, score: bestScore, depth: depthDone, pv };
+  }
+
+  // Finds the best `multipv` moves for the side to move. Scores are centipawns from the side-to-move's view.
+  // Returns { lines: [{ move, score, depth, pv }], nodes, time } or null when there are no legal moves.
+  function think(ms, onInfo, shouldStop, multipv) {
+    const legal = legalMoves();
+    if (!legal.length) return null;
+    ensureTT();
+    const n = Math.min(multipv || 1, legal.length);
+    const shares = n === 1 ? [1] : n === 2 ? [0.7, 0.3] : [0.6, 0.2, 0.2];
+    nodes = 0; stopFlag = shouldStop || null;
+    const t0 = Date.now(), lines = [];
+    rootExclude = new Set();
+    for (let i = 0; i < n; i++) {
+      const line = searchLine(legal, ms * shares[i], i === 0 && onInfo
+        ? info => onInfo({ lines: [info], nodes, time: Date.now() - t0 }) : null);
+      if (!line) break;
+      lines.push(line);
+      rootExclude.add(moveKey(line.move));
+      if (stopFlag && stopFlag()) break;
+    }
+    rootExclude = null;
+    return { lines, nodes, time: Date.now() - t0 };
+  }
+
+  // Squares attacked by the piece standing on sq (used for hints such as forks).
+  function attacksFrom(sq) {
+    const p = board[sq], t = Math.abs(p), c = p > 0 ? 1 : -1, out = [];
+    if (!p) return out;
+    if (t === P) {
+      for (const d of [16 * c - 1, 16 * c + 1]) if (!((sq + d) & 0x88)) out.push(sq + d);
+    } else if (t === N || t === K) {
+      for (const d of t === N ? NDIR : KDIR) if (!((sq + d) & 0x88)) out.push(sq + d);
+    } else {
+      for (const d of t === B ? BDIR : t === R ? RDIR : KDIR) {
+        let s = sq + d;
+        while (!(s & 0x88)) { out.push(s); if (board[s]) break; s += d; }
+      }
+    }
+    return out;
   }
 
   function perft(d) {
@@ -800,9 +1079,126 @@ function createChess() {
   load(START);
   return {
     START, MATE, load, fen, legalMoves, make, undo, san, think, perft, status, findMove, alg, sqOf, inCheck,
+    attacksFrom, attacked,
     get: sq => board[sq], turn: () => turn, king: c => kings[side(c)], ply: () => hist.length
   };
 }
+</script>
+
+<!-- Opening book: "Name|moves in SAN" (every line validated as legal). -->
+<script id="book-src" type="text/plain">
+King's Pawn Opening|e4
+Queen's Pawn Opening|d4
+English Opening|c4
+Réti Opening|Nf3
+Bird's Opening|f4
+Larsen's Opening|b3
+Polish Opening|b4
+Grob Opening|g4
+Sicilian Defense|e4 c5
+Sicilian: Open|e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3
+Sicilian: Najdorf|e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6
+Sicilian: Najdorf, English Attack|e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5 Nb3
+Sicilian: Dragon|e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6
+Sicilian: Dragon, Yugoslav Attack|e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3
+Sicilian: Classical|e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6
+Sicilian: Scheveningen|e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 e6
+Sicilian: Sveshnikov|e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5
+Sicilian: Taimanov|e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6
+Sicilian: Kan|e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6
+Sicilian: Accelerated Dragon|e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6
+Sicilian: Alapin|e4 c5 c3
+Sicilian: Closed|e4 c5 Nc3
+Sicilian: Smith-Morra Gambit|e4 c5 d4 cxd4 c3
+Sicilian: Rossolimo|e4 c5 Nf3 Nc6 Bb5
+Sicilian: Moscow|e4 c5 Nf3 d6 Bb5+
+French Defense|e4 e6
+French: Advance|e4 e6 d4 d5 e5
+French: Exchange|e4 e6 d4 d5 exd5 exd5
+French: Winawer|e4 e6 d4 d5 Nc3 Bb4
+French: Classical|e4 e6 d4 d5 Nc3 Nf6
+French: Tarrasch|e4 e6 d4 d5 Nd2
+French: Rubinstein|e4 e6 d4 d5 Nc3 dxe4
+Caro-Kann Defense|e4 c6
+Caro-Kann: Advance|e4 c6 d4 d5 e5
+Caro-Kann: Classical|e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5
+Caro-Kann: Exchange|e4 c6 d4 d5 exd5 cxd5
+Caro-Kann: Panov Attack|e4 c6 d4 d5 exd5 cxd5 c4
+Pirc Defense|e4 d6 d4 Nf6 Nc3 g6
+Modern Defense|e4 g6
+Alekhine's Defense|e4 Nf6
+Scandinavian Defense|e4 d5
+Scandinavian: Main Line|e4 d5 exd5 Qxd5 Nc3 Qa5
+Scandinavian: Modern|e4 d5 exd5 Nf6
+Owen's Defense|e4 b6
+Open Game|e4 e5
+King's Knight Opening|e4 e5 Nf3
+Ruy Lopez|e4 e5 Nf3 Nc6 Bb5
+Ruy Lopez: Morphy Defense|e4 e5 Nf3 Nc6 Bb5 a6
+Ruy Lopez: Closed|e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7
+Ruy Lopez: Closed, Main Line|e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3
+Ruy Lopez: Exchange|e4 e5 Nf3 Nc6 Bb5 a6 Bxc6
+Ruy Lopez: Berlin Defense|e4 e5 Nf3 Nc6 Bb5 Nf6
+Ruy Lopez: Open|e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4
+Ruy Lopez: Marshall Attack|e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 O-O c3 d5
+Italian Game|e4 e5 Nf3 Nc6 Bc4
+Italian: Giuoco Piano|e4 e5 Nf3 Nc6 Bc4 Bc5
+Italian: Giuoco Pianissimo|e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3
+Italian: Evans Gambit|e4 e5 Nf3 Nc6 Bc4 Bc5 b4
+Two Knights Defense|e4 e5 Nf3 Nc6 Bc4 Nf6
+Two Knights: Fried Liver Attack|e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Nxd5 Nxf7
+Two Knights: Traxler Counterattack|e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 Bc5
+Two Knights: Main Line|e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Na5
+Scotch Game|e4 e5 Nf3 Nc6 d4 exd4 Nxd4
+Scotch Gambit|e4 e5 Nf3 Nc6 d4 exd4 Bc4
+Four Knights Game|e4 e5 Nf3 Nc6 Nc3 Nf6
+Petrov's Defense|e4 e5 Nf3 Nf6
+Philidor Defense|e4 e5 Nf3 d6
+King's Gambit|e4 e5 f4
+King's Gambit Accepted|e4 e5 f4 exf4
+King's Gambit Declined|e4 e5 f4 Bc5
+Vienna Game|e4 e5 Nc3
+Bishop's Opening|e4 e5 Bc4
+Center Game|e4 e5 d4 exd4 Qxd4
+Ponziani Opening|e4 e5 Nf3 Nc6 c3
+Latvian Gambit|e4 e5 Nf3 f5
+Elephant Gambit|e4 e5 Nf3 d5
+Queen's Gambit|d4 d5 c4
+Queen's Gambit Declined|d4 d5 c4 e6
+QGD: Orthodox|d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7
+QGD: Exchange|d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5
+Queen's Gambit Accepted|d4 d5 c4 dxc4
+Slav Defense|d4 d5 c4 c6
+Semi-Slav Defense|d4 d5 c4 c6 Nf3 Nf6 Nc3 e6
+Albin Countergambit|d4 d5 c4 e5
+Chigorin Defense|d4 d5 c4 Nc6
+London System|d4 d5 Bf4
+London System|d4 Nf6 Bf4
+London System|d4 d5 Nf3 Nf6 Bf4
+Colle System|d4 d5 Nf3 Nf6 e3
+Jobava London|d4 d5 Nc3 Nf6 Bf4
+Indian Defense|d4 Nf6
+King's Indian Defense|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6
+King's Indian: Classical|d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5
+Grünfeld Defense|d4 Nf6 c4 g6 Nc3 d5
+Nimzo-Indian Defense|d4 Nf6 c4 e6 Nc3 Bb4
+Queen's Indian Defense|d4 Nf6 c4 e6 Nf3 b6
+Bogo-Indian Defense|d4 Nf6 c4 e6 Nf3 Bb4+
+Catalan Opening|d4 Nf6 c4 e6 g3
+Benoni Defense|d4 Nf6 c4 c5 d5
+Modern Benoni|d4 Nf6 c4 c5 d5 e6
+Benko Gambit|d4 Nf6 c4 c5 d5 b5
+Budapest Gambit|d4 Nf6 c4 e5
+Old Indian Defense|d4 Nf6 c4 d6
+Trompowsky Attack|d4 Nf6 Bg5
+Dutch Defense|d4 f5
+Dutch: Leningrad|d4 f5 g3 Nf6 Bg2 g6
+Dutch: Stonewall|d4 f5 c4 Nf6 g3 e6 Bg2 d5
+Englund Gambit|d4 e5
+English: Symmetrical|c4 c5
+English: Reversed Sicilian|c4 e5
+English: Anglo-Indian|c4 Nf6
+Réti: King's Indian Attack|Nf3 d5 g3
 </script>
 
 <script>
@@ -811,102 +1207,603 @@ function createChess() {
   const SRC = document.getElementById("engine-src").textContent;
   const createChess = new Function(SRC + "\nreturn createChess;")();
   const game = createChess();
+  const conv = createChess();          // scratch board for converting engine output
+  const viewEng = createChess();       // board shown while reviewing earlier positions
+  const MATE = game.MATE, START = game.START;
+  const PIECE_NAMES = ["", "pawn", "knight", "bishop", "rook", "queen", "king"];
+  const VAL = [0, 100, 320, 330, 500, 900, 0];
   const GLYPH = ["", "♟", "♞", "♝", "♜", "♛", "♚"];
   const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const bridge = window.AndroidBridge || null;
+  const alg = game.alg;
+  const sameMove = (a, b) => a && b && a.f === b.f && a.t === b.t && (a.pr || 0) === (b.pr || 0);
+  const cleanSan = s => s.replace(/[+#!?]/g, "").replace(/^0-0-0$/, "O-O-O").replace(/^0-0$/, "O-O");
 
-  let startFen = game.START;
-  let played = [];          // [{ f, t, pr, san }]
-  let flipped = false;
-  let myColor = 1;          // 1 white, -1 black
+  // ---------- Settings ----------
+  const DEFAULTS = { time: 3000, engine: "auto", auto: true, alerts: true, blunders: true, hint: false, speak: false,
+    board: "wood", pieces: "std", clockOn: false, clockPreset: "300+3", clockAuto: true, camAuto: true };
+  const S = Object.assign({}, DEFAULTS);
+  try { Object.assign(S, JSON.parse(localStorage.getItem("chess-helper-settings")) || {}); } catch (_) {}
+  function saveSettings() { try { localStorage.setItem("chess-helper-settings", JSON.stringify(S)); } catch (_) {} }
+
+  // ---------- Game state ----------
+  let startFen = START, played = [], myColor = 1, flipped = false, gameId = null, flagged = 0, savedResult = null;
   let selected = -1, legalCache = [], lastMove = null;
-  let result = null;        // latest engine result for the current position
-  let resultPly = -1;
-  let thinking = false;
-  let setup = null;         // Int8Array(128) while editing a position
-  let paletteSel = 1;
+  let an = null;          // analysis of the current position: { key, ply, lines, depth, nodes, done, thinking }
+  let evals = [];         // evals[ply] = { white, best, depth } — engine verdicts along the current game
+  let setup = null, paletteSel = 1;
+  let view = null;        // ply being reviewed (null = live game)
+  let hintLevel = 0;
 
-  // ---------- Engine worker ----------
-  let worker = null, reqId = 0, fallbackCancel = null;
+  // ---------- Toast ----------
+  let toastTimer = null;
+  function toast(msg, ms) {
+    const el = $("toast");
+    el.textContent = msg; el.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), ms || 3000);
+  }
+  function copyText(t) {
+    try { if (navigator.clipboard) { navigator.clipboard.writeText(t).catch(() => fallbackCopy(t)); return; } } catch (_) {}
+    fallbackCopy(t);
+  }
+  function fallbackCopy(t) {
+    const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (_) {} ta.remove();
+  }
+
+  // ---------- Opening book ----------
+  const BOOK = new Map(); // position key -> { name, next: Map(san -> count) }
+  const bookKey = fen => fen.split(" ").slice(0, 3).join(" ");
+  (function buildBook() {
+    const e = createChess();
+    for (const line of $("book-src").textContent.trim().split("\n")) {
+      const [name, mv] = line.split("|");
+      if (!mv) continue;
+      e.load(START);
+      let ok = true;
+      for (const san of mv.trim().split(/\s+/)) {
+        const key = bookKey(e.fen());
+        const m = e.legalMoves().find(x => cleanSan(e.san(x)) === cleanSan(san));
+        if (!m) { ok = false; break; }
+        const ent = BOOK.get(key) || { name: null, next: new Map() };
+        const s = cleanSan(e.san(m));
+        ent.next.set(s, (ent.next.get(s) || 0) + 1);
+        BOOK.set(key, ent);
+        e.make(m);
+      }
+      if (!ok) continue;
+      const k = bookKey(e.fen()), ent = BOOK.get(k) || { name: null, next: new Map() };
+      if (!ent.name) ent.name = name;
+      BOOK.set(k, ent);
+    }
+  })();
+  // Walks the game and returns the name of the latest named book position plus the book keys along the way.
+  function openingInfo() {
+    const e = createChess();
+    try { e.load(startFen); } catch (_) { return { name: "", keys: [] }; }
+    let name = "";
+    const keys = [bookKey(e.fen())];
+    const first = BOOK.get(keys[0]); if (first && first.name) name = first.name;
+    for (const m of played) {
+      e.make(e.findMove(m.f, m.t, m.pr));
+      const k = bookKey(e.fen()); keys.push(k);
+      const ent = BOOK.get(k); if (ent && ent.name) name = ent.name;
+    }
+    return { name, keys };
+  }
+  const isBookMove = (keys, k) => {
+    const ent = BOOK.get(keys[k]);
+    return !!(ent && played[k] && ent.next.has(cleanSan(played[k].san)));
+  };
+
+  // ---------- Engines ----------
+  // Both engines report { lines: [{ score, depth, pv: [{ f, t, pr, san }] }], depth, nodes }.
+  // Scores are centipawns from the side-to-move's view; mates are MATE - plies.
+  let job = null, jobSeq = 0;
+  const uci = m => alg(m.f) + alg(m.t) + (m.pr ? "nbrq"[Math.abs(m.pr) - 2] : "");
+
+  // Built-in engine in a Web Worker (falls back to running on the page if Workers are unavailable).
   const WORKER_SRC = SRC + `
     const E = createChess();
     onmessage = e => {
       const d = e.data;
       E.load(d.fen);
       for (const m of d.moves) E.make(E.findMove(m.f, m.t, m.pr));
-      const r = E.think(d.ms, info => postMessage({ id: d.id, type: "info", info }));
-      postMessage({ id: d.id, type: "done", result: r });
+      const r = E.think(d.ms, info => postMessage({ id: d.id, type: "info", data: info }), null, d.multipv);
+      postMessage({ id: d.id, type: "done", data: r });
     };`;
+  let worker = null, workerBusy = false;
   function newWorker() {
     try {
-      const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
-      const w = new Worker(url);
-      w.onmessage = e => onEngineMsg(e.data);
-      w.onerror = () => { worker = null; if (thinking) analyze(); };
+      const w = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" })));
+      w.onmessage = e => onBuiltinMsg(e.data);
+      w.onerror = () => { worker = null; if (job && !job.sf) { const j = job; job = null; startJob(j); } };
       return w;
-    } catch (err) { return null; }
+    } catch (_) { return null; }
   }
   worker = newWorker();
-
-  function stopEngine() {
-    reqId++;
-    if (thinking && worker) { worker.terminate(); worker = newWorker(); }
-    if (fallbackCancel) fallbackCancel();
-    thinking = false;
-    updateEngineUI();
+  function normBuiltin(r) {
+    if (!r) return { lines: [], depth: 0, nodes: 0 };
+    return { lines: r.lines.map(l => ({ score: l.score, depth: l.depth, pv: l.pv })), depth: r.lines[0] ? r.lines[0].depth : 0, nodes: r.nodes };
+  }
+  function onBuiltinMsg(d) {
+    if (!job || job.sf || d.id !== job.id) return;
+    const r = normBuiltin(d.data);
+    if (d.type === "info") { if (job.onUpdate) job.onUpdate(r, false); return; }
+    workerBusy = false;
+    finishJob(r);
   }
 
-  function analyze() {
-    if (setup) return;
-    const st = game.status();
-    if (st === "checkmate" || st === "stalemate") return;
-    stopEngine();
-    const id = ++reqId;
-    thinking = true;
-    result = null; resultPly = game.ply();
-    const ms = +$("selTime").value;
-    const moves = played.map(m => ({ f: m.f, t: m.t, pr: m.pr }));
-    updateEngineUI(); renderArrows();
-    if (worker) {
-      worker.postMessage({ id, fen: startFen, moves, ms });
+  // Stockfish 19 (WebAssembly). Only available when the page is served over http(s), e.g. inside the Android app.
+  let sf = null, sfState = "off", sfSkip = 0, sfSearching = false;
+  // The page downloads both Stockfish files itself and starts the worker from in-memory copies, so the worker never
+  // makes its own requests (some Android WebView versions don't route worker requests through the app's file server).
+  async function sfWorkerFromBlobs() {
+    const base = "stockfish/stockfish-19-lite-single";
+    const [js, wasm] = await Promise.all([
+      fetch(base + ".js").then(r => { if (!r.ok) throw new Error("js " + r.status); return r.text(); }),
+      fetch(base + ".wasm").then(r => { if (!r.ok) throw new Error("wasm " + r.status); return r.arrayBuffer(); })
+    ]);
+    const wasmUrl = URL.createObjectURL(new Blob([wasm], { type: "application/wasm" }));
+    const jsUrl = URL.createObjectURL(new Blob([js], { type: "text/javascript" }));
+    return new Worker(jsUrl + "#" + encodeURIComponent(wasmUrl));
+  }
+  async function initStockfish() {
+    if (location.protocol === "file:" || typeof WebAssembly !== "object") { sfState = "failed"; engineChanged(); return; }
+    sfState = "loading"; engineChanged();
+    try { sf = await sfWorkerFromBlobs(); }
+    catch (_) {
+      try { sf = new Worker("stockfish/stockfish-19-lite-single.js"); } catch (__) { sfState = "failed"; engineChanged(); return; }
+    }
+    const timer = setTimeout(() => { if (sfState === "loading") sfFail(); }, 20000);
+    sf.onmessage = e => {
+      const line = typeof e.data === "string" ? e.data : "";
+      if (line === "uciok") {
+        clearTimeout(timer); sfState = "ready";
+        sf.postMessage("setoption name Hash value 32");
+        sf.postMessage("isready");
+        engineChanged();
+      } else if (line.startsWith("info ")) sfInfo(line);
+      else if (line.startsWith("bestmove")) sfBest();
+    };
+    sf.onerror = () => { clearTimeout(timer); sfFail(); };
+    sf.postMessage("uci");
+  }
+  function sfFail() {
+    sfState = "failed";
+    try { sf && sf.terminate(); } catch (_) {}
+    sf = null; sfSearching = false; sfSkip = 0;
+    engineChanged();
+    if (job && job.sf) { const j = job; job = null; j.sf = false; startJob(j); } // redo the search on the built-in engine
+  }
+  const useStockfish = () => S.engine !== "builtin" && sfState === "ready";
+  function engineChanged() {
+    $("engineBadge").textContent = useStockfish() ? "Stockfish 19"
+      : (S.engine !== "builtin" && sfState === "loading") ? "Loading Stockfish…" : "Built-in engine";
+  }
+  function sfInfo(line) {
+    if (sfSkip > 0 || !job || !job.sf) return;
+    if (/ (lowerbound|upperbound) /.test(line)) return;
+    const tok = line.split(" ");
+    const get = k => { const i = tok.indexOf(k); return i >= 0 ? tok[i + 1] : null; };
+    const pvAt = tok.indexOf("pv");
+    if (pvAt < 0) return;
+    const mpv = +(get("multipv") || 1), depth = +get("depth");
+    let score;
+    const si = tok.indexOf("score");
+    if (tok[si + 1] === "cp") score = +tok[si + 2];
+    else { const n = +tok[si + 2]; score = n > 0 ? MATE - (2 * n - 1) : -(MATE - 2 * Math.abs(n)); }
+    job.raw[mpv - 1] = { score, depth, uci: tok.slice(pvAt + 1, pvAt + 13) };
+    job.nodes = +(get("nodes") || job.nodes);
+    const now = Date.now();
+    if (job.onUpdate && (now - job.lastEmit > 300)) { job.lastEmit = now; job.onUpdate(sfResult(job), false); }
+  }
+  function sfBest() {
+    sfSearching = false;
+    if (sfSkip > 0) { sfSkip--; return; }
+    if (!job || !job.sf) return;
+    finishJob(sfResult(job));
+  }
+  function sfResult(j) {
+    conv.load(j.fen);
+    for (const m of j.moves) conv.make(conv.findMove(m.f, m.t, m.pr));
+    const lines = [];
+    for (const raw of j.raw) {
+      if (!raw) continue;
+      const pv = []; let made = 0;
+      for (const u of raw.uci) {
+        const f = game.sqOf(u.slice(0, 2)), t = game.sqOf(u.slice(2, 4));
+        const pr = u[4] ? ("nbrq".indexOf(u[4]) + 2) * conv.turn() : 0;
+        const m = conv.findMove(f, t, pr);
+        if (!m) break;
+        pv.push({ f, t, pr: m.pr, san: conv.san(m) });
+        conv.make(m); made++;
+      }
+      while (made--) conv.undo();
+      if (pv.length) lines.push({ score: raw.score, depth: raw.depth, pv });
+    }
+    return { lines, depth: lines[0] ? lines[0].depth : 0, nodes: j.nodes };
+  }
+
+  // One engine job at a time; starting a new one cancels the old one.
+  function runEngine(fen, moves, ms, multipv, onUpdate) {
+    cancelEngine();
+    return new Promise(resolve => startJob({ id: ++jobSeq, fen, moves, ms, multipv, onUpdate, resolve }));
+  }
+  function startJob(j) {
+    job = j;
+    if (useStockfish()) {
+      j.sf = true; j.raw = []; j.nodes = 0; j.lastEmit = 0;
+      sf.postMessage("setoption name MultiPV value " + j.multipv);
+      sf.postMessage("position fen " + j.fen + (j.moves.length ? " moves " + j.moves.map(uci).join(" ") : ""));
+      sf.postMessage("go movetime " + j.ms);
+      sfSearching = true;
+    } else if (worker) {
+      j.sf = false; workerBusy = true;
+      worker.postMessage({ id: j.id, fen: j.fen, moves: j.moves, ms: j.ms, multipv: j.multipv });
     } else {
-      // No Worker support: search on the page (UI pauses while thinking).
-      let cancelled = false;
-      fallbackCancel = () => { cancelled = true; };
+      j.sf = false;
       setTimeout(() => {
-        if (cancelled) return;
+        if (job !== j) return;
         const E = createChess();
-        E.load(startFen);
-        for (const m of moves) E.make(E.findMove(m.f, m.t, m.pr));
-        const r = E.think(ms, null, () => cancelled);
-        if (!cancelled) onEngineMsg({ id, type: "done", result: r });
+        E.load(j.fen);
+        for (const m of j.moves) E.make(E.findMove(m.f, m.t, m.pr));
+        const r = E.think(j.ms, null, () => job !== j, j.multipv);
+        if (job === j) finishJob(normBuiltin(r));
       }, 30);
     }
   }
+  function finishJob(r) {
+    const j = job; job = null;
+    if (j.onUpdate) j.onUpdate(r, true);
+    j.resolve(r);
+  }
+  function cancelEngine() {
+    if (!job) return;
+    const j = job; job = null;
+    if (j.sf) { if (sfSearching && sf) { sf.postMessage("stop"); sfSkip++; sfSearching = false; } }
+    else if (workerBusy && worker) { worker.terminate(); worker = newWorker(); workerBusy = false; }
+    j.resolve(null);
+  }
 
-  function onEngineMsg(d) {
-    if (d.id !== reqId) return;
-    if (d.type === "info") {
-      result = { move: d.info.pv[0], score: d.info.score, depth: d.info.depth, pv: d.info.pv, nodes: d.info.nodes, partial: true };
-    } else {
-      thinking = false;
-      if (d.result) result = d.result;
+  // ---------- Pieces & board ----------
+  function pieceHTML(p) {
+    if (!p) return "";
+    if (S.pieces === "uni") return `<span class="pc ${p > 0 ? "w" : "b"}">${GLYPH[Math.abs(p)]}︎</span>`;
+    const id = `${S.pieces}-${p > 0 ? "w" : "b"}${"pnbrqk"[Math.abs(p) - 1]}`;
+    return `<svg class="pcs" viewBox="0 0 40 40"><use href="#${id}"/></svg>`;
+  }
+  const boardEl = $("board"), squares = [];
+  for (let i = 0; i < 64; i++) {
+    const el = document.createElement("div");
+    el.className = "sq";
+    el.addEventListener("click", () => onSquare(+el.dataset.sq));
+    boardEl.appendChild(el);
+    squares.push(el);
+  }
+  function sqAt(row, col) {
+    const rank = flipped ? row : 7 - row, file = flipped ? 7 - col : col;
+    return rank * 16 + file;
+  }
+  const pos = () => (view !== null ? viewEng : game);
+
+  function renderBoard() {
+    const src = pos();
+    const targets = new Map();
+    if (selected >= 0 && view === null) for (const m of legalCache) if (m.f === selected) targets.set(m.t, m.c);
+    const checkSq = !setup && src.inCheck() ? src.king(src.turn()) : -1;
+    let lm = lastMove;
+    if (view !== null) lm = view > 0 ? played[view - 1] : null;
+    const hintSq = hintActive() && hintLevel >= 2 && an && an.lines[0] ? an.lines[0].pv[0].f : -1;
+    for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
+      const el = squares[row * 8 + col], sq = sqAt(row, col);
+      const rank = sq >> 4, file = sq & 7;
+      el.dataset.sq = sq;
+      let cls = "sq " + ((rank + file) % 2 ? "l" : "d");
+      if (!setup && lm && (sq === lm.f || sq === lm.t)) cls += " last";
+      if (sq === selected) cls += " sel";
+      if (sq === checkSq) cls += " chk";
+      if (sq === hintSq) cls += " hint";
+      el.className = cls;
+      let html = pieceHTML(setup ? setup[sq] : src.get(sq));
+      if (targets.has(sq)) html += targets.get(sq) ? '<div class="ring"></div>' : '<div class="dot"></div>';
+      if (col === 7) html += `<span class="coord r">${rank + 1}</span>`;
+      if (row === 7) html += `<span class="coord f">${"abcdefgh"[file]}</span>`;
+      el.innerHTML = html;
     }
-    updateEngineUI(); renderArrows();
+  }
+
+  function center(sq) {
+    const rank = sq >> 4, file = sq & 7;
+    return [(flipped ? 7 - file : file) + 0.5, (flipped ? rank : 7 - rank) + 0.5];
+  }
+  function arrow(m, color, marker, opts) {
+    const o = opts || {};
+    const [x1, y1] = center(m.f), [x2, y2] = center(m.t);
+    const len = Math.hypot(x2 - x1, y2 - y1), sh = 0.3;
+    const ex = x2 - (x2 - x1) / len * sh, ey = y2 - (y2 - y1) / len * sh;
+    return `<line x1="${x1}" y1="${y1}" x2="${ex}" y2="${ey}" stroke="${color}" stroke-width="${o.w || 0.17}" stroke-linecap="round"
+      opacity="${o.op || 0.85}" marker-end="url(#${marker})" ${o.dash ? 'stroke-dasharray="0.25 0.18"' : ""}/>`;
+  }
+  function renderArrows() {
+    let svg = "";
+    if (setup) { /* no arrows while editing */ }
+    else if (view !== null) {
+      const e = evals[view], mv = played[view];
+      if (e && e.best && !sameMove(e.best, mv)) svg += arrow(e.best, "var(--arrow-best)", "hBest");
+      if (mv) svg += arrow(mv, "var(--arrow-alt)", "hAlt", { op: 0.9 });
+    } else if (an && an.key === game.fen() && an.lines.length && !(hintActive())) {
+      an.lines.slice(1, 3).forEach(l => { svg += arrow(l.pv[0], "var(--arrow-alt)", "hAlt", { w: 0.11, op: 0.55 }); });
+      const pv = an.lines[0].pv;
+      if (pv[0]) svg += arrow(pv[0], "var(--arrow-best)", "hBest");
+      if (pv[1]) svg += arrow(pv[1], "var(--arrow-reply)", "hReply", { dash: true });
+    }
+    $("arrowLayer").innerHTML = svg;
+  }
+
+  // ---------- Moving ----------
+  const isOver = () => { const st = game.status(); return st === "checkmate" || st === "stalemate" || flagged !== 0; };
+  function onSquare(sq) {
+    if (setup) { setup[sq] = setup[sq] === paletteSel ? 0 : paletteSel; renderBoard(); return; }
+    if (view !== null) { toast("You're reviewing an earlier position. Tap “Back to game” to continue."); return; }
+    if (isOver()) return;
+    if (selected >= 0) {
+      const cands = legalCache.filter(m => m.f === selected && m.t === sq);
+      if (cands.length > 1) { askPromotion(cands); return; }
+      if (cands.length === 1) { doMove(cands[0], "tap"); return; }
+    }
+    const p = game.get(sq);
+    if (p && Math.sign(p) === game.turn() && sq !== selected) { selected = sq; legalCache = game.legalMoves(); }
+    else selected = -1;
+    renderBoard();
+  }
+  function askPromotion(cands) {
+    const box = $("promo").querySelector(".box");
+    box.innerHTML = "";
+    for (const t of [5, 4, 3, 2]) {
+      const m = cands.find(c => Math.abs(c.pr) === t);
+      const b = document.createElement("button");
+      b.innerHTML = pieceHTML(m.pr);
+      b.onclick = () => { $("promo").style.display = "none"; doMove(m, "tap"); };
+      box.appendChild(b);
+    }
+    $("promo").style.display = "flex";
+  }
+  $("promo").addEventListener("click", e => { if (e.target.id === "promo") $("promo").style.display = "none"; });
+
+  function doMove(m, source) {
+    commitPartialEval();
+    const s = game.san(m);
+    evals.length = Math.min(evals.length, game.ply() + 1); // later verdicts belonged to another line
+    game.make(m);
+    played.push({ f: m.f, t: m.t, pr: m.pr, san: s });
+    lastMove = { f: m.f, t: m.t };
+    selected = -1; hintLevel = 0;
+    cancelEngine(); an = null;
+    hideAlert(); $("moveChoices").innerHTML = "";
+    if (S.clockOn && S.clockAuto) clockAutoSwitch(-game.turn());
+    if (camOn() && source !== "camera") cam.needRef = true;
+    renderAll();
     checkAlerts();
+    if (isOver()) autoSaveFinished();
+    if (S.auto) analyze();
+  }
+
+  function rebuild() {
+    game.load(startFen);
+    for (const m of played) game.make(game.findMove(m.f, m.t, m.pr));
+    const lm = played[played.length - 1];
+    lastMove = lm ? { f: lm.f, t: lm.t } : null;
+  }
+
+  // ---------- Analysis ----------
+  function analyze() {
+    if (setup || view !== null) return;
+    const st = game.status();
+    if (st === "checkmate" || st === "stalemate") { updateEngineUI(); return; }
+    const mine = an = { key: game.fen(), ply: game.ply(), lines: [], depth: 0, nodes: 0, done: false, thinking: true };
+    const moves = played.map(m => ({ f: m.f, t: m.t, pr: m.pr }));
+    updateEngineUI(); renderArrows();
+    runEngine(startFen, moves, S.time, 3, (r, done) => {
+      if (an !== mine) return;
+      if (r && r.lines.length) { an.lines = r.lines; an.depth = r.depth; an.nodes = r.nodes; }
+      if (done) { an.done = true; an.thinking = false; }
+      recordEval(done);
+      updateEngineUI(); renderArrows(); renderBoard();
+      if (done) blunderCheck();
+      checkAlerts();
+      if (done) speakBest();
+    });
+  }
+  function stopAnalysis() { cancelEngine(); if (an) { an.thinking = false; an.done = true; } updateEngineUI(); }
+
+  const minDepth = () => (useStockfish() ? 10 : 5);
+  function recordEval(done) {
+    if (!an || !an.lines.length || an.key !== game.fen()) return;
+    const l = an.lines[0];
+    if (!done && l.depth < minDepth()) return;
+    const prev = evals[an.ply];
+    if (prev && prev.depth > l.depth) return;
+    evals[an.ply] = { white: l.score * game.turn(), best: l.pv[0], depth: l.depth };
+  }
+  function commitPartialEval() { if (an && an.lines.length) recordEval(an.lines[0].depth >= minDepth()); }
+
+  // Win probability (0..1) for a centipawn score; mates count as ±15 pawns.
+  const clampCp = w => Math.abs(w) > MATE - 1000 ? Math.sign(w) * 1500 : Math.max(-1500, Math.min(1500, w));
+  const wp = cp => 1 / (1 + Math.exp(-0.00368208 * clampCp(cp)));
+
+  function blunderCheck() {
+    const k = game.ply();
+    if (!S.blunders || k === 0) return;
+    const prev = evals[k - 1], cur = evals[k], mv = played[k - 1];
+    if (!prev || !cur || !mv || !prev.best || sameMove(prev.best, mv)) return;
+    const mover = -game.turn();
+    const loss = wp(prev.white * mover) - wp(cur.white * mover);
+    if (loss < 0.12) return;
+    const kind = loss >= 0.2 ? "blunder" : "mistake";
+    if (mover !== myColor) {
+      if (once("opp-" + kind)) showAlert("win", kind === "blunder" ? "Opponent blundered! 💥" : "Opponent made a mistake",
+        `${mv.san} was a ${kind}. ` + (S.hint ? "Can you find the punishment? Ask for a hint." : `Punish it with ${cur.best.san}.`), false);
+    } else if (once("my-" + kind)) {
+      showAlert("lose", kind === "blunder" ? "That move was a blunder" : "That was a mistake",
+        `${mv.san} threw away ${kind === "blunder" ? "a lot" : "some"} of your position. ${prev.best.san} was better. Undo if it's not played yet.`, false);
+    }
+  }
+
+  // ---------- Engine panel ----------
+  function fmtScore(score, stm) {
+    const white = score * stm;
+    if (Math.abs(score) > MATE - 1000) {
+      const n = Math.ceil((MATE - Math.abs(score)) / 2);
+      return { text: (white > 0 ? "White" : "Black") + " mates in " + n, pct: white > 0 ? 100 : 0, mate: true, white };
+    }
+    return { text: (white >= 0 ? "+" : "") + (white / 100).toFixed(2), pct: 100 / (1 + Math.exp(-white / 250)), mate: false, white };
+  }
+  const hintActive = () => S.hint && view === null && !setup && game.turn() === myColor && hintLevel < 3;
+
+  function updateEngineUI() {
+    const stm = game.turn(), mine = stm === myColor;
+    const thinking = !!(an && an.thinking);
+    $("btnStop").disabled = !thinking;
+    const valid = an && an.key === game.fen() && an.lines.length && view === null;
+    const hinting = hintActive();
+    $("btnThink").textContent = hinting ? (hintLevel === 0 ? "💡 Hint" : "💡 More") : "Best move";
+    $("btnPlay").disabled = !valid || !mine || hinting;
+    const label = mine ? "Your best move" : "Opponent's most likely / most dangerous move";
+    $("hintBox").style.display = "none";
+    if (!valid) {
+      $("bestMove").textContent = thinking ? "…" : "–";
+      $("bestEval").textContent = "";
+      $("bestInfo").innerHTML = thinking ? '<span class="spin"></span> thinking' : "";
+      $("bestLabel").textContent = view !== null ? "Reviewing an earlier position" : thinking ? label : (isOver() ? "Game over" : "Press “Best move” or turn on auto-analyze.");
+      $("reply").innerHTML = ""; $("pv").textContent = ""; $("top3").innerHTML = "";
+      if (hinting && !isOver()) { $("hintBox").style.display = "block"; $("hintBox").textContent = thinking ? "Thinking of a clue…" : "Hint mode is on. Tap “Hint” for a clue."; }
+      return;
+    }
+    const top = an.lines[0];
+    const sc = fmtScore(top.score, stm);
+    $("evalwhite").style.height = sc.pct + "%";
+    let verdict;
+    if (sc.mate) verdict = sc.text;
+    else {
+      const my = sc.white * myColor;
+      verdict = sc.text + (my > 300 ? " — you are winning" : my > 100 ? " — you are better" :
+        my < -300 ? " — you are losing, fight for tricks" : my < -100 ? " — you are worse" : " — about equal");
+    }
+    $("bestInfo").innerHTML = (thinking ? '<span class="spin"></span> ' : "") + "depth " + an.depth + " · " + (an.nodes || 0).toLocaleString() + " positions";
+    if (hinting) {
+      $("bestLabel").textContent = "Your move — hint mode";
+      $("bestMove").textContent = "?";
+      $("bestEval").textContent = verdict;
+      $("reply").innerHTML = ""; $("pv").textContent = ""; $("top3").innerHTML = "";
+      $("hintBox").style.display = "block";
+      $("hintBox").textContent = hintLevel === 0 ? "Tap “Hint” for a clue." : hintText(top, hintLevel);
+      return;
+    }
+    $("bestLabel").textContent = label;
+    $("bestMove").textContent = top.pv[0].san;
+    $("bestEval").textContent = verdict;
+    const reply = top.pv[1];
+    $("reply").innerHTML = reply ? (mine ? "Expected opponent reply: " : "Then your best answer: ") + "<b>" + esc(reply.san) + "</b>" : "";
+    $("top3").innerHTML = an.lines.length > 1 ? an.lines.map((l, i) =>
+      `<div class="line"><span class="n">${i + 1}.</span><span class="mv">${esc(l.pv[0].san)}</span>` +
+      `<span class="rest">${esc(l.pv.slice(1, 5).map(m => m.san).join(" "))}</span><span class="sc">${esc(fmtScore(l.score, stm).text)}</span></div>`).join("") : "";
+    $("pv").textContent = "Line: " + numberLine(top.pv, stm);
+  }
+  function numberLine(pv, stm) {
+    let num = moveNumberAt(game.ply()), whiteToMove = stm === 1, out = "";
+    pv.forEach((m, i) => {
+      if (whiteToMove) out += num + ". "; else if (i === 0) out += num + "... ";
+      out += m.san + " ";
+      if (!whiteToMove) num++;
+      whiteToMove = !whiteToMove;
+    });
+    return out.trim();
+  }
+  const startMoveNo = () => +(startFen.split(/\s+/)[5] || 1);
+  const startBlack = () => startFen.split(/\s+/)[1] === "b";
+  const moveNumberAt = ply => startMoveNo() + Math.floor((ply + (startBlack() ? 1 : 0)) / 2);
+  const turnAtPly = ply => (startBlack() ? -1 : 1) * (ply % 2 ? -1 : 1);
+
+  // ---------- Hints ----------
+  function hintText(line, level) {
+    const bm = line.pv[0], m = game.findMove(bm.f, bm.t, bm.pr);
+    if (!m) return "";
+    const pieceName = PIECE_NAMES[Math.abs(m.p)];
+    const piece = `Move your ${pieceName} on ${alg(m.f)}.`;
+    let theme;
+    if (Math.abs(line.score) > MATE - 1000 && line.score > 0) {
+      const n = Math.ceil((MATE - line.score) / 2);
+      theme = n === 1 ? "You have checkmate in one move!" : `There's a forced checkmate in ${n}. Look at checks first.`;
+    } else {
+      game.make(m);
+      const gives = game.inCheck();
+      const targets = game.attacksFrom(m.t).filter(sq => {
+        const q = game.get(sq);
+        return q && Math.sign(q) === -Math.sign(m.p) && (Math.abs(q) === 6 || VAL[Math.abs(q)] > VAL[Math.abs(m.p)] || !game.attacked(sq, -Math.sign(m.p)));
+      });
+      game.undo();
+      if (m.pr) theme = "A pawn can promote.";
+      else if (m.fl === 3) theme = "Get your king to safety.";
+      else if (targets.length >= 2) theme = `Look for a fork: one ${pieceName} attacking two things at once.`;
+      else if (m.c && (VAL[Math.abs(m.c)] >= VAL[Math.abs(m.p)] || !game.attacked(m.t, -Math.sign(m.p)))) theme = "You can win material. Look for something undefended.";
+      else if (gives) theme = "A check is strong here.";
+      else if (game.attacked(m.f, -Math.sign(m.p)) && VAL[Math.abs(m.p)] >= 300) theme = "One of your pieces is under attack.";
+      else if (m.c) theme = "Look at the captures.";
+      else theme = `Think about improving your ${pieceName}.`;
+    }
+    return level >= 2 ? theme + " " + piece : theme;
+  }
+
+  // ---------- Speech ----------
+  let speechQueue = [], speechTimer = null;
+  function speakNow(text) {
+    try {
+      if (bridge && bridge.speak) { bridge.speak(text); return; }
+      if (window.speechSynthesis) {
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text); u.lang = "en-US";
+        speechSynthesis.speak(u);
+      }
+    } catch (_) {}
+  }
+  function queueSpeech(text) {
+    if (!S.speak || !text) return;
+    speechQueue.push(text);
+    clearTimeout(speechTimer);
+    speechTimer = setTimeout(() => { const t = speechQueue.join(". "); speechQueue = []; speakNow(t); }, 50);
+  }
+  function sanWords(san) {
+    let w;
+    if (san.startsWith("O-O-O")) w = "castle queenside";
+    else if (san.startsWith("O-O")) w = "castle kingside";
+    else {
+      const m = san.match(/^([NBRQK])?([a-h])?([1-8])?(x)?([a-h][1-8])(?:=([NBRQ]))?/);
+      if (!m) return san;
+      const names = { N: "knight", B: "bishop", R: "rook", Q: "queen", K: "king" };
+      w = (m[1] ? names[m[1]] + " " : "") + (m[2] ? m[2].toUpperCase() + " " : "") + (m[3] ? m[3] + " " : "") +
+        (m[4] ? "takes " : "") + m[5][0].toUpperCase() + " " + m[5][1] + (m[6] ? ", promote to " + names[m[6]] : "");
+    }
+    if (san.endsWith("#")) w += ", checkmate"; else if (san.endsWith("+")) w += ", check";
+    return w;
+  }
+  function speakBest(force) {
+    if (!an || !an.lines.length || game.turn() !== myColor || hintActive()) return;
+    if (force) { speakNow("Best move: " + sanWords(an.lines[0].pv[0].san)); return; }
+    queueSpeech("Best move: " + sanWords(an.lines[0].pv[0].san));
   }
 
   // ---------- Alerts ----------
   let audioCtx = null, alertTimer = null;
-  const alerted = new Set();      // "ply:kind" keys already shown, so each alert fires once per position
-  let winningShown = false;       // the "you're winning" notice fires once per game
+  const alerted = new Set();
+  let winningShown = false;
   document.addEventListener("pointerdown", () => {
-    // Browsers only allow sound after a user gesture, so unlock audio on the first tap.
     try {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === "suspended") audioCtx.resume();
     } catch (_) {}
   }, { passive: true });
-
   function beep(notes) {
     if (!audioCtx) return;
     try {
@@ -923,46 +1820,35 @@ function createChess() {
       }
     } catch (_) {}
   }
-
-  const SOUNDS = {
-    win:  [[523, .14], [659, .14], [784, .14], [1047, .35]],
-    lose: [[440, .25], [330, .25], [262, .45]],
-    info: [[660, .15], [880, .25]]
-  };
+  const SOUNDS = { win: [[523, .14], [659, .14], [784, .14], [1047, .35]], lose: [[440, .25], [330, .25], [262, .45]], info: [[660, .15], [880, .25]] };
   const VIBES = { win: [120, 60, 120, 60, 300], lose: [400, 100, 400], info: [150] };
-
   function showAlert(kind, title, text, sticky) {
     const el = $("alert");
-    $("alertTitle").textContent = title;
-    $("alertText").textContent = text;
-    el.className = kind;
-    void el.offsetWidth; // restart the slide-in and pulse animations
+    // A general notice never replaces a win/danger alert that is still on screen.
+    if (kind === "info" && el.classList.contains("show") && !el.classList.contains("info")) return;
+    $("alertTitle").textContent = title; $("alertText").textContent = text;
+    el.className = kind; void el.offsetWidth;
     el.className = kind + " show" + (kind === "win" ? " pulse" : "");
     clearTimeout(alertTimer);
     if (!sticky) alertTimer = setTimeout(hideAlert, 8000);
-    if ($("chkAlerts").checked) {
+    if (S.alerts) {
       beep(SOUNDS[kind]);
       try { if (navigator.vibrate) navigator.vibrate(VIBES[kind]); } catch (_) {}
     }
+    queueSpeech(title.replace(/[^\w\s!'.,-]/g, "").trim());
   }
   function hideAlert() { $("alert").classList.remove("show"); }
   $("alert").addEventListener("click", hideAlert);
-
   function once(kind) {
     const key = game.fen() + "|" + kind;
     if (alerted.has(key)) return false;
-    alerted.add(key);
-    return true;
+    alerted.add(key); return true;
   }
-
-  // On your turn: if you "passed", could the opponent checkmate you immediately?
-  // Catches mate threats you can still defend, which the evaluation alone doesn't flag.
   let probe = null;
   function checkThreat() {
     if (game.turn() !== myColor || game.inCheck()) return;
     const parts = game.fen().split(" ");
-    parts[1] = parts[1] === "w" ? "b" : "w";
-    parts[3] = "-";
+    parts[1] = parts[1] === "w" ? "b" : "w"; parts[3] = "-";
     try {
       if (!probe) probe = createChess();
       probe.load(parts.join(" "));
@@ -971,356 +1857,727 @@ function createChess() {
         const mate = probe.status() === "checkmate";
         probe.undo();
         if (mate) {
-          if (once("threat")) showAlert("lose", "⚠ Opponent threatens mate",
-            "They threaten " + probe.san(m) + " checkmate next move. Defend it now.", false);
+          if (once("threat")) showAlert("lose", "⚠ Opponent threatens mate", "They threaten " + probe.san(m) + " checkmate next move. Defend it now.", false);
           return;
         }
       }
     } catch (_) {}
   }
-
-  // Called after every move and every engine update.
   function checkAlerts() {
-    if (setup) return;
+    if (setup || view !== null) return;
     const st = game.status();
     if (st === "checkmate") {
-      const iWon = game.turn() !== myColor;
       if (once("mate")) {
-        if (iWon) showAlert("win", "Checkmate! You win 🏆", "Your opponent has no legal moves and is in check.", true);
-        else showAlert("lose", "Checkmated", "Your king has no escape. Undo to see what went wrong.", true);
+        if (game.turn() !== myColor) showAlert("win", "Checkmate! You win 🏆", "Your opponent has no legal moves and is in check.", true);
+        else showAlert("lose", "Checkmated", "Your king has no escape. Try Game review to see what went wrong.", true);
       }
       return;
     }
     checkThreat();
-    if (!result || resultPly !== game.ply() || !result.pv || !result.pv.length) return;
-    const stm = game.turn(), score = result.score;
-    const isMate = Math.abs(score) > game.MATE - 1000;
-    if (isMate) {
-      const n = Math.ceil((game.MATE - Math.abs(score)) / 2);   // full moves for the mating side
-      const winner = score > 0 ? stm : -stm;
-      const mine = stm === myColor;
+    if (!an || an.key !== game.fen() || !an.lines.length) return;
+    const stm = game.turn(), top = an.lines[0], score = top.score;
+    if (Math.abs(score) > MATE - 1000) {
+      const n = Math.ceil((MATE - Math.abs(score)) / 2), moves = n === 1 ? "1 move" : n + " moves";
+      const winner = score > 0 ? stm : -stm, mine = stm === myColor;
       if (winner === myColor && once("forcedmate")) {
-        const moves = n === 1 ? "1 move" : n + " moves";
         if (mine) {
-          showAlert("win", n === 1 ? "Checkmate in 1! 🎯" : "Forced mate in " + moves + "!",
-            n === 1 ? "Play " + result.pv[0].san + " to checkmate now."
-                    : "Start with " + result.pv[0].san + ". Follow the engine's moves exactly.", true);
-        } else {
-          showAlert("win", "You're about to win!",
-            "Whatever your opponent plays, you can force mate within " + moves + ".", false);
-        }
+          if (S.hint) showAlert("win", n === 1 ? "Checkmate in 1 is on the board! 🎯" : "Forced mate in " + moves + "!", "Can you find it? Tap Hint if you need help.", true);
+          else showAlert("win", n === 1 ? "Checkmate in 1! 🎯" : "Forced mate in " + moves + "!",
+            n === 1 ? "Play " + top.pv[0].san + " to checkmate now." : "Start with " + top.pv[0].san + ". Follow the engine's moves exactly.", true);
+        } else showAlert("win", "You're about to win!", "Whatever your opponent plays, you can force mate within " + moves + ".", false);
       } else if (winner !== myColor && once("danger")) {
-        const moves = n === 1 ? "1 move" : n + " moves";
-        showAlert("lose", "⚠ Danger: mate threat",
-          mine ? "Your opponent can force mate in " + moves + ". " + result.pv[0].san + " holds out longest."
-               : "Your opponent can mate in " + moves + " if they find " + result.pv[0].san + ".", false);
+        showAlert("lose", "⚠ Danger: mate threat", mine
+          ? "Your opponent can force mate in " + moves + ". " + top.pv[0].san + " holds out longest."
+          : "Your opponent can mate in " + moves + " if they find " + top.pv[0].san + ".", false);
       }
       return;
     }
-    // Clearly winning (about a rook up or more) after a finished search: tell the user once per game.
     const myScore = score * stm * myColor;
-    if (!thinking && myScore >= 500 && !winningShown && result.depth >= 6) {
+    if (an.done && myScore >= 500 && !winningShown && top.depth >= minDepth()) {
       winningShown = true;
-      showAlert("info", "You're winning (+" + (myScore / 100).toFixed(1) + ")",
-        "Trade pieces, keep your king safe and avoid blunders. The engine will alert you when it sees a forced mate.", false);
+      showAlert("info", "You're winning (+" + (myScore / 100).toFixed(1) + ")", "Trade pieces, keep your king safe and avoid blunders. You'll get an alert when there's a forced mate.", false);
     } else if (myScore < 200) winningShown = false;
   }
 
-  // ---------- Board ----------
-  const boardEl = $("board");
-  const squares = [];
-  for (let i = 0; i < 64; i++) {
-    const el = document.createElement("div");
-    el.className = "sq";
-    el.addEventListener("click", () => onSquare(+el.dataset.sq));
-    boardEl.appendChild(el);
-    squares.push(el);
-  }
-  function sqAt(row, col) {
-    const rank = flipped ? row : 7 - row, file = flipped ? 7 - col : col;
-    return rank * 16 + file;
-  }
-  function pieceHTML(p) {
-    if (!p) return "";
-    return `<span class="pc ${p > 0 ? "w" : "b"}">${GLYPH[Math.abs(p)]}︎</span>`;
-  }
-
-  function renderBoard() {
-    const targets = new Map();
-    if (selected >= 0) for (const m of legalCache) if (m.f === selected) targets.set(m.t, m.c);
-    const checkSq = !setup && game.inCheck() ? game.king(game.turn()) : -1;
-    for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
-      const el = squares[row * 8 + col], sq = sqAt(row, col);
-      const rank = sq >> 4, file = sq & 7;
-      el.dataset.sq = sq;
-      let cls = "sq " + ((rank + file) % 2 ? "l" : "d");
-      if (!setup && lastMove && (sq === lastMove.f || sq === lastMove.t)) cls += " last";
-      if (sq === selected) cls += " sel";
-      if (sq === checkSq) cls += " chk";
-      el.className = cls;
-      const p = setup ? setup[sq] : game.get(sq);
-      let html = pieceHTML(p);
-      if (targets.has(sq)) html += targets.get(sq) ? '<div class="ring"></div>' : '<div class="dot"></div>';
-      if (col === 7) html += `<span class="coord r" style="left:auto;right:3px">${rank + 1}</span>`;
-      if (row === 7) html += `<span class="coord f" style="right:auto;left:3px">${"abcdefgh"[file]}</span>`;
-      el.innerHTML = html;
+  // ---------- Typed & spoken moves ----------
+  const SPOKEN = [
+    [/\b(knight|knights|night|nite|horse)\b/g, " N "], [/\b(bishop|bishops)\b/g, " B "], [/\b(rook|rooks|brook|ruk)\b/g, " R "],
+    [/\b(queen|queens)\b/g, " Q "], [/\b(king|kings)\b/g, " K "], [/\b(pawn|pawns|porn|pond)\b/g, " P "],
+    [/\b(one|won)\b/g, "1"], [/\b(two|too)\b/g, "2"], [/\b(three|tree)\b/g, "3"], [/\b(four|fore)\b/g, "4"], [/\b(five)\b/g, "5"],
+    [/\b(six)\b/g, "6"], [/\b(seven)\b/g, "7"], [/\b(eight|ate)\b/g, "8"],
+    [/\b(bee)\b/g, "b"], [/\b(see|sea|cee)\b/g, "c"], [/\b(dee)\b/g, "d"], [/\b(eff|ef)\b/g, "f"], [/\b(gee|jee)\b/g, "g"], [/\b(aitch|each)\b/g, "h"]
+  ];
+  function parseMoveText(raw) {
+    const text = (raw || "").trim();
+    if (!text) return [];
+    const legal = game.legalMoves();
+    const sans = legal.map(m => [m, cleanSan(game.san(m))]);
+    const typed = cleanSan(text);
+    let hit = sans.filter(([, s]) => s === typed);
+    if (hit.length) return hit.map(h => h[0]);
+    hit = sans.filter(([, s]) => s.toLowerCase() === typed.toLowerCase());
+    if (hit.length === 1) return [hit[0][0]];
+    let s = " " + text.toLowerCase().replace(/[.,!?;:]/g, " ").replace(/-/g, " ") + " ";
+    if (/\b(castle|castles|castling|o o|0 0)\b/.test(s)) {
+      const long = /\b(queen ?side|long|o o o|0 0 0)\b/.test(s);
+      return legal.filter(m => m.fl === 3 && ((m.t & 7) === 2) === long);
     }
-  }
-
-  function center(sq) {
-    const rank = sq >> 4, file = sq & 7;
-    const col = flipped ? 7 - file : file, row = flipped ? rank : 7 - rank;
-    return [col + 0.5, row + 0.5];
-  }
-  function arrow(m, color, marker, dashed) {
-    const [x1, y1] = center(m.f), [x2, y2] = center(m.t);
-    const len = Math.hypot(x2 - x1, y2 - y1), sh = 0.3;
-    const ex = x2 - (x2 - x1) / len * sh, ey = y2 - (y2 - y1) / len * sh;
-    return `<line x1="${x1}" y1="${y1}" x2="${ex}" y2="${ey}" stroke="${color}" stroke-width="0.17"
-      stroke-linecap="round" opacity="0.85" marker-end="url(#${marker})" ${dashed ? 'stroke-dasharray="0.25 0.18"' : ""}/>`;
-  }
-  function renderArrows() {
-    let svg = "";
-    if (!setup && result && result.pv && resultPly === game.ply()) {
-      if (result.pv[0]) svg += arrow(result.pv[0], "var(--arrow-best)", "hBest", false);
-      if (result.pv[1]) svg += arrow(result.pv[1], "var(--arrow-reply)", "hReply", true);
+    for (const [re, rep] of SPOKEN) s = s.replace(re, rep);
+    s = s.replace(/([a-h])\s([1-8])\b/g, "$1$2");
+    const sqs = [...s.matchAll(/([a-h])([1-8])/g)].map(x => (x[2].charCodeAt(0) - 49) * 16 + (x[1].charCodeAt(0) - 97));
+    if (!sqs.length) return [];
+    const to = sqs[sqs.length - 1], from = sqs.length > 1 ? sqs[sqs.length - 2] : -1;
+    const promoM = s.match(/(promot\w*|equals|=|becomes)\s*(?:to|into|a)?\s*(N|B|R|Q)\b/);
+    const before = promoM ? s.slice(0, promoM.index) : s;
+    const pm = before.match(/\b(N|B|R|Q|K|P)\b/);
+    const piece = pm ? "PNBRQK".indexOf(pm[1]) + 1 : 0;
+    let c = legal.filter(m => m.t === to);
+    if (from >= 0) { const c2 = c.filter(m => m.f === from); if (c2.length) c = c2; }
+    if (piece) c = c.filter(m => Math.abs(m.p) === piece);
+    else if (c.length > 1) { const pawns = c.filter(m => Math.abs(m.p) === 1); if (pawns.length) c = pawns; }
+    if (c.length > 1) {
+      const fm = before.replace(/[a-h][1-8]/g, " ").match(/\b([a-h])\b/);
+      if (fm) { const file = fm[1].charCodeAt(0) - 97, c3 = c.filter(m => (m.f & 7) === file); if (c3.length) c = c3; }
     }
-    $("arrowLayer").innerHTML = svg;
+    if (c.some(m => m.pr)) { const want = promoM ? "PNBRQK".indexOf(promoM[2]) + 1 : 5; c = c.filter(m => Math.abs(m.pr) === want); }
+    return c;
   }
-
-  // ---------- Interaction ----------
-  function onSquare(sq) {
-    if (setup) { setup[sq] = setup[sq] === paletteSel ? 0 : paletteSel; renderBoard(); return; }
-    const st = game.status();
-    if (st === "checkmate" || st === "stalemate") return;
-    if (selected >= 0) {
-      const cands = legalCache.filter(m => m.f === selected && m.t === sq);
-      if (cands.length > 1) { askPromotion(cands); return; }
-      if (cands.length === 1) { doMove(cands[0]); return; }
+  function handleMoveText(alts, spoken) {
+    if (setup || view !== null || isOver()) return;
+    let ambiguous = null;
+    for (const a of alts) {
+      const c = parseMoveText(a);
+      if (c.length === 1) {
+        doMove(c[0], spoken ? "voice" : "text");
+        const san = played[played.length - 1].san;
+        toast(spoken ? `Played ${san} (heard “${a}”)` : `Played ${san}`);
+        queueSpeech(sanWords(san));
+        return true;
+      }
+      if (c.length > 1 && !ambiguous) ambiguous = c;
     }
-    const p = game.get(sq);
-    if (p && Math.sign(p) === game.turn() && sq !== selected) { selected = sq; legalCache = game.legalMoves(); }
-    else selected = -1;
-    renderBoard();
+    if (ambiguous) {
+      const box = $("moveChoices");
+      box.innerHTML = "<span class='muted'>Which one?</span>";
+      for (const m of ambiguous) {
+        const b = document.createElement("button"); b.className = "chip"; b.textContent = game.san(m);
+        b.onclick = () => doMove(m, "text");
+        box.appendChild(b);
+      }
+    } else toast(`Couldn't match “${alts[0]}” to a legal move.`);
+    return false;
+  }
+  window.onVoiceResult = alts => handleMoveText(Array.isArray(alts) ? alts : [String(alts)], true);
+  window.onVoiceError = msg => toast(msg);
+  function startVoice() {
+    if (view !== null || setup) return;
+    if (bridge && bridge.listen) { bridge.listen(); return; }
+    const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!R) { toast("Voice input isn't supported in this browser. Type the move instead."); return; }
+    try {
+      const rec = new R();
+      rec.lang = "en-US"; rec.maxAlternatives = 5; rec.interimResults = false;
+      rec.onresult = e => window.onVoiceResult([...e.results[0]].map(a => a.transcript));
+      rec.onerror = e => toast("Voice error: " + e.error);
+      rec.start();
+      toast("Listening… say a move like “knight f3”");
+    } catch (e) { toast("Couldn't start voice input."); }
   }
 
-  function askPromotion(cands) {
-    const box = $("promo").querySelector(".box");
-    box.innerHTML = "";
-    for (const t of [5, 4, 3, 2]) {
-      const m = cands.find(c => Math.abs(c.pr) === t);
-      const b = document.createElement("button");
-      b.innerHTML = pieceHTML(m.pr);
-      b.onclick = () => { $("promo").style.display = "none"; doMove(m); };
-      box.appendChild(b);
+  // ---------- Chess clock ----------
+  const clock = { time: [300000, 300000], running: 0, paused: 0, last: 0, started: false };
+  const cidx = c => (c > 0 ? 0 : 1);
+  function clockPreset() { const [b, i] = S.clockPreset.split("+").map(Number); return { base: b * 1000, inc: i * 1000 }; }
+  function clockReset() {
+    const p = clockPreset();
+    clock.time = [p.base, p.base]; clock.running = 0; clock.paused = 0; clock.started = false;
+    if (flagged) { flagged = 0; renderStatus(); }
+    renderClock();
+  }
+  function clockPress(color) {        // `color` has just finished their move
+    if (!S.clockOn || flagged || clock.paused) return;
+    if (clock.running && clock.running !== color) return;
+    if (clock.running) clock.time[cidx(color)] += clockPreset().inc;
+    clock.running = -color; clock.last = performance.now(); clock.started = true;
+    renderClock();
+  }
+  function clockAutoSwitch(mover) { if (!clock.started || clock.running === mover) clockPress(mover); }
+  function clockTick() {
+    if (!clock.running) return;
+    const now = performance.now(), i = cidx(clock.running);
+    clock.time[i] -= now - clock.last; clock.last = now;
+    if (clock.time[i] <= 0) {
+      clock.time[i] = 0;
+      const loser = clock.running; clock.running = 0; flagged = loser;
+      renderStatus(); updateEngineUI();
+      const iLost = loser === myColor;
+      showAlert(iLost ? "lose" : "win", iLost ? "Your time ran out ⏰" : "Opponent's time ran out! ⏰", (loser > 0 ? "White" : "Black") + " lost on time.", true);
+      autoSaveFinished();
     }
-    $("promo").style.display = "flex";
+    renderClock();
   }
-  $("promo").addEventListener("click", e => { if (e.target.id === "promo") $("promo").style.display = "none"; });
-
-  function doMove(m) {
-    const s = game.san(m);
-    game.make(m);
-    played.push({ f: m.f, t: m.t, pr: m.pr, san: s });
-    lastMove = { f: m.f, t: m.t };
-    selected = -1;
-    stopEngine(); result = null;
-    hideAlert();
-    renderAll();
-    checkAlerts();
-    if ($("chkAuto").checked) analyze();
-  }
-
-  function rebuild() {
-    game.load(startFen);
-    for (const m of played) game.make(game.findMove(m.f, m.t, m.pr));
-    const lm = played[played.length - 1];
-    lastMove = lm ? { f: lm.f, t: lm.t } : null;
-  }
-
-  // ---------- Panel ----------
-  function fmtScore(score, stm) {
-    const white = score * stm; // convert to White's point of view
-    if (Math.abs(score) > game.MATE - 1000) {
-      const n = Math.ceil((game.MATE - Math.abs(score)) / 2);
-      return { text: (white > 0 ? "White" : "Black") + " mates in " + n, pct: white > 0 ? 100 : 0, mate: true, white };
+  setInterval(clockTick, 100);
+  const fmtClock = ms => {
+    if (ms < 10000) return (ms / 1000).toFixed(1);
+    const s = Math.ceil(ms / 1000);
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  };
+  function renderClock() {
+    document.body.classList.toggle("clock-on", !!S.clockOn);
+    const topColor = flipped ? 1 : -1;
+    for (const [id, c] of [["clockTop", topColor], ["clockBottom", -topColor]]) {
+      const el = $(id), t = clock.time[cidx(c)];
+      el.querySelector(".who").textContent = (c > 0 ? "White" : "Black") + (c === myColor ? " (you)" : "");
+      el.querySelector(".time").textContent = fmtClock(t);
+      el.classList.toggle("running", clock.running === c);
+      el.classList.toggle("low", t < 20000);
+      el.classList.toggle("flag", flagged === c);
     }
-    const pct = 100 / (1 + Math.exp(-white / 250));
-    return { text: (white >= 0 ? "+" : "") + (white / 100).toFixed(2), pct, mate: false, white };
+    $("btnClockPause").textContent = clock.paused ? "Resume" : "Pause";
   }
+  $("clockTop").onclick = () => clockPress(flipped ? 1 : -1);
+  $("clockBottom").onclick = () => clockPress(flipped ? -1 : 1);
+  $("btnClockPause").onclick = () => {
+    if (clock.running) { clock.paused = clock.running; clock.running = 0; }
+    else if (clock.paused) { clock.running = clock.paused; clock.paused = 0; clock.last = performance.now(); }
+    renderClock();
+  };
+  $("btnClockReset").onclick = clockReset;
 
-  function updateEngineUI() {
-    const stm = game.turn();
-    const mine = stm === myColor;
-    $("btnStop").disabled = !thinking;
-    $("btnThink").disabled = !!setup;
-    const valid = result && resultPly === game.ply() && result.pv && result.pv.length;
-    $("btnPlay").disabled = !valid || !mine;
-    const label = mine ? "Your best move" : "Opponent's most likely / most dangerous move";
-    if (!valid) {
-      $("bestMove").textContent = thinking ? "…" : "–";
-      $("bestEval").textContent = "";
-      $("bestInfo").innerHTML = thinking ? '<span class="spin"></span> thinking' : "";
-      $("bestLabel").textContent = thinking ? label : "Press “Best move” or turn on auto-analyze.";
-      $("reply").innerHTML = ""; $("pv").textContent = "";
-      return;
+  // ---------- Game review ----------
+  let reviewing = null;
+  async function runReview() {
+    if (reviewing) { reviewing.cancelled = true; cancelEngine(); return; }
+    if (!played.length) { toast("Play or import some moves first."); return; }
+    stopAnalysis();
+    const r = reviewing = { cancelled: false };
+    $("btnReview").textContent = "Stop review";
+    const n = played.length, sfOn = useStockfish(), ms = sfOn ? 500 : 700, need = sfOn ? 12 : 6;
+    const e = createChess(); e.load(startFen);
+    for (let k = 0; k <= n && !r.cancelled; k++) {
+      $("reviewProgress").textContent = `Analyzing ${k}/${n}…`;
+      const st = e.status(), stm = e.turn();
+      if (st === "checkmate") evals[k] = { white: -stm * MATE, best: null, depth: 99 };
+      else if (st === "stalemate" || st === "insufficient") evals[k] = { white: 0, best: null, depth: 99 };
+      else if (!(evals[k] && evals[k].depth >= need)) {
+        const res = await runEngine(startFen, played.slice(0, k).map(m => ({ f: m.f, t: m.t, pr: m.pr })), ms, 1, null);
+        if (!res || r.cancelled) break;
+        if (res.lines.length) evals[k] = { white: res.lines[0].score * stm, best: res.lines[0].pv[0], depth: res.lines[0].depth };
+      }
+      if (k < n) e.make(e.findMove(played[k].f, played[k].t, played[k].pr));
+      if (k % 4 === 0) renderReview();
     }
-    const sc = fmtScore(result.score, stm);
-    $("bestLabel").textContent = label;
-    $("bestMove").textContent = result.pv[0].san;
-    let verdict = "";
-    if (sc.mate) verdict = sc.text;
+    reviewing = null;
+    $("btnReview").textContent = "Review this game";
+    $("reviewProgress").textContent = r.cancelled ? "Stopped." : "Done.";
+    renderReview();
+    if (S.auto && view === null) analyze();
+  }
+  const CLS = { best: "Best", excellent: "Excellent", good: "Good", inaccuracy: "Inaccuracy", mistake: "Mistake", blunder: "Blunder", book: "Book" };
+  function classify(k, keys) {
+    const a = evals[k], b = evals[k + 1], mv = played[k];
+    if (!a || !b || !mv) return null;
+    const mover = turnAtPly(k);
+    const loss = Math.max(0, wp(a.white * mover) - wp(b.white * mover));
+    const acc = Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * loss * 100) - 3.1669));
+    let cls;
+    if (isBookMove(keys, k)) cls = "book";
+    else if (a.best && sameMove(a.best, mv)) cls = "best";
+    else cls = loss < 0.02 ? "excellent" : loss < 0.05 ? "good" : loss < 0.10 ? "inaccuracy" : loss < 0.20 ? "mistake" : "blunder";
+    return { cls, loss, acc, mover };
+  }
+  function renderReview() {
+    const n = played.length;
+    const have = evals.slice(0, n + 1).filter(Boolean).length;
+    $("reviewOut").style.display = have > 1 ? "block" : "none";
+    if (have <= 1) return;
+    const keys = openingInfo().keys;
+    // Evaluation graph: white area = White's winning chances.
+    let pts = [];
+    for (let k = 0; k <= n; k++) if (evals[k]) pts.push([k, 100 * (1 - wp(evals[k].white))]);
+    const W = Math.max(1, n);
+    let svg = `<polygon fill="#f2f2f2" points="0,100 ${pts.map(([k, y]) => (k / W * 100).toFixed(2) + "," + y.toFixed(2)).join(" ")} ${(pts[pts.length - 1][0] / W * 100).toFixed(2)},100"/>`;
+    svg += `<line x1="0" y1="50" x2="100" y2="50" stroke="#888" stroke-width="0.5" vector-effect="non-scaling-stroke"/>`;
+    const stats = { 1: { acc: [], inaccuracy: 0, mistake: 0, blunder: 0, best: 0 }, "-1": { acc: [], inaccuracy: 0, mistake: 0, blunder: 0, best: 0 } };
+    let list = "";
+    for (let k = 0; k < n; k++) {
+      const c = classify(k, keys), mv = played[k];
+      const num = moveNumberAt(k) + (turnAtPly(k) === 1 ? "." : "…");
+      if (c) {
+        const st = stats[c.mover];
+        if (c.cls !== "book") st.acc.push(c.acc);
+        if (st[c.cls] !== undefined) st[c.cls]++;
+        if (c.cls === "mistake" || c.cls === "blunder") {
+          const x = ((k + 1) / W * 100).toFixed(2);
+          svg += `<line x1="${x}" y1="0" x2="${x}" y2="100" stroke="${c.cls === "blunder" ? "#c9342a" : "#e07a1f"}" stroke-width="2" vector-effect="non-scaling-stroke" opacity=".8"/>`;
+        }
+      }
+      const best = evals[k] && evals[k].best && c && !["best", "book"].includes(c.cls) ? `<span class="muted">best ${esc(evals[k].best.san)}</span>` : "";
+      list += `<div class="rv${view === k ? " cur" : ""}" data-k="${k}"><span class="num">${num}</span><span class="san">${esc(mv.san)}</span>` +
+        (c ? `<span class="badge b-${c.cls}">${CLS[c.cls]}</span>` : `<span class="muted">…</span>`) + best + `</div>`;
+    }
+    if (view !== null) { const x = (view / W * 100).toFixed(2); svg += `<line x1="${x}" y1="0" x2="${x}" y2="100" stroke="#2c6fb3" stroke-width="2" vector-effect="non-scaling-stroke"/>`; }
+    $("graph").innerHTML = svg;
+    const row = (c, label) => {
+      const st = stats[c], acc = st.acc.length ? (st.acc.reduce((a, b) => a + b, 0) / st.acc.length).toFixed(0) + "%" : "–";
+      return `<tr><td>${label}</td><td><b>${acc}</b></td><td>${st.best}</td><td style="color:var(--c-inaccuracy)">${st.inaccuracy}</td><td style="color:var(--c-mistake)">${st.mistake}</td><td style="color:var(--c-blunder)">${st.blunder}</td></tr>`;
+    };
+    $("reviewSummary").innerHTML = `<table><tr><th></th><th>Accuracy</th><th>Best</th><th>?!</th><th>?</th><th>??</th></tr>` +
+      row(1, "White" + (myColor === 1 ? " (you)" : "")) + row(-1, "Black" + (myColor === -1 ? " (you)" : "")) + `</table>`;
+    $("reviewList").innerHTML = list;
+  }
+  $("btnReview").onclick = runReview;
+  $("reviewList").addEventListener("click", e => { const r = e.target.closest(".rv"); if (r) enterView(+r.dataset.k); });
+  $("graph").addEventListener("click", e => {
+    const rect = $("graph").getBoundingClientRect(), n = played.length;
+    enterView(Math.max(0, Math.min(n, Math.round((e.clientX - rect.left) / rect.width * n))));
+  });
+
+  // Reviewing mode: board shows the position before move `k` with the played move (blue) and the best move (green).
+  function enterView(k) {
+    if (setup) return;
+    stopAnalysis(); selected = -1;
+    view = Math.max(0, Math.min(played.length, k));
+    viewEng.load(startFen);
+    for (let i = 0; i < view; i++) viewEng.make(viewEng.findMove(played[i].f, played[i].t, played[i].pr));
+    document.body.classList.add("viewing");
+    const mv = played[view], e = evals[view], keys = openingInfo().keys, c = mv ? classify(view, keys) : null;
+    let txt;
+    if (!mv) txt = "Final position.";
     else {
-      const my = sc.white * myColor;
-      verdict = sc.text + (my > 300 ? " — you are winning" : my > 100 ? " — you are better" :
-        my < -300 ? " — you are losing, fight for tricks" : my < -100 ? " — you are worse" : " — about equal");
+      txt = `Move ${moveNumberAt(view)}${turnAtPly(view) === 1 ? "." : "…"} ${mv.san}` + (c ? ` — ${CLS[c.cls]}` : "") + ".";
+      if (e && e.best && !sameMove(e.best, mv)) txt += ` Best was ${e.best.san} (green).`;
+      if (e) txt += ` Eval before: ${fmtScore(e.white, 1).text}.`;
     }
-    $("bestEval").textContent = verdict;
-    $("bestInfo").innerHTML = (thinking ? '<span class="spin"></span> ' : "") +
-      "depth " + result.depth + " · " + (result.nodes || 0).toLocaleString() + " positions";
-    const reply = result.pv[1];
-    $("reply").innerHTML = reply
-      ? (mine ? "Expected opponent reply: " : "Then your best answer: ") + "<b>" + reply.san + "</b>" : "";
-    // numbered line
-    let num = Math.floor(played.length / 2) + 1 + (startFenMoveNo() - 1);
-    let whiteToMove = stm === 1, out = "";
-    result.pv.forEach((m, i) => {
-      if (whiteToMove) out += num + ". ";
-      else if (i === 0) out += num + "... ";
-      out += m.san + " ";
-      if (!whiteToMove) num++;
-      whiteToMove = !whiteToMove;
+    $("viewText").textContent = txt;
+    const ev = evals[view];
+    if (ev) $("evalwhite").style.height = fmtScore(ev.white, 1).pct + "%";
+    renderAll();
+  }
+  function exitView() {
+    if (view === null) return;
+    view = null; document.body.classList.remove("viewing");
+    renderAll();
+    if (S.auto) analyze();
+  }
+  $("btnViewPrev").onclick = () => enterView(view - 1);
+  $("btnViewNext").onclick = () => enterView(view + 1);
+  $("btnViewExit").onclick = exitView;
+  $("btnViewPlay").onclick = () => {
+    if (view === null) return;
+    if (view < played.length && !confirm(`Take back ${played.length - view} move(s) and continue from here?`)) return;
+    played = played.slice(0, view); evals.length = Math.min(evals.length, view + 1);
+    rebuild(); view = null; document.body.classList.remove("viewing");
+    renderAll(); if (S.auto) analyze();
+  };
+
+  // ---------- Saved games & PGN ----------
+  const SAVED_KEY = "chess-helper-saved";
+  function loadSaved() { try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; } catch (_) { return []; } }
+  function storeSaved(list) { try { localStorage.setItem(SAVED_KEY, JSON.stringify(list.slice(0, 100))); } catch (_) { toast("Couldn't save — storage is full."); } }
+  function resultStr() {
+    if (flagged) return flagged > 0 ? "0-1" : "1-0";
+    const st = game.status();
+    if (st === "checkmate") return game.turn() > 0 ? "0-1" : "1-0";
+    if (st === "stalemate" || st === "insufficient" || st === "fifty") return "1/2-1/2";
+    return "*";
+  }
+  function currentRecord() {
+    return { id: gameId || (gameId = Date.now().toString(36)), date: new Date().toISOString(), startFen, played: played.slice(), myColor,
+      result: resultStr(), opening: openingInfo().name };
+  }
+  function saveGame(silent) {
+    if (!played.length) { if (!silent) toast("No moves to save yet."); return; }
+    const rec = currentRecord(), list = loadSaved(), i = list.findIndex(g => g.id === rec.id);
+    if (i >= 0) list[i] = rec; else list.unshift(rec);
+    storeSaved(list); renderSaved();
+    if (!silent) toast("Game saved.");
+  }
+  function autoSaveFinished() {
+    const r = resultStr();
+    if (r === "*" || savedResult === r) return;
+    savedResult = r; saveGame(true); toast("Finished game saved to Saved games.");
+  }
+  function toPGN(g) {
+    const d = new Date(g.date || Date.now()), pad = x => String(x).padStart(2, "0");
+    const tags = [["Event", "Casual game"], ["Site", "Over the board"], ["Date", `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`],
+      ["White", g.myColor === 1 ? "Me" : "Opponent"], ["Black", g.myColor === 1 ? "Opponent" : "Me"], ["Result", g.result]];
+    if (g.startFen !== START) tags.push(["SetUp", "1"], ["FEN", g.startFen]);
+    if (g.opening) tags.push(["Opening", g.opening]);
+    let num = +(g.startFen.split(" ")[5] || 1), white = g.startFen.split(" ")[1] !== "b";
+    const toks = [];
+    g.played.forEach((m, i) => {
+      if (white) toks.push(num + "."); else if (i === 0) toks.push(num + "...");
+      toks.push(m.san);
+      if (!white) num++;
+      white = !white;
     });
-    $("pv").textContent = "Line: " + out.trim();
-    $("evalwhite").style.height = sc.pct + "%";
+    toks.push(g.result);
+    let body = "", lineLen = 0;
+    for (const t of toks) { if (lineLen + t.length + 1 > 79) { body += "\n"; lineLen = 0; } else if (lineLen) { body += " "; lineLen++; } body += t; lineLen += t.length; }
+    return tags.map(([k, v]) => `[${k} "${String(v).replace(/"/g, "'")}"]`).join("\n") + "\n\n" + body + "\n";
   }
+  function sharePGN(pgn) {
+    if (bridge && bridge.share) { bridge.share(pgn, "Chess game"); return; }
+    if (navigator.share) { navigator.share({ title: "Chess game", text: pgn }).catch(() => {}); return; }
+    copyText(pgn); toast("PGN copied to clipboard.");
+  }
+  function parsePGN(text) {
+    const tags = {};
+    text.replace(/\[(\w+)\s+"([^"]*)"\]/g, (_, k, v) => { tags[k] = v; return ""; });
+    let body = text.replace(/\[[^\]]*\]/g, " ").replace(/\{[^}]*\}/g, " ").replace(/;[^\n]*/g, " ");
+    let prev;
+    do { prev = body; body = body.replace(/\([^()]*\)/g, " "); } while (body !== prev);
+    body = body.replace(/\$\d+/g, " ").replace(/\d+\.(\.\.)?/g, " ");
+    const e = createChess();
+    e.load(tags.FEN || START);
+    const fen0 = e.fen(), moves = [];
+    for (const tok of body.split(/\s+/).filter(Boolean)) {
+      if (/^(1-0|0-1|1\/2-1\/2|\*)$/.test(tok)) break;
+      const t = cleanSan(tok);
+      const m = e.legalMoves().find(x => cleanSan(e.san(x)) === t);
+      if (!m) throw new Error(`Can't read move “${tok}” (move ${Math.floor(moves.length / 2) + 1})`);
+      moves.push({ f: m.f, t: m.t, pr: m.pr, san: e.san(m) });
+      e.make(m);
+    }
+    return { startFen: fen0, played: moves, tags };
+  }
+  function loadRecord(rec) {
+    cancelEngine(); an = null;
+    startFen = rec.startFen; played = rec.played.slice(); myColor = rec.myColor || 1; flipped = myColor === -1;
+    gameId = rec.id || null; savedResult = rec.result && rec.result !== "*" ? rec.result : null;
+    evals = []; alerted.clear(); winningShown = false; view = null; flagged = 0;
+    document.body.classList.remove("viewing");
+    rebuild(); clockReset(); selected = -1; hideAlert();
+    $("selColor").value = myColor === 1 ? "w" : "b";
+    renderAll(); renderReview();
+    if (S.auto) analyze();
+  }
+  function renderSaved() {
+    const list = loadSaved();
+    $("savedList").innerHTML = list.length ? list.map(g => {
+      const d = new Date(g.date);
+      const who = g.myColor === 1 ? "You (White) vs Opponent" : "Opponent vs You (Black)";
+      return `<div class="sg" data-id="${esc(g.id)}"><div class="t">${esc(who)} · ${esc(g.result)}</div>
+        <div class="d">${esc(d.toLocaleDateString())} ${esc(d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))} · ${g.played.length} plies${g.opening ? " · " + esc(g.opening) : ""}</div>
+        <div class="row"><button class="small" data-act="load">Open</button><button class="small" data-act="pgn">Share PGN</button><button class="small danger" data-act="del">Delete</button></div></div>`;
+    }).join("") : '<div class="muted">No saved games yet. Finished games are saved automatically.</div>';
+  }
+  $("savedList").addEventListener("click", e => {
+    const b = e.target.closest("button"), sg = e.target.closest(".sg");
+    if (!b || !sg) return;
+    const list = loadSaved(), g = list.find(x => x.id === sg.dataset.id);
+    if (!g) return;
+    if (b.dataset.act === "load") { loadRecord(g); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    else if (b.dataset.act === "pgn") sharePGN(toPGN(g));
+    else if (b.dataset.act === "del" && confirm("Delete this game?")) { storeSaved(list.filter(x => x.id !== g.id)); renderSaved(); }
+  });
+  $("btnSaveGame").onclick = () => saveGame(false);
+  $("btnSharePgn").onclick = () => sharePGN(toPGN(currentRecord()));
+  $("btnCopyPgn").onclick = () => { copyText(toPGN(currentRecord())); toast("PGN copied."); };
+  $("btnImportPgn").onclick = () => {
+    try {
+      const r = parsePGN($("pgnIn").value);
+      loadRecord({ startFen: r.startFen, played: r.played, myColor: r.tags.Black === "Me" ? -1 : 1, id: null, result: r.tags.Result });
+      toast(`Imported ${Math.ceil(r.played.length / 2)} moves.`); $("pgnIn").value = "";
+    } catch (err) { toast(err.message, 5000); }
+  };
 
-  function startFenMoveNo() { return +(startFen.split(/\s+/)[5] || 1); }
-  function startFenBlack() { return startFen.split(/\s+/)[1] === "b"; }
+  // ---------- Camera move detection ----------
+  const cam = { stream: null, timer: null, rot: 0, ref: null, prev: null, stable: 0, pending: null, needRef: false, rejected: null };
+  const camCanvas = $("camCanvas"), camCtx = camCanvas.getContext("2d", { willReadFrequently: true });
+  const camOn = () => !!cam.stream;
+  async function camStart() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast("Camera isn't available here."); return; }
+    try {
+      cam.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    } catch (e) { toast("Couldn't open the camera: " + (e.message || e.name)); return; }
+    const v = $("camVideo");
+    v.srcObject = cam.stream;
+    try { await v.play(); } catch (_) {}
+    document.body.classList.add("camera-on");
+    cam.ref = null; cam.prev = null; cam.pending = null;
+    camStatus("Line the board up with the grid, then tap Set reference.");
+    cam.timer = setInterval(camLoop, 500);
+    $("cameraCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  function camStop() {
+    clearInterval(cam.timer); cam.timer = null;
+    if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
+    cam.stream = null;
+    document.body.classList.remove("camera-on");
+    $("camProposal").style.display = "none";
+  }
+  const camStatus = t => { $("camStatus").textContent = t; };
+  // Draws the (rotated, square-cropped) camera image and samples 5x5 brightness points inside each square.
+  function camGrab() {
+    const v = $("camVideo");
+    if (!v.videoWidth) return null;
+    const side = Math.min(v.videoWidth, v.videoHeight), sx = (v.videoWidth - side) / 2, sy = (v.videoHeight - side) / 2;
+    camCtx.save(); camCtx.translate(128, 128); camCtx.rotate(cam.rot * Math.PI / 2);
+    camCtx.drawImage(v, sx, sy, side, side, -128, -128, 256, 256); camCtx.restore();
+    return sampleFrame(camCtx.getImageData(0, 0, 256, 256).data);
+  }
+  function sampleFrame(data) {
+    const out = new Float32Array(64 * 25);
+    let total = 0;
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) {
+      let sum = 0;
+      const x0 = c * 32 + 6 + j * 4, y0 = r * 32 + 6 + i * 4;
+      for (let y = y0; y < y0 + 4; y++) for (let x = x0; x < x0 + 4; x++) {
+        const p = (y * 256 + x) * 4;
+        sum += 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+      }
+      const v = sum / 16;
+      out[(r * 8 + c) * 25 + i * 5 + j] = v; total += v;
+    }
+    const mean = total / out.length;
+    for (let i = 0; i < out.length; i++) out[i] -= mean; // cancel overall brightness changes
+    return out;
+  }
+  // Mean absolute change per board square (keyed by 0x88 square index).
+  function squareDiffs(a, b) {
+    const d = new Float32Array(128);
+    for (let cell = 0; cell < 64; cell++) {
+      let s = 0;
+      for (let i = 0; i < 25; i++) s += Math.abs(a[cell * 25 + i] - b[cell * 25 + i]);
+      d[sqAt(cell >> 3, cell & 7)] = s / 25;
+    }
+    return d;
+  }
+  function expectedSquares(m) {
+    const E = [m.f, m.t];
+    if (m.fl === 3) { const rs = { 6: [7, 5], 2: [0, 3], 118: [119, 117], 114: [112, 115] }[m.t]; E.push(rs[0], rs[1]); }
+    if (m.fl === 2) E.push(m.t - 16 * Math.sign(m.p));
+    return E;
+  }
+  function camDetect(ref, frame) {
+    const d = squareDiffs(ref, frame), all = [];
+    for (let sq = 0; sq < 128; sq++) if (!(sq & 0x88)) all.push(sq);
+    const scored = game.legalMoves().map(m => {
+      const E = expectedSquares(m);
+      let minE = Infinity, maxO = 0;
+      for (const s of E) minE = Math.min(minE, d[s]);
+      for (const s of all) if (!E.includes(s)) maxO = Math.max(maxO, d[s]);
+      return { m, minE, score: minE - 0.6 * maxO + (Math.abs(m.pr) === 5 ? 0.01 : 0) };
+    }).sort((a, b) => b.score - a.score);
+    const best = scored[0], second = scored[1];
+    const conf = !!best && best.minE > 10 && best.score > 3 && (!second || best.score - second.score > 3);
+    return { m: best ? best.m : null, conf, d };
+  }
+  const meanDiff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
+  function camLoop() {
+    const f = camGrab();
+    if (!f) return;
+    const motion = cam.prev ? meanDiff(cam.prev, f) : 99;
+    cam.prev = f;
+    cam.stable = motion < 4 ? cam.stable + 1 : 0;
+    if (cam.stable < 2) return;
+    if (cam.needRef && cam.ref) { cam.ref = f; cam.needRef = false; camStatus("Reference updated from the new position."); return; }
+    if (!cam.ref || !S.camAuto || cam.pending || view !== null || isOver()) return;
+    const d = squareDiffs(cam.ref, f);
+    const changed = [];
+    for (let sq = 0; sq < 128; sq++) if (!(sq & 0x88) && d[sq] > 12) changed.push(sq);
+    if (changed.length < 2) return;
+    const sig = changed.join(",");
+    if (sig === cam.rejected) return;
+    const r = camDetect(cam.ref, f);
+    if (r.conf) camPropose(r.m, f, sig, true);
+    else camStatus("The board changed but the move is unclear. Tap Detect move or enter it another way.");
+  }
+  function camPropose(m, frame, sig, confident) {
+    cam.pending = { m, frame, sig };
+    $("camMove").textContent = game.san(m);
+    $("camConf").textContent = confident ? "" : "(low confidence — check it)";
+    $("camProposal").style.display = "block";
+    queueSpeech("Detected " + sanWords(game.san(m)));
+  }
+  $("btnCamera").onclick = () => (camOn() ? camStop() : camStart());
+  $("btnCamStop").onclick = camStop;
+  $("btnCamRotate").onclick = () => { cam.rot = (cam.rot + 1) % 4; cam.ref = null; camStatus("Rotated. Tap Set reference again."); };
+  $("btnCamRef").onclick = () => { const f = camGrab(); if (f) { cam.ref = f; cam.rejected = null; camStatus("Reference set. Make a move on the real board."); } };
+  $("btnCamDetect").onclick = () => {
+    if (!cam.ref) { camStatus("Tap Set reference first."); return; }
+    const f = camGrab(); if (!f) return;
+    const r = camDetect(cam.ref, f);
+    if (r.m && r.d && Math.max(...r.d) > 6) camPropose(r.m, f, null, r.conf);
+    else camStatus("No change detected.");
+  };
+  $("btnCamYes").onclick = () => {
+    if (!cam.pending) return;
+    const p = cam.pending; cam.pending = null; $("camProposal").style.display = "none";
+    const m = game.findMove(p.m.f, p.m.t, p.m.pr);
+    if (m) { cam.ref = p.frame; doMove(m, "camera"); camStatus("Move entered. Waiting for the next one."); }
+  };
+  $("btnCamNo").onclick = () => {
+    if (!cam.pending) return;
+    cam.rejected = cam.pending.sig; cam.pending = null; $("camProposal").style.display = "none";
+    camStatus("Ignored. Enter the move by tapping or voice; the reference updates automatically.");
+  };
+  window.__camTest = { sampleFrame, squareDiffs, camDetect, expectedSquares }; // used by automated tests
+  window.__chessDebug = () => ({ evals, an, played: played.map(m => m.san) });
 
+  // ---------- Status, moves, rendering ----------
   function renderStatus() {
-    const st = game.status(), stm = game.turn() > 0 ? "White" : "Black";
-    const el = $("status");
-    el.classList.toggle("over", ["checkmate", "stalemate", "fifty", "insufficient", "repetition"].includes(st));
-    const you = game.turn() === myColor ? " (you)" : " (opponent)";
-    el.textContent = {
-      checkmate: "Checkmate — " + (game.turn() > 0 ? "Black" : "White") + " wins",
-      stalemate: "Stalemate — draw",
-      fifty: "Draw by 50-move rule (can be claimed)",
-      insufficient: "Draw — insufficient material",
-      repetition: "Threefold repetition — draw can be claimed",
-      check: stm + " to move" + you + " — CHECK",
-      normal: stm + " to move" + you
-    }[st];
-    if (st === "checkmate") $("evalwhite").style.height = game.turn() > 0 ? "0%" : "100%";
+    const src = pos(), st = src.status(), el = $("status");
+    const over = flagged || ["checkmate", "stalemate", "fifty", "insufficient", "repetition"].includes(st);
+    el.classList.toggle("over", !!over);
+    if (view !== null) { el.textContent = "Reviewing"; }
+    else if (flagged) el.textContent = (flagged > 0 ? "White" : "Black") + " lost on time";
+    else {
+      const stm = game.turn() > 0 ? "White" : "Black", you = game.turn() === myColor ? " (you)" : " (opponent)";
+      el.textContent = {
+        checkmate: "Checkmate — " + (game.turn() > 0 ? "Black" : "White") + " wins",
+        stalemate: "Stalemate — draw", fifty: "Draw by 50-move rule (can be claimed)",
+        insufficient: "Draw — insufficient material", repetition: "Threefold repetition — draw can be claimed",
+        check: stm + " to move" + you + " — CHECK", normal: stm + " to move" + you
+      }[st];
+    }
+    if (st === "checkmate" && view === null) $("evalwhite").style.height = game.turn() > 0 ? "0%" : "100%";
+    const info = openingInfo();
+    $("opening").textContent = info.name ? "📖 " + info.name : "";
   }
-
+  function renderBook() {
+    const ent = view === null && !setup ? BOOK.get(bookKey(game.fen())) : null;
+    if (!ent || !ent.next.size) { $("book").innerHTML = ""; return; }
+    const e = createChess(); e.load(game.fen());
+    const chips = [...ent.next.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([san]) => {
+      const m = e.legalMoves().find(x => cleanSan(e.san(x)) === san);
+      let name = "";
+      if (m) { e.make(m); const n = BOOK.get(bookKey(e.fen())); name = n && n.name ? n.name : ""; e.undo(); }
+      return `<button class="chip" data-san="${esc(san)}" title="${esc(name)}">${esc(san)}${name ? ` <span class="muted">${esc(name.replace(/^.*?: /, ""))}</span>` : ""}</button>`;
+    });
+    $("book").innerHTML = `<span class="muted">Opening book:</span> ` + chips.join("");
+  }
+  $("book").addEventListener("click", e => { const b = e.target.closest(".chip"); if (b) handleMoveText([b.dataset.san], false); });
   function renderMoves() {
-    let html = "", num = startFenMoveNo();
-    let i = 0;
-    if (startFenBlack() && played.length) { html += `<span class="n">${num}...</span><span class="m">${played[0].san}</span>`; num++; i = 1; }
+    let html = "", num = startMoveNo(), i = 0;
+    if (startBlack() && played.length) { html += `<span class="n">${num}...</span><span class="m">${esc(played[0].san)}</span>`; num++; i = 1; }
     for (; i < played.length; i += 2) {
-      html += `<span class="n">${num}.</span><span class="m">${played[i].san}</span>`;
-      if (played[i + 1]) html += `<span class="m">${played[i + 1].san}</span>`;
+      html += `<span class="n">${num}.</span><span class="m">${esc(played[i].san)}</span>`;
+      if (played[i + 1]) html += `<span class="m">${esc(played[i + 1].san)}</span>`;
       num++;
     }
     $("moves").innerHTML = html || '<span class="n">No moves yet. Tap a piece, then tap where it goes.</span>';
     $("moves").scrollTop = 1e9;
   }
-
-  // Keep the game across app restarts (per-device only; ignored if storage is unavailable).
   const SAVE_KEY = "chess-helper-game";
-  function save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ startFen, played, myColor, flipped })); } catch (_) {}
-  }
+  function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ startFen, played, myColor, flipped, gameId, savedResult })); } catch (_) {} }
   function restore() {
     try {
       const s = JSON.parse(localStorage.getItem(SAVE_KEY));
       if (!s) return;
-      startFen = s.startFen; played = s.played; myColor = s.myColor; flipped = s.flipped;
+      startFen = s.startFen; played = s.played; myColor = s.myColor; flipped = s.flipped; gameId = s.gameId || null; savedResult = s.savedResult || null;
       rebuild();
-      $("selColor").value = myColor === 1 ? "w" : "b";
     } catch (_) {
-      startFen = game.START; played = []; myColor = 1; flipped = false;
+      startFen = START; played = []; myColor = 1; flipped = false;
       try { rebuild(); } catch (__) {}
     }
   }
-
   function renderAll() {
     if (!setup) save();
-    renderBoard(); renderArrows(); renderStatus(); renderMoves(); updateEngineUI();
-    if (document.activeElement !== $("fen")) $("fen").value = setup ? "" : game.fen();
+    renderBoard(); renderArrows(); renderStatus(); renderMoves(); renderBook(); updateEngineUI(); renderClock();
+    if (document.activeElement !== $("fen")) $("fen").value = setup ? "" : pos().fen();
+    if (!$("reviewOut").hidden && document.getElementById("reviewCard").open) renderReview();
   }
 
-  // ---------- Buttons ----------
-  $("btnThink").onclick = analyze;
-  $("btnStop").onclick = () => stopEngine();
+  // ---------- Controls ----------
+  function bindCheck(id, key, after) {
+    const el = $(id); el.checked = !!S[key];
+    el.onchange = () => { S[key] = el.checked; saveSettings(); if (after) after(); };
+  }
+  function bindSelect(id, key, after, num) {
+    const el = $(id); el.value = String(S[key]);
+    el.onchange = () => { S[key] = num ? +el.value : el.value; saveSettings(); if (after) after(); };
+  }
+  bindCheck("chkAuto", "auto", () => { if (S.auto && !(an && an.key === game.fen())) analyze(); });
+  bindCheck("chkAlerts", "alerts");
+  bindCheck("chkBlunders", "blunders");
+  bindCheck("chkHint", "hint", () => { hintLevel = 0; renderAll(); });
+  bindCheck("chkSpeak", "speak", () => { if (S.speak) speakNow("Voice on"); });
+  $("chkClock").checked = !!S.clockOn;
+  $("chkClock").onchange = () => { S.clockOn = $("chkClock").checked; saveSettings(); clockReset(); };
+  bindCheck("chkClockAuto", "clockAuto");
+  bindCheck("chkCamAuto", "camAuto");
+  bindSelect("selTime", "time", null, true);
+  bindSelect("selEngine", "engine", () => { engineChanged(); if (S.auto && view === null) analyze(); });
+  bindSelect("selBoard", "board", () => { document.body.dataset.board = S.board; });
+  bindSelect("selPieces", "pieces", () => renderAll());
+  bindSelect("selClock", "clockPreset", clockReset);
+  document.body.dataset.board = S.board;
+
+  $("btnThink").onclick = () => {
+    if (hintActive()) {
+      if (!an || an.key !== game.fen() || !an.lines.length) { analyze(); hintLevel = 1; return; }
+      hintLevel = Math.min(3, hintLevel + 1);
+      renderAll();
+      return;
+    }
+    analyze();
+  };
+  $("btnStop").onclick = stopAnalysis;
+  $("btnSpeak").onclick = () => {
+    if (an && an.lines.length && !hintActive()) speakNow((game.turn() === myColor ? "Best move: " : "Opponent's best: ") + sanWords(an.lines[0].pv[0].san));
+    else toast("No suggestion yet.");
+  };
   $("btnPlay").onclick = () => {
-    if (!result || resultPly !== game.ply()) return;
-    const m = game.findMove(result.pv[0].f, result.pv[0].t, result.pv[0].pr);
-    if (m) doMove(m);
+    if (!an || an.key !== game.fen() || !an.lines.length) return;
+    const b = an.lines[0].pv[0], m = game.findMove(b.f, b.t, b.pr);
+    if (m) doMove(m, "engine");
   };
   $("btnUndo").onclick = () => {
+    if (view !== null) exitView();
     if (!played.length) return;
-    stopEngine();
-    played.pop(); rebuild(); selected = -1; result = null;
-    hideAlert();
+    cancelEngine(); an = null;
+    played.pop(); rebuild(); selected = -1; hintLevel = 0;
+    hideAlert(); if (camOn()) cam.needRef = true;
     renderAll();
-    if ($("chkAuto").checked) analyze();
+    if (S.auto) analyze();
   };
-  $("btnFlip").onclick = () => { flipped = !flipped; renderAll(); };
+  $("btnFlip").onclick = () => { flipped = !flipped; if (camOn()) cam.ref = null; renderAll(); };
   $("btnNew").onclick = () => {
-    stopEngine();
-    startFen = game.START; played = []; rebuild(); selected = -1; result = null;
-    alerted.clear(); winningShown = false; hideAlert();
-    renderAll();
-    if ($("chkAuto").checked && myColor === 1) analyze();
+    if (played.length && resultStr() === "*" && !confirm("Start a new game? The current one will be saved first.")) return;
+    if (played.length) saveGame(true);
+    loadRecord({ startFen: START, played: [], myColor, id: null });
   };
-  $("selColor").onchange = e => {
-    myColor = e.target.value === "w" ? 1 : -1;
-    flipped = myColor === -1;
-    renderAll();
-  };
-  $("chkAuto").onchange = e => { if (e.target.checked && !thinking && !(result && resultPly === game.ply())) analyze(); };
+  $("selColor").onchange = e => { myColor = e.target.value === "w" ? 1 : -1; flipped = myColor === -1; renderAll(); if (S.auto) analyze(); };
+  $("btnVoice").onclick = startVoice;
+  $("btnMoveGo").onclick = () => { const v = $("moveInput").value; if (handleMoveText([v], false)) $("moveInput").value = ""; };
+  $("moveInput").addEventListener("keydown", e => { if (e.key === "Enter") $("btnMoveGo").click(); });
+  function toggleFocus(on) { document.body.classList.toggle("focus", on); window.scrollTo(0, 0); }
+  $("btnFocus").onclick = () => toggleFocus(true);
+  $("btnFocus2").onclick = () => toggleFocus(true);
+  $("btnFocusExit").onclick = () => toggleFocus(false);
 
   function loadFen(f) {
-    stopEngine();
-    game.load(f); // throws on invalid FEN
-    startFen = game.fen(); played = []; lastMove = null; selected = -1; result = null;
-    alerted.clear(); winningShown = false; hideAlert();
-    renderAll();
-    if ($("chkAuto").checked) analyze();
+    game.load(f); // throws on an invalid FEN
+    loadRecord({ startFen: game.fen(), played: [], myColor, id: null });
   }
   $("btnFenLoad").onclick = () => {
-    try { loadFen($("fen").value); }
-    catch (err) { alert("Invalid FEN: " + err.message); rebuild(); renderAll(); }
+    try { loadFen($("fen").value); } catch (err) { toast("Invalid FEN: " + err.message, 5000); rebuild(); renderAll(); }
   };
-  $("btnFenCopy").onclick = () => {
-    const f = game.fen();
-    if (navigator.clipboard) navigator.clipboard.writeText(f).catch(() => {});
-    $("fen").value = f; $("fen").select();
-  };
+  $("btnFenCopy").onclick = () => { copyText(pos().fen()); toast("FEN copied."); };
 
   // ---------- Position setup ----------
   const palette = $("palette");
-  const PAL = [6, 5, 4, 3, 2, 1, -6, -5, -4, -3, -2, -1, 0];
-  for (const p of PAL) {
+  for (const p of [6, 5, 4, 3, 2, 1, -6, -5, -4, -3, -2, -1, 0]) {
     const b = document.createElement("button");
-    b.innerHTML = p ? pieceHTML(p) : "✕";
-    b.title = p ? (p > 0 ? "White " : "Black ") + ["", "pawn", "knight", "bishop", "rook", "queen", "king"][Math.abs(p)] : "Eraser";
+    b.dataset.p = p;
+    b.title = p ? (p > 0 ? "White " : "Black ") + PIECE_NAMES[Math.abs(p)] : "Eraser";
     b.onclick = () => { paletteSel = p; [...palette.children].forEach(c => c.classList.remove("on")); b.classList.add("on"); };
     if (p === 1) b.classList.add("on");
     palette.appendChild(b);
   }
+  function renderPalette() { for (const b of palette.children) { const p = +b.dataset.p; b.innerHTML = p ? pieceHTML(p) : "✕"; } }
   function enterSetup() {
-    stopEngine();
+    if (view !== null) exitView();
+    cancelEngine(); an = null;
     setup = new Int8Array(128);
     for (let sq = 0; sq < 128; sq++) if (!(sq & 0x88)) setup[sq] = game.get(sq);
     $("selSetupTurn").value = game.turn() > 0 ? "w" : "b";
     $("setupErr").textContent = "";
     document.body.classList.add("setup");
-    selected = -1;
-    renderAll();
+    selected = -1; renderPalette(); renderAll();
   }
   function setupFen() {
     let s = "";
@@ -1343,30 +2600,38 @@ function createChess() {
     if (setup[116] === -6 && setup[112] === -4) cs += "q";
     return s + " " + $("selSetupTurn").value + " " + (cs || "-") + " - 0 1";
   }
+  const leaveSetup = () => { setup = null; document.body.classList.remove("setup"); };
   $("btnSetup").onclick = enterSetup;
   $("btnSetupDone").onclick = () => {
     const f = setupFen();
-    try {
-      game.load(f);
-      setup = null;
-      document.body.classList.remove("setup");
-      loadFen(f);
-    } catch (err) {
-      $("setupErr").textContent = err.message;
-      try { rebuild(); } catch (_) {}
-    }
+    try { game.load(f); leaveSetup(); loadFen(f); }
+    catch (err) { $("setupErr").textContent = err.message; try { rebuild(); } catch (_) {} }
   };
-  $("btnSetupCancel").onclick = () => { setup = null; document.body.classList.remove("setup"); rebuild(); renderAll(); };
+  $("btnSetupCancel").onclick = () => { leaveSetup(); rebuild(); renderAll(); if (S.auto) analyze(); };
   $("btnSetupClear").onclick = () => { setup.fill(0); renderBoard(); };
-  $("btnSetupStart").onclick = () => {
-    const E = createChess();
-    for (let sq = 0; sq < 128; sq++) if (!(sq & 0x88)) setup[sq] = E.get(sq);
-    renderBoard();
+  $("btnSetupStart").onclick = () => { const E = createChess(); for (let sq = 0; sq < 128; sq++) if (!(sq & 0x88)) setup[sq] = E.get(sq); renderBoard(); };
+
+  // Android back button: close the innermost mode first.
+  window.onAndroidBack = () => {
+    if ($("promo").style.display === "flex") { $("promo").style.display = "none"; return true; }
+    if ($("alert").classList.contains("show")) { hideAlert(); return true; }
+    if (view !== null) { exitView(); return true; }
+    if (setup) { $("btnSetupCancel").click(); return true; }
+    if (camOn()) { camStop(); return true; }
+    if (document.body.classList.contains("focus")) { toggleFocus(false); return true; }
+    return false;
   };
 
+  // ---------- Start ----------
   restore();
+  $("selColor").value = myColor === 1 ? "w" : "b";
+  clockReset();
+  renderSaved();
   renderAll();
-  if ($("chkAuto").checked) analyze();
+  initStockfish();
+  // Give Stockfish a moment to load so the first analysis uses it; the built-in engine takes over if it can't.
+  setTimeout(() => { if (S.auto) analyze(); }, sfState === "loading" ? 1500 : 0);
+  document.getElementById("reviewCard").addEventListener("toggle", () => renderReview());
 })();
 </script>
 </body>
