@@ -20,6 +20,16 @@ keeps the screen on while it's open, and remembers your game if you close it.
 
 Use **Think** to give the engine more time; longer searches find deeper tactics.
 
+### Alerts
+With **Mate alerts** on, a banner pops up with a sound and vibration when:
+- **you checkmate your opponent** (or get checkmated),
+- **you have a forced mate**: "Checkmate in 1! Play Rd8#" or "Forced mate in 4 moves! Start with Qe5",
+- **you're about to win**: whatever your opponent plays next, you can still force mate,
+- **your opponent threatens mate** next move (so you can defend it), or has a forced mate against you,
+- **you're clearly winning** (about a rook up or more; shown once per game).
+
+Sound starts working after your first tap on the screen (a browser rule).
+
 ## Notes
 - The engine uses alpha-beta search with iterative deepening, a transposition table, quiescence search,
   null-move pruning and late-move reductions. It usually searches 9–12 plies in 3 seconds.

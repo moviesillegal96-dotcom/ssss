@@ -85,6 +85,16 @@
   .setup-only { display: none; }
   body.setup .setup-only { display: flex; }
   body.setup .play-only { display: none; }
+  #alert { position: fixed; left: 50%; top: 12px; transform: translate(-50%, -150%); z-index: 20;
+    width: min(calc(100% - 32px), 480px); padding: 14px 16px; border-radius: 12px; color: #fff;
+    box-shadow: 0 6px 24px rgba(0,0,0,.35); transition: transform .25s ease; cursor: pointer; }
+  #alert.show { transform: translate(-50%, 0); }
+  #alert.win { background: #1f8f4e; } #alert.lose { background: #c0392b; } #alert.info { background: #2c6fb3; }
+  #alert.win.pulse { animation: pulse 1s ease-in-out 3; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(31,143,78,.35), 0 6px 24px rgba(0,0,0,.35); } }
+  #alertTitle { font-size: 18px; font-weight: 700; }
+  #alertText { font-size: 14px; margin-top: 2px; opacity: .95; }
+  #alertClose { font-size: 12px; opacity: .8; margin-top: 6px; }
   #promo { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center;
     justify-content: center; z-index: 10; }
   #promo .box { background: var(--panel); padding: 12px; border-radius: 10px; display: flex; gap: 8px; }
@@ -160,6 +170,9 @@
       <div class="row" style="margin-top:8px">
         <label><input type="checkbox" id="chkAuto" checked> Auto-analyze after every move</label>
       </div>
+      <div class="row" style="margin-top:8px">
+        <label><input type="checkbox" id="chkAlerts" checked> Mate alerts (sound + vibration)</label>
+      </div>
       <div class="row" style="margin-top:10px">
         <button id="btnUndo">Undo</button>
         <button id="btnFlip">Flip</button>
@@ -200,6 +213,9 @@
 </div>
 
 <div id="promo"><div class="box"></div></div>
+<div id="alert" role="alert" aria-live="assertive">
+  <div id="alertTitle"></div><div id="alertText"></div><div id="alertClose">Tap to dismiss</div>
+</div>
 
 <!-- ===================== ENGINE (runs in a Web Worker and on the page) ===================== -->
 <script id="engine-src" type="text/plain">
@@ -876,6 +892,138 @@ function createChess() {
       if (d.result) result = d.result;
     }
     updateEngineUI(); renderArrows();
+    checkAlerts();
+  }
+
+  // ---------- Alerts ----------
+  let audioCtx = null, alertTimer = null;
+  const alerted = new Set();      // "ply:kind" keys already shown, so each alert fires once per position
+  let winningShown = false;       // the "you're winning" notice fires once per game
+  document.addEventListener("pointerdown", () => {
+    // Browsers only allow sound after a user gesture, so unlock audio on the first tap.
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (_) {}
+  }, { passive: true });
+
+  function beep(notes) {
+    if (!audioCtx) return;
+    try {
+      let t = audioCtx.currentTime;
+      for (const [freq, dur] of notes) {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = "sine"; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g).connect(audioCtx.destination);
+        o.start(t); o.stop(t + dur + 0.02);
+        t += dur * 0.9;
+      }
+    } catch (_) {}
+  }
+
+  const SOUNDS = {
+    win:  [[523, .14], [659, .14], [784, .14], [1047, .35]],
+    lose: [[440, .25], [330, .25], [262, .45]],
+    info: [[660, .15], [880, .25]]
+  };
+  const VIBES = { win: [120, 60, 120, 60, 300], lose: [400, 100, 400], info: [150] };
+
+  function showAlert(kind, title, text, sticky) {
+    const el = $("alert");
+    $("alertTitle").textContent = title;
+    $("alertText").textContent = text;
+    el.className = kind;
+    void el.offsetWidth; // restart the slide-in and pulse animations
+    el.className = kind + " show" + (kind === "win" ? " pulse" : "");
+    clearTimeout(alertTimer);
+    if (!sticky) alertTimer = setTimeout(hideAlert, 8000);
+    if ($("chkAlerts").checked) {
+      beep(SOUNDS[kind]);
+      try { if (navigator.vibrate) navigator.vibrate(VIBES[kind]); } catch (_) {}
+    }
+  }
+  function hideAlert() { $("alert").classList.remove("show"); }
+  $("alert").addEventListener("click", hideAlert);
+
+  function once(kind) {
+    const key = game.fen() + "|" + kind;
+    if (alerted.has(key)) return false;
+    alerted.add(key);
+    return true;
+  }
+
+  // On your turn: if you "passed", could the opponent checkmate you immediately?
+  // Catches mate threats you can still defend, which the evaluation alone doesn't flag.
+  let probe = null;
+  function checkThreat() {
+    if (game.turn() !== myColor || game.inCheck()) return;
+    const parts = game.fen().split(" ");
+    parts[1] = parts[1] === "w" ? "b" : "w";
+    parts[3] = "-";
+    try {
+      if (!probe) probe = createChess();
+      probe.load(parts.join(" "));
+      for (const m of probe.legalMoves()) {
+        probe.make(m);
+        const mate = probe.status() === "checkmate";
+        probe.undo();
+        if (mate) {
+          if (once("threat")) showAlert("lose", "⚠ Opponent threatens mate",
+            "They threaten " + probe.san(m) + " checkmate next move. Defend it now.", false);
+          return;
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Called after every move and every engine update.
+  function checkAlerts() {
+    if (setup) return;
+    const st = game.status();
+    if (st === "checkmate") {
+      const iWon = game.turn() !== myColor;
+      if (once("mate")) {
+        if (iWon) showAlert("win", "Checkmate! You win 🏆", "Your opponent has no legal moves and is in check.", true);
+        else showAlert("lose", "Checkmated", "Your king has no escape. Undo to see what went wrong.", true);
+      }
+      return;
+    }
+    checkThreat();
+    if (!result || resultPly !== game.ply() || !result.pv || !result.pv.length) return;
+    const stm = game.turn(), score = result.score;
+    const isMate = Math.abs(score) > game.MATE - 1000;
+    if (isMate) {
+      const n = Math.ceil((game.MATE - Math.abs(score)) / 2);   // full moves for the mating side
+      const winner = score > 0 ? stm : -stm;
+      const mine = stm === myColor;
+      if (winner === myColor && once("forcedmate")) {
+        const moves = n === 1 ? "1 move" : n + " moves";
+        if (mine) {
+          showAlert("win", n === 1 ? "Checkmate in 1! 🎯" : "Forced mate in " + moves + "!",
+            n === 1 ? "Play " + result.pv[0].san + " to checkmate now."
+                    : "Start with " + result.pv[0].san + ". Follow the engine's moves exactly.", true);
+        } else {
+          showAlert("win", "You're about to win!",
+            "Whatever your opponent plays, you can force mate within " + moves + ".", false);
+        }
+      } else if (winner !== myColor && once("danger")) {
+        const moves = n === 1 ? "1 move" : n + " moves";
+        showAlert("lose", "⚠ Danger: mate threat",
+          mine ? "Your opponent can force mate in " + moves + ". " + result.pv[0].san + " holds out longest."
+               : "Your opponent can mate in " + moves + " if they find " + result.pv[0].san + ".", false);
+      }
+      return;
+    }
+    // Clearly winning (about a rook up or more) after a finished search: tell the user once per game.
+    const myScore = score * stm * myColor;
+    if (!thinking && myScore >= 500 && !winningShown && result.depth >= 6) {
+      winningShown = true;
+      showAlert("info", "You're winning (+" + (myScore / 100).toFixed(1) + ")",
+        "Trade pieces, keep your king safe and avoid blunders. The engine will alert you when it sees a forced mate.", false);
+    } else if (myScore < 200) winningShown = false;
   }
 
   // ---------- Board ----------
@@ -977,7 +1125,9 @@ function createChess() {
     lastMove = { f: m.f, t: m.t };
     selected = -1;
     stopEngine(); result = null;
+    hideAlert();
     renderAll();
+    checkAlerts();
     if ($("chkAuto").checked) analyze();
   }
 
@@ -1114,6 +1264,7 @@ function createChess() {
     if (!played.length) return;
     stopEngine();
     played.pop(); rebuild(); selected = -1; result = null;
+    hideAlert();
     renderAll();
     if ($("chkAuto").checked) analyze();
   };
@@ -1121,6 +1272,7 @@ function createChess() {
   $("btnNew").onclick = () => {
     stopEngine();
     startFen = game.START; played = []; rebuild(); selected = -1; result = null;
+    alerted.clear(); winningShown = false; hideAlert();
     renderAll();
     if ($("chkAuto").checked && myColor === 1) analyze();
   };
@@ -1135,6 +1287,7 @@ function createChess() {
     stopEngine();
     game.load(f); // throws on invalid FEN
     startFen = game.fen(); played = []; lastMove = null; selected = -1; result = null;
+    alerted.clear(); winningShown = false; hideAlert();
     renderAll();
     if ($("chkAuto").checked) analyze();
   }
