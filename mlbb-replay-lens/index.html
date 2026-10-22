@@ -1,0 +1,1565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MLBB Replay Lens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a four-step analyst workbench (load, calibrate, analyze, patterns) on a cool slate ground,
+     team blue and team red as semantic colors, battle-gold as the single accent. */
+  :root {
+    --bg: #eceff5; --panel: #ffffff; --sunk: #e2e7f0; --ink: #141a26; --muted: #586378; --line: #d3d9e4;
+    --accent: #a56f08; --accent-ink: #ffffff;
+    --blue: #1f6be0; --red: #cf3434; --good: #1d8655; --warn: #a8700b;
+    --map: #1d2a22;
+    --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d121b; --panel: #151c29; --sunk: #0f1520; --ink: #e6ebf4; --muted: #94a0b6; --line: #273145;
+      --accent: #e4b244; --accent-ink: #1a1405; --blue: #4f94ff; --red: #ff6464; --good: #45c08a; --warn: #e6a93a;
+      --map: #16211b; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d121b; --panel: #151c29; --sunk: #0f1520; --ink: #e6ebf4; --muted: #94a0b6; --line: #273145;
+    --accent: #e4b244; --accent-ink: #1a1405; --blue: #4f94ff; --red: #ff6464; --good: #45c08a; --warn: #e6a93a;
+    --map: #16211b; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  h1, h2, h3 { font-family: var(--display); letter-spacing: .01em; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.9rem; line-height: 1.1; }
+  h2 { font-size: 1.25rem; display: flex; align-items: center; gap: .6rem; }
+  h3 { font-size: 1rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  p { margin: 0; }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  header.top { padding-block: 28px 18px; }
+  .brand { display: flex; align-items: center; gap: .75rem; }
+  .mark { width: 34px; height: 34px; flex: none; border-radius: 7px; background:
+    linear-gradient(135deg, var(--blue) 0 48%, transparent 48% 52%, var(--red) 52% 100%); transform: rotate(45deg) scale(.82); }
+  .tag { color: var(--muted); max-width: 70ch; margin-top: .5rem; }
+  main { display: grid; gap: 18px; padding-block: 0 48px; }
+
+  .step { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+  .num { font-family: var(--mono); font-size: .8rem; font-weight: 500; width: 1.7rem; height: 1.7rem; display: inline-grid; place-items: center;
+    border-radius: 50%; border: 1.5px solid var(--accent); color: var(--accent); flex: none; }
+  .muted { color: var(--muted); }
+  .small { font-size: .85rem; }
+
+  .btn { display: inline-flex; align-items: center; gap: .45rem; padding: .55rem .95rem; border-radius: 7px; border: 1px solid var(--line);
+    background: var(--sunk); cursor: pointer; font-weight: 500; white-space: nowrap; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.sm { padding: .35rem .65rem; font-size: .85rem; }
+  .btn.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  .banner { border: 1px dashed var(--accent); border-radius: 8px; padding: .6rem .8rem; font-size: .9rem; }
+
+  details.how summary, details.tune summary { cursor: pointer; font-weight: 500; }
+  details.how ol { margin: .6rem 0 0; padding-left: 1.3rem; max-width: 75ch; display: grid; gap: .3rem; }
+
+  .setup { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; }
+  @media (max-width: 860px) { .setup { grid-template-columns: minmax(0, 1fr); } }
+  .screenbox { position: relative; background: #000; border-radius: 8px; overflow: hidden; line-height: 0; }
+  .screenbox video, .screenbox canvas.screen { width: 100%; height: auto; display: block; }
+  #overlay { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  .clockline { font-family: var(--mono); font-size: .85rem; color: var(--muted); display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+  .clockline b { color: var(--ink); font-weight: 500; }
+  #demoSeek { flex: 1; min-width: 140px; }
+  .hint { font-size: .85rem; color: var(--accent); min-height: 1.3em; }
+
+  .controls { display: grid; gap: 14px; align-content: start; min-width: 0; }
+  .preview-wrap { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: start; }
+  #preview { width: 150px; height: 150px; border-radius: 6px; border: 1px solid var(--line); background: var(--map); cursor: crosshair; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; }
+  .field { display: grid; gap: .25rem; font-size: .85rem; min-width: 0; }
+  .field > span { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+  .field select, .field input[type="text"] { padding: .4rem .5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); width: 100%; }
+  .inline { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+  .inline input[type="text"] { width: 5.5rem; font-family: var(--mono); }
+  .sw { width: .9rem; height: .9rem; border-radius: 50%; display: inline-block; border: 1px solid var(--line); }
+  .slider { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) 3rem; gap: .5rem; align-items: center; font-size: .85rem; }
+  .slider output { font-family: var(--mono); text-align: right; }
+  details.tune { display: grid; gap: .5rem; }
+  details.tune[open] > summary { margin-bottom: .5rem; }
+
+  .progress { height: 8px; background: var(--sunk); border-radius: 4px; overflow: hidden; }
+  #bar { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  #runInfo { font-family: var(--mono); font-size: .85rem; color: var(--muted); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile { border: 1px solid var(--line); border-radius: 8px; padding: .7rem .8rem; display: grid; gap: .15rem; background: var(--sunk); }
+  .tile .k { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .tile .v { font-family: var(--display); font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tile .s { font-size: .8rem; color: var(--muted); }
+  .cb { color: var(--blue); } .cr { color: var(--red); }
+
+  .panel { display: grid; gap: 10px; min-width: 0; align-content: start; }
+  .two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; }
+  @media (max-width: 860px) { .two { grid-template-columns: minmax(0, 1fr); } }
+  #timeline { width: 100%; height: 250px; display: block; cursor: pointer; }
+  #mapView { width: 100%; max-width: 420px; aspect-ratio: 1; border-radius: 8px; display: block; background: var(--map); }
+  .scrub { display: flex; gap: .6rem; align-items: center; max-width: 420px; }
+  .scrub input { flex: 1; min-width: 0; }
+  #scrubT { font-family: var(--mono); font-size: .85rem; min-width: 3.2rem; text-align: right; }
+  #mapNote { font-size: .82rem; color: var(--muted); max-width: 420px; min-height: 1.3em; }
+
+  ul.insights { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+  ul.insights li { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr); gap: .6rem; align-items: baseline; padding-bottom: .55rem; border-bottom: 1px solid var(--line); }
+  ul.insights li:last-child { border-bottom: 0; }
+  @media (max-width: 520px) { ul.insights li { grid-template-columns: minmax(0, 1fr); gap: .3rem; } }
+  .kind { font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; padding: .1rem .4rem; border-radius: 4px; justify-self: start;
+    border: 1px solid currentColor; color: var(--muted); }
+  .kind.habit { color: var(--accent); }
+  .kind.warn { color: var(--red); }
+  .kind.good { color: var(--good); }
+  .tchip { font-family: var(--mono); font-size: .8rem; padding: 0 .3rem; border-radius: 4px; border: 1px solid var(--line); background: var(--sunk); cursor: pointer; }
+  .tchip:hover { border-color: var(--accent); }
+
+  .chips { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .heats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 760px; }
+  .heats figure { margin: 0; display: grid; gap: .3rem; }
+  .heats canvas { width: 100%; aspect-ratio: 1; border-radius: 8px; background: var(--map); display: block; }
+  .heats figcaption { font-size: .85rem; font-weight: 600; }
+
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  td.t { font-family: var(--mono); white-space: nowrap; }
+  tr.click { cursor: pointer; }
+  tr.click:hover td { background: var(--sunk); }
+  .pill { display: inline-block; font-size: .75rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .bar { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; min-width: 60px; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .forms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  @media (max-width: 760px) { .forms { grid-template-columns: minmax(0, 1fr); } }
+
+  .lib { display: grid; gap: .4rem; }
+  .libitem { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; font-size: .9rem; border-bottom: 1px solid var(--line); padding-bottom: .4rem; }
+  .libitem .grow { flex: 1; min-width: 0; }
+  #nameIn { padding: .45rem .6rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); min-width: 0; flex: 1; max-width: 320px; }
+  #toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg);
+    padding: .5rem .9rem; border-radius: 8px; font-size: .9rem; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  #toast.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { #bar, #toast { transition: none; } }
+</style>
+</head>
+<body>
+<header class="top wrap">
+  <div class="brand"><span class="mark" aria-hidden="true"></span><h1>MLBB Replay Lens</h1></div>
+  <p class="tag">Screen-record a Mobile Legends replay, mark the minimap, and Replay Lens follows both teams through the whole match.
+    It finds teamfights, ganks, invasions, rotations and objective timings, then picks out the habits that repeat.</p>
+</header>
+
+<main class="wrap">
+  <section class="step" id="stepLoad">
+    <h2><span class="num">1</span>Load a replay recording</h2>
+    <div class="row">
+      <label class="btn primary" for="file">Choose video…</label>
+      <input type="file" id="file" accept="video/*" hidden>
+      <button class="btn" id="demoBtn" type="button">Load the demo match</button>
+      <span class="muted small" id="srcName"></span>
+    </div>
+    <p class="banner" id="demoBanner" hidden>You're looking at a simulated demo match, so every number below is example data.
+      Choose a video of your own replay to analyze a real game.</p>
+    <details class="how">
+      <summary>How to record a replay that works well</summary>
+      <ol>
+        <li>In Mobile Legends open <b>Profile → Battle History</b> (or a saved replay) and play the replay.</li>
+        <li>Start your phone's screen recorder before the match timer starts. Landscape, 720p or higher.</li>
+        <li>Keep the minimap visible the whole time. Don't open menus over it. Leave the replay at 1× or 2× and note which.</li>
+        <li>Trim the draft or loading screen if you can, or set <b>Analyze from</b> in step 2.</li>
+        <li>All processing happens on your device. The video is never uploaded.</li>
+      </ol>
+    </details>
+  </section>
+
+  <section class="step" id="stepSetup" hidden>
+    <h2><span class="num">2</span>Mark the minimap and set the clock</h2>
+    <div class="setup">
+      <div class="panel">
+        <div class="screenbox" id="screenBox"><canvas id="overlay"></canvas></div>
+        <div class="clockline" id="demoBar" hidden><input type="range" id="demoSeek" min="0" max="840" step="1" value="60" aria-label="Demo position"></div>
+        <div class="clockline">Video <b id="vt">0:00</b> Game clock <b id="gt">0:00</b></div>
+        <div class="hint" id="modeHint">Drag a square over the minimap (top-left corner of the screen).</div>
+      </div>
+      <div class="controls">
+        <div class="preview-wrap">
+          <canvas id="preview" width="300" height="300" aria-label="Minimap detection preview"></canvas>
+          <div class="small">
+            <b>Detection preview</b>
+            <p class="muted" id="previewInfo">Circles show the heroes found on the current frame.</p>
+          </div>
+        </div>
+        <div class="fields">
+          <label class="field"><span>Replay speed</span>
+            <select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label>
+          <div class="field"><span>Game clock on this frame</span>
+            <div class="inline"><input type="text" id="clockIn" value="0:00" inputmode="numeric" aria-label="Game clock"><button class="btn sm" id="clockSet" type="button">Set</button></div></div>
+          <div class="field"><span>Analyze part of video</span>
+            <div class="inline"><button class="btn sm" id="fromBtn" type="button">From <b id="fromV">start</b></button><button class="btn sm" id="toBtn" type="button">To <b id="toV">end</b></button></div></div>
+          <label class="field"><span>Sample every</span>
+            <select id="every"><option value="0.5">0.5 s of game time</option><option value="1" selected>1 s of game time</option><option value="2">2 s (faster)</option></select></label>
+          <label class="field"><span>Your team</span>
+            <select id="myTeam"><option value="b">Blue markers</option><option value="r">Red markers</option></select></label>
+        </div>
+        <div class="field"><span>Marker colors</span>
+          <div class="inline">
+            <button class="btn sm" id="pickB" type="button"><i class="sw" id="swB"></i>Tap a blue hero</button>
+            <button class="btn sm" id="pickR" type="button"><i class="sw" id="swR"></i>Tap a red hero</button>
+          </div></div>
+        <div class="field"><span>Objective pits (tap on the preview)</span>
+          <div class="inline">
+            <button class="btn sm" id="pitABtn" type="button">Set <span id="pitAName">Lord</span> pit</button>
+            <button class="btn sm" id="pitBBtn" type="button">Set <span id="pitBName">Turtle</span> pit</button>
+            <button class="btn sm" id="swapPits" type="button">Swap names</button>
+          </div></div>
+        <details class="tune">
+          <summary>Fine-tune detection</summary>
+          <div class="slider"><label for="blueTol">Blue hue range</label><input type="range" id="blueTol" min="6" max="40" value="22"><output id="blueTolO">22°</output></div>
+          <div class="slider"><label for="redTol">Red hue range</label><input type="range" id="redTol" min="6" max="40" value="16"><output id="redTolO">16°</output></div>
+          <div class="slider"><label for="sMin">Min. saturation</label><input type="range" id="sMin" min="15" max="90" value="45"><output id="sMinO">45%</output></div>
+          <div class="slider"><label for="vMin">Min. brightness</label><input type="range" id="vMin" min="15" max="90" value="42"><output id="vMinO">42%</output></div>
+          <div class="slider"><label for="minArea">Min. marker size</label><input type="range" id="minArea" min="4" max="80" value="16"><output id="minAreaO">16</output></div>
+          <label class="field"><span>Your own hero's green marker counts as</span>
+            <select id="greenTeam"><option value="off" selected>Ignore green</option><option value="b">Blue team</option><option value="r">Red team</option></select></label>
+          <p class="muted small">Minions and turrets are filtered out automatically: small dots by size, turrets because they never move.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="stepRun" hidden>
+    <h2><span class="num">3</span>Analyze the match</h2>
+    <div class="row">
+      <button class="btn primary" id="runBtn" type="button">Analyze match</button>
+      <button class="btn" id="stopBtn" type="button" hidden>Stop</button>
+    </div>
+    <div class="progress" aria-hidden="true"><div id="bar"></div></div>
+    <p id="runInfo">Reads the minimap once per sampled second, then looks for patterns.</p>
+  </section>
+
+  <section class="step" id="stepResults" hidden>
+    <h2><span class="num">4</span>Patterns in this match</h2>
+    <div class="tiles" id="tiles"></div>
+
+    <div class="panel">
+      <h3>Match timeline</h3>
+      <canvas id="timeline" aria-label="Match timeline. Click to jump to a moment."></canvas>
+      <p class="muted small">Lines show how many heroes of each team are alive. A death counts once the hero is seen respawning at the fountain; dots mark the deaths. Click anywhere to jump there.</p>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <h3>Recognized patterns</h3>
+        <ul class="insights" id="insights"></ul>
+      </div>
+      <div class="panel">
+        <h3>Minimap replay</h3>
+        <canvas id="mapView" width="420" height="420"></canvas>
+        <div class="scrub">
+          <button class="btn sm" id="playBtn" type="button" aria-label="Play">Play</button>
+          <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Match time">
+          <span id="scrubT">0:00</span>
+        </div>
+        <p id="mapNote"></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Where each team spends time</h3>
+      <div class="chips" id="phaseChips">
+        <button class="btn sm on" data-ph="all" type="button">Whole match</button>
+        <button class="btn sm" data-ph="early" type="button">0–5 min</button>
+        <button class="btn sm" data-ph="mid" type="button">5–12 min</button>
+        <button class="btn sm" data-ph="late" type="button">12 min +</button>
+      </div>
+      <div class="heats">
+        <figure><canvas id="heatB" width="300" height="300"></canvas><figcaption class="cb" id="heatBCap">Blue</figcaption></figure>
+        <figure><canvas id="heatR" width="300" height="300"></canvas><figcaption class="cr" id="heatRCap">Red</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Recurring formations</h3>
+      <p class="muted small">Every sampled second, each team's five heroes are sorted into map zones. Similar layouts are grouped together, so you see the shapes a team keeps returning to and what they usually do next.</p>
+      <div class="forms" id="formations"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Events</h3>
+      <div class="tablewrap"><table id="events"></table></div>
+    </div>
+
+    <div class="panel">
+      <h3>Keep this match</h3>
+      <div class="row">
+        <input type="text" id="nameIn" placeholder="Match name, e.g. Rank vs Gusion main" aria-label="Match name">
+        <button class="btn primary" id="saveBtn" type="button">Save to library</button>
+        <button class="btn" id="copyBtn" type="button">Copy report</button>
+        <button class="btn" id="jsonBtn" type="button">Download data (JSON)</button>
+      </div>
+      <p class="muted small">Saved matches stay in this browser. With two or more saved, Replay Lens compares them and points out what repeats across games.</p>
+    </div>
+  </section>
+
+  <section class="step" id="stepLib">
+    <h2>Across your matches</h2>
+    <div class="lib" id="library"></div>
+    <ul class="insights" id="cross"></ul>
+  </section>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   MLBB Replay Lens: minimap tracking + pattern recognition.
+   Everything runs locally in the browser.
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const N = 160;                      // the minimap is resampled to N x N pixels
+const TEAMS = ['b', 'r'];
+const other = k => (k === 'b' ? 'r' : 'b');
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+};
+
+const fmt = t => { t = Math.max(0, Math.round(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+const parseClock = s => {
+  const m = String(s).trim().match(/^(\d+)(?:[:.](\d{1,2}))?$/);
+  if (!m) return null;
+  return m[2] != null ? +m[1] * 60 + +m[2] : +m[1];
+};
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const median = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const chip = t => `<button class="tchip" type="button" data-t="${t.toFixed(1)}">${fmt(t)}</button>`;
+function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove('show'), 2200); }
+
+/* ---------------- settings ---------------- */
+const DEFAULTS = {
+  roi: { x: 0.004, y: 0.01, w: 0.15, h: 0.27 },     // fraction of the screen
+  speed: 1, anchorVideo: 0, anchorGame: 0, fromV: 0, toV: null, every: 1, my: 'b',
+  blueH: 214, blueTol: 22, redH: 0, redTol: 16, greenH: 125, greenTol: 22, greenTeam: 'off',
+  sMin: 0.45, vMin: 0.42, minArea: 16,
+  pits: { a: { x: 0.30, y: 0.30, name: 'Lord' }, b: { x: 0.70, y: 0.70, name: 'Turtle' } },
+};
+let isDemo = false;
+const cfg = JSON.parse(JSON.stringify(DEFAULTS));
+// Settings tuned for real recordings are remembered; the demo's own settings never are.
+const saveCfg = () => { if (isDemo) return; const { anchorVideo, anchorGame, fromV, toV, unitGuess, ...keep } = cfg; store.set('rl-cfg', keep); };
+const toGame = vt => cfg.anchorGame + (vt - cfg.anchorVideo) * cfg.speed;
+const toVideo = (gt, c = cfg) => c.anchorVideo + (gt - c.anchorGame) / c.speed;
+
+/* ---------------- map geometry ----------------
+   Normalized minimap coords: x right, y down. One base sits bottom-left (BL), the other top-right (TR).
+   The river runs top-left to bottom-right (x = y); the mid lane runs between the bases (x + y = 1). */
+function regionOf(x, y, pits = cfg.pits) {
+  if (Math.hypot(x, 1 - y) < 0.2) return 'baseBL';
+  if (Math.hypot(1 - x, y) < 0.2) return 'baseTR';
+  if (Math.hypot(x - pits.a.x, y - pits.a.y) < 0.085) return 'pitA';
+  if (Math.hypot(x - pits.b.x, y - pits.b.y) < 0.085) return 'pitB';
+  if (x < 0.13 || y < 0.13) return 'top';
+  if (x > 0.87 || y > 0.87) return 'bot';
+  if (Math.abs(x + y - 1) < 0.09) return 'mid';
+  if (Math.abs(x - y) < 0.07) return 'river';
+  if (y > x) return x + y < 1 ? 'jgBLt' : 'jgBLb';
+  return x + y < 1 ? 'jgTRt' : 'jgTRb';
+}
+// The zone of a point from one team's point of view.
+function zoneOf(x, y, side, keepPits) {
+  const r = regionOf(x, y);
+  switch (r) {
+    case 'baseBL': return side === 'BL' ? 'ownBase' : 'enemyBase';
+    case 'baseTR': return side === 'TR' ? 'ownBase' : 'enemyBase';
+    case 'jgBLt': case 'jgBLb': return side === 'BL' ? 'ownJg' : 'enemyJg';
+    case 'jgTRt': case 'jgTRb': return side === 'TR' ? 'ownJg' : 'enemyJg';
+    case 'pitA': case 'pitB': return keepPits ? r : 'river';
+    default: return r;
+  }
+}
+const ZONES = ['top', 'mid', 'bot', 'ownJg', 'enemyJg', 'river', 'ownBase', 'enemyBase', 'unseen'];
+const ZONE_LABEL = { top: 'top lane', mid: 'mid lane', bot: 'bottom lane', ownJg: 'own jungle', enemyJg: 'enemy jungle',
+  river: 'river / objectives', ownBase: 'base', enemyBase: 'enemy base', unseen: 'off the map (dead)' };
+
+/* ---------------- frame sources ---------------- */
+let screen = null;     // { kind, el, W, H, duration, time(), seek(t) }
+const grabCv = document.createElement('canvas'); grabCv.width = grabCv.height = N;
+const grabCtx = grabCv.getContext('2d', { willReadFrequently: true });
+
+function videoScreen(video) {
+  return {
+    kind: 'video', el: video,
+    get W() { return video.videoWidth; }, get H() { return video.videoHeight; },
+    get duration() { return video.duration; },
+    time: () => video.currentTime,
+    seek(t) {
+      return new Promise(res => {
+        if (Math.abs(video.currentTime - t) < 0.002 && video.readyState >= 2) return res();
+        let done = false;
+        const fin = () => { if (done) return; done = true; video.removeEventListener('seeked', fin); clearTimeout(to); res(); };
+        video.addEventListener('seeked', fin);
+        const to = setTimeout(fin, 5000);
+        video.currentTime = t;
+      });
+    },
+  };
+}
+function grab() {
+  const r = cfg.roi;
+  grabCtx.drawImage(screen.el, r.x * screen.W, r.y * screen.H, r.w * screen.W, r.h * screen.H, 0, 0, N, N);
+  return grabCtx.getImageData(0, 0, N, N);
+}
+
+/* ---------------- pixel classification ---------------- */
+function hueDist(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+function pixelHSV(r, g, b) {
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), del = mx - mn;
+  let h = 0;
+  if (del) { if (mx === r) h = ((g - b) / del) % 6; else if (mx === g) h = (b - r) / del + 2; else h = (r - g) / del + 4; h *= 60; if (h < 0) h += 360; }
+  return { h, s: mx ? del / mx : 0, v: mx / 255 };
+}
+// 0 = nothing, 1 = blue team, 2 = red team
+function classify(img, c, out) {
+  const d = img.data, n = N * N; out = out || new Uint8Array(n);
+  const vMin = c.vMin * 255, green = c.greenTeam === 'off' ? 0 : (c.greenTeam === 'b' ? 1 : 2);
+  for (let p = 0, q = 0; p < n; p++, q += 4) {
+    const r = d[q], g = d[q + 1], b = d[q + 2];
+    const mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+    let k = 0;
+    if (mx >= vMin && mx > 0 && mx - mn >= c.sMin * mx) {
+      const del = mx - mn; let h;
+      if (mx === r) h = ((g - b) / del) % 6; else if (mx === g) h = (b - r) / del + 2; else h = (r - g) / del + 4;
+      h *= 60; if (h < 0) h += 360;
+      if (hueDist(h, c.blueH) <= c.blueTol) k = 1;
+      else if (hueDist(h, c.redH) <= c.redTol) k = 2;
+      else if (green && hueDist(h, c.greenH) <= c.greenTol) k = green;
+    }
+    out[p] = k;
+  }
+  return out;
+}
+const LBL = new Int32Array(N * N), STK = new Int32Array(N * N);
+function components(mask, minArea) {
+  LBL.fill(0);
+  const comps = []; let id = 0; const maxArea = N * N * 0.08;
+  for (let p = 0; p < N * N; p++) {
+    const c = mask[p]; if (!c || LBL[p]) continue;
+    id++; let sp = 0; STK[sp++] = p; LBL[p] = id; let a = 0, sx = 0, sy = 0;
+    while (sp) {
+      const q = STK[--sp], x = q % N, y = (q / N) | 0; a++; sx += x; sy += y;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy; if (yy < 0 || yy >= N) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx; if (xx < 0 || xx >= N) continue;
+          const r = yy * N + xx; if (!LBL[r] && mask[r] === c) { LBL[r] = id; STK[sp++] = r; }
+        }
+      }
+    }
+    if (a <= maxArea) comps.push({ c, a, x: (sx / a + 0.5) / N, y: (sy / a + 0.5) / N });
+  }
+  // A marker ring cut in two by something drawn over it comes back as two arcs: merge close pieces of one color.
+  for (let i = 0; i < comps.length; i++) for (let j = i + 1; j < comps.length; j++) {
+    const A = comps[i], B = comps[j];
+    if (A.c === B.c && dist(A, B) < 0.04) {
+      const a = A.a + B.a; A.x = (A.x * A.a + B.x * B.a) / a; A.y = (A.y * A.a + B.y * B.a) / a; A.a = a;
+      comps.splice(j, 1); j = i;
+    }
+  }
+  return comps.filter(c => c.a >= minArea);
+}
+// Pixels that stay colored for most of any 90-second window are map furniture (turrets, base icons): drop them.
+function removeStatic(masks, ever, W) {
+  const S = masks.length; if (!S) return;
+  const pre = new Uint16Array(S + 1), full = S < W;
+  for (let p = 0; p < N * N; p++) {
+    if (!ever[p]) continue;
+    for (let c = 1; c <= 2; c++) {
+      for (let s = 0; s < S; s++) pre[s + 1] = pre[s] + (masks[s][p] === c ? 1 : 0);
+      if (!pre[S]) continue;
+      if (full) { if (pre[S] / S >= 0.85) for (let s = 0; s < S; s++) if (masks[s][p] === c) masks[s][p] = 0; continue; }
+      for (let s = 0; s < S; s++) {
+        if (masks[s][p] !== c) continue;
+        const trail = s + 1 >= W ? (pre[s + 1] - pre[s + 1 - W]) / W : 0;
+        const lead = s + W <= S ? (pre[s + W] - pre[s]) / W : 0;
+        if (trail >= 0.85 || lead >= 0.85) masks[s][p] = 0;
+      }
+    }
+  }
+}
+
+/* ---------------- demo match (simulated) ---------------- */
+const Demo = (() => {
+  const T = 840, W = 640, H = 360, MM = { x: 8, y: 8, s: 172 };
+  const rng = mulberry32(20261022);
+  const base = { b: [0.07, 0.93], r: [0.93, 0.07] };
+  const mir = ([x, y]) => [y, x];
+  const campsB = [[0.56, 0.80], [0.40, 0.70], [0.24, 0.56], [0.17, 0.40]];
+  const camps = { b: campsB, r: campsB.map(mir) };
+  const lane = { top: { b: [0.10, 0.24], r: [0.24, 0.10] }, mid: { b: [0.45, 0.55], r: [0.55, 0.45] }, bot: { b: [0.76, 0.90], r: [0.90, 0.76] } };
+  // ids 0-4 blue, 5-9 red; role = id % 5: 0 EXP (top), 1 mid, 2 gold (bottom), 3 jungle, 4 roam
+  const EV = [
+    { from: 55, to: 85, ids: [8, 9], at: [0.56, 0.80] },                                   // red invades blue jungle
+    { from: 122, to: 150, ids: [3, 4, 2, 8, 9, 7, 6], at: [0.70, 0.70], die: { 3: 146 } },    // turtle fight
+    { from: 150, to: 178, ids: [8, 6], at: [0.78, 0.90], die: { 2: 172 } },                 // red gank bottom
+    { from: 195, to: 228, ids: [3, 4], at: [0.24, 0.10], die: { 5: 222 } },                 // blue gank top
+    { from: 300, to: 330, ids: [8, 9], at: [0.24, 0.56] },                                  // red invades again
+    { from: 345, to: 385, ids: [8, 6], at: [0.78, 0.90], die: { 2: 380 } },                 // red gank bottom
+    { from: 478, to: 522, ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], at: [0.30, 0.30], die: { 0: 500, 3: 506, 4: 510, 9: 503 } }, // lord fight
+    { from: 530, to: 570, ids: [8, 6, 9], at: [0.78, 0.90], die: { 2: 562 } },              // red gank bottom (3rd)
+    { from: 628, to: 662, ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], at: [0.50, 0.50], die: { 5: 645, 7: 650, 8: 655, 1: 648, 2: 652 } },
+    { from: 716, to: 752, ids: [5, 6, 7, 8, 9, 3, 4], at: [0.30, 0.30], die: { 4: 740 } },   // red takes lord
+  ];
+  const lanePaths = { top: [[0.07, 0.93], [0.07, 0.07], [0.93, 0.07]], mid: [[0.07, 0.93], [0.93, 0.07]], bot: [[0.07, 0.93], [0.93, 0.93], [0.93, 0.07]] };
+  const turrets = [
+    ...[[0.07, 0.72, 0], [0.07, 0.46, 0], [0.28, 0.93, 0], [0.52, 0.93, 390], [0.33, 0.67, 0], [0.41, 0.59, 0]].map(([x, y, d]) => ({ t: 'b', x, y, d })),
+    ...[[0.72, 0.07, 0], [0.46, 0.07, 470], [0.93, 0.28, 0], [0.93, 0.52, 0], [0.67, 0.33, 0], [0.59, 0.41, 680]].map(([x, y, d]) => ({ t: 'r', x, y, d })),
+  ];
+  const portraits = Array.from({ length: 10 }, (_, i) => `hsl(${(i * 37 + 20) % 360} 22% ${40 + (i % 3) * 8}%)`);
+
+  function defaultTarget(id, t) {
+    const tm = id < 5 ? 'b' : 'r', role = id % 5, j = 0.02 * Math.sin(t / 5 + id * 1.7), k = 0.02 * Math.cos(t / 6 + id);
+    if (t < 12) return base[tm];
+    if (t >= 600) {
+      if (tm === 'r') return [0.56 + 0.03 * Math.sin(t / 7 + id), 0.44 + 0.03 * Math.cos(t / 9 + id)];
+      if (role === 0) return [0.30 + 0.08 * Math.sin(t / 20), 0.08];
+      return [0.42 + 0.03 * Math.sin(t / 8 + id), 0.58 + 0.03 * Math.cos(t / 6 + id)];
+    }
+    if (role === 0) return [lane.top[tm][0] + j, lane.top[tm][1] + k];
+    if (role === 1) return [lane.mid[tm][0] + j, lane.mid[tm][1] + k];
+    if (role === 2) return [lane.bot[tm][0] + j, lane.bot[tm][1] + k];
+    if (role === 3) return camps[tm][Math.floor((t - 12) / 22) % 4];
+    const l = t < (tm === 'b' ? 150 : 240) ? lane.bot[tm] : lane.mid[tm];
+    return [l[0] + (tm === 'b' ? -0.04 : 0.02) + k, l[1] + (tm === 'b' ? -0.02 : 0.04) + j];
+  }
+  // Pre-simulate one position per second.
+  const frames = []; const deaths = [];
+  {
+    const pos = Array.from({ length: 10 }, (_, i) => [...base[i < 5 ? 'b' : 'r']]);
+    const deadUntil = new Array(10).fill(-1);
+    for (let t = 0; t <= T; t++) {
+      const row = [];
+      for (let id = 0; id < 10; id++) {
+        const tm = id < 5 ? 'b' : 'r';
+        if (deadUntil[id] > t) { row.push(null); continue; }
+        if (deadUntil[id] === t || (deadUntil[id] > 0 && deadUntil[id] < t && !pos[id])) { pos[id] = [...base[tm]]; deadUntil[id] = -1; }
+        let tgt = null;
+        for (const e of EV) if (t >= e.from && t <= e.to && e.ids.includes(id)) tgt = [e.at[0] + 0.025 * Math.sin(id * 2.1 + t / 3), e.at[1] + 0.025 * Math.cos(id * 1.3 + t / 4)];
+        tgt = tgt || defaultTarget(id, t);
+        const p = pos[id], dx = tgt[0] - p[0], dy = tgt[1] - p[1], d = Math.hypot(dx, dy), step = 0.04;
+        if (d > step) { p[0] += dx / d * step; p[1] += dy / d * step; } else { p[0] = tgt[0]; p[1] = tgt[1]; }
+        row.push([p[0] + (rng() - 0.5) * 0.004, p[1] + (rng() - 0.5) * 0.004]);
+        for (const e of EV) if (e.die && e.die[id] === t) { deadUntil[id] = t + Math.round(12 + t / 25); deaths.push({ t, tm }); }
+      }
+      frames.push(row);
+    }
+  }
+  const terrain = Array.from({ length: 26 }, () => [rng() * W, 190 + rng() * 170, 20 + rng() * 60, rng()]);
+  function along(path, f) {
+    const segs = []; let L = 0;
+    for (let i = 1; i < path.length; i++) { const l = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]); segs.push(l); L += l; }
+    let d = f * L;
+    for (let i = 0; i < segs.length; i++) { if (d <= segs[i]) { const u = d / segs[i]; return [path[i][0] + (path[i + 1][0] - path[i][0]) * u, path[i][1] + (path[i + 1][1] - path[i][1]) * u]; } d -= segs[i]; }
+    return path[path.length - 1];
+  }
+  function draw(ctx, t) {
+    t = Math.max(0, Math.min(T, t));
+    const fr = frames[Math.round(t)];
+    ctx.fillStyle = '#4b5a43'; ctx.fillRect(0, 0, W, H);
+    for (const [x, y, r, s] of terrain) { ctx.fillStyle = s > 0.5 ? '#3c4a37' : '#5e6a51'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+    ctx.fillStyle = 'rgba(10,14,20,.75)'; ctx.fillRect(250, 4, 140, 30);
+    const kb = deaths.filter(d => d.t <= t && d.tm === 'r').length, kr = deaths.filter(d => d.t <= t && d.tm === 'b').length;
+    ctx.font = '600 16px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#6ea8ff'; ctx.fillText(kb, 278, 19); ctx.fillStyle = '#ff7b7b'; ctx.fillText(kr, 362, 19);
+    ctx.fillStyle = '#f1f1f1'; ctx.font = '500 13px ui-monospace, monospace'; ctx.fillText(fmt(t), 320, 19);
+    ctx.save(); ctx.translate(MM.x, MM.y); ctx.scale(MM.s, MM.s);
+    ctx.fillStyle = '#26321f'; ctx.fillRect(0, 0, 1, 1);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#26475e'; ctx.lineWidth = 0.07; ctx.beginPath(); ctx.moveTo(0.05, 0.05); ctx.lineTo(0.95, 0.95); ctx.stroke();
+    ctx.strokeStyle = '#6a604a'; ctx.lineWidth = 0.045;
+    for (const k in lanePaths) { const p = lanePaths[k]; ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (const q of p.slice(1)) ctx.lineTo(q[0], q[1]); ctx.stroke(); }
+    ctx.fillStyle = '#2f4250'; for (const pt of [cfg.pits.a, cfg.pits.b]) { ctx.beginPath(); ctx.arc(pt.x, pt.y, 0.05, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#2f74d6'; ctx.fillRect(0.02, 0.92, 0.06, 0.06); ctx.fillStyle = '#d63a3a'; ctx.fillRect(0.92, 0.02, 0.06, 0.06);
+    for (const tu of turrets) { if (tu.d && t >= tu.d) continue; ctx.fillStyle = tu.t === 'b' ? '#2f74d6' : '#d63a3a'; ctx.fillRect(tu.x - 0.011, tu.y - 0.011, 0.022, 0.022); }
+    for (let w0 = Math.floor((t - 90) / 30) * 30; w0 <= t; w0 += 30) {
+      if (w0 < 20) continue;
+      for (const k in lanePaths) for (const tm of TEAMS) {
+        const f = Math.min(0.5, (t - w0) * 0.011); if (t - w0 > 70) continue;
+        const path = tm === 'b' ? lanePaths[k] : [...lanePaths[k]].reverse();
+        for (let m = 0; m < 3; m++) { const q = along(path, Math.max(0, f - m * 0.012)); ctx.fillStyle = tm === 'b' ? '#4d8fe8' : '#e05252'; ctx.beginPath(); ctx.arc(q[0], q[1], 0.006, 0, 7); ctx.fill(); }
+      }
+    }
+    for (let id = 0; id < 10; id++) {
+      const p = fr[id]; if (!p) continue;
+      ctx.fillStyle = portraits[id]; ctx.beginPath(); ctx.arc(p[0], p[1], 0.027, 0, 7); ctx.fill();
+      ctx.strokeStyle = id < 5 ? '#3d8bff' : '#ff4646'; ctx.lineWidth = 0.014; ctx.beginPath(); ctx.arc(p[0], p[1], 0.034, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.strokeRect(MM.x - 0.5, MM.y - 0.5, MM.s + 1, MM.s + 1);
+  }
+  function makeScreen() {
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.className = 'screen';
+    const ctx = cv.getContext('2d', { willReadFrequently: true }); let cur = 60; draw(ctx, cur);
+    return { kind: 'demo', el: cv, W, H, duration: T, time: () => cur, seek(t) { cur = Math.max(0, Math.min(T, t)); draw(ctx, cur); return Promise.resolve(); } };
+  }
+  return { T, makeScreen, roi: { x: MM.x / W, y: MM.y / H, w: MM.s / W, h: MM.s / H } };
+})();
+
+/* ---------------- setup UI ---------------- */
+const overlay = $('#overlay'), octx = overlay.getContext('2d');
+let mode = 'roi';     // roi | pickB | pickR | pitA | pitB
+const HINTS = {
+  roi: 'Drag a square over the minimap (top-left corner of the screen).',
+  pickB: 'Tap the colored ring of a blue-team hero on the video.',
+  pickR: 'Tap the colored ring of a red-team hero on the video.',
+  pitA: () => `Tap the ${cfg.pits.a.name} pit on the detection preview.`,
+  pitB: () => `Tap the ${cfg.pits.b.name} pit on the detection preview.`,
+};
+function setMode(m) {
+  mode = mode === m ? 'roi' : m;
+  const h = HINTS[mode]; $('#modeHint').textContent = typeof h === 'function' ? h() : h;
+  for (const [id, mm] of [['#pickB', 'pickB'], ['#pickR', 'pickR'], ['#pitABtn', 'pitA'], ['#pitBBtn', 'pitB']]) $(id).classList.toggle('on', mode === mm);
+}
+
+function attachScreen(sc, name) {
+  screen = sc;
+  const box = $('#screenBox');
+  box.querySelectorAll('video, canvas.screen').forEach(e => e.remove());
+  box.insertBefore(sc.el, overlay);
+  $('#stepSetup').hidden = $('#stepRun').hidden = false;
+  $('#srcName').textContent = name;
+  $('#demoBar').hidden = sc.kind !== 'demo';
+  $('#demoBanner').hidden = sc.kind !== 'demo';
+  syncInputs(); sizeOverlay(); updateClock(); schedulePreview();
+}
+function sizeOverlay() {
+  if (!screen) return;
+  const r = overlay.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  overlay.width = Math.max(1, Math.round(r.width * dpr)); overlay.height = Math.max(1, Math.round(r.height * dpr));
+  drawOverlay();
+}
+function drawOverlay() {
+  const w = overlay.width, h = overlay.height, r = cfg.roi;
+  octx.clearRect(0, 0, w, h);
+  octx.fillStyle = 'rgba(0,0,0,.45)'; octx.fillRect(0, 0, w, h);
+  octx.clearRect(r.x * w, r.y * h, r.w * w, r.h * h);
+  octx.strokeStyle = cssVar('--accent') || '#e4b244'; octx.lineWidth = Math.max(2, w / 400);
+  octx.strokeRect(r.x * w, r.y * h, r.w * w, r.h * h);
+}
+function updateClock() {
+  if (!screen) return;
+  const vt = screen.time(); $('#vt').textContent = fmt(vt); $('#gt').textContent = toGame(vt) < 0 ? 'before start' : fmt(toGame(vt));
+}
+
+let drag = null;
+overlay.addEventListener('pointerdown', e => {
+  if (!screen) return;
+  const rc = overlay.getBoundingClientRect(), x = (e.clientX - rc.left) / rc.width, y = (e.clientY - rc.top) / rc.height;
+  if (mode === 'pickB' || mode === 'pickR') { pickColor(x, y, mode === 'pickB' ? 'blue' : 'red'); setMode('roi'); return; }
+  overlay.setPointerCapture(e.pointerId); drag = { x, y };
+});
+overlay.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const rc = overlay.getBoundingClientRect(), x = (e.clientX - rc.left) / rc.width, y = (e.clientY - rc.top) / rc.height;
+  // keep the selection square in screen pixels
+  const aspect = screen.W / screen.H;
+  let sidePx = Math.max(Math.abs(x - drag.x) * screen.W, Math.abs(y - drag.y) * screen.H);
+  sidePx = Math.min(sidePx, screen.H);
+  const w = sidePx / screen.W, h = sidePx / screen.H;
+  let nx = x < drag.x ? drag.x - w : drag.x, ny = y < drag.y ? drag.y - h : drag.y;
+  nx = Math.max(0, Math.min(1 - w, nx)); ny = Math.max(0, Math.min(1 - h, ny));
+  if (w * aspect > 0.01) { cfg.roi = { x: nx, y: ny, w, h }; drawOverlay(); schedulePreview(); }
+});
+overlay.addEventListener('pointerup', () => { if (drag) { drag = null; cfg.roiSet = true; saveCfg(); } });
+
+const pickCv = document.createElement('canvas'); const pickCtx = pickCv.getContext('2d', { willReadFrequently: true });
+function pickColor(x, y, which) {
+  pickCv.width = screen.W; pickCv.height = screen.H; pickCtx.drawImage(screen.el, 0, 0);
+  const px = Math.round(x * screen.W), py = Math.round(y * screen.H), R = Math.max(3, Math.round(screen.W / 320));
+  const d = pickCtx.getImageData(Math.max(0, px - R), Math.max(0, py - R), 2 * R + 1, 2 * R + 1).data;
+  let best = null;
+  for (let q = 0; q < d.length; q += 4) { const c = pixelHSV(d[q], d[q + 1], d[q + 2]); const score = c.s * c.v; if (!best || score > best.score) best = { ...c, score }; }
+  if (!best || best.s < 0.25) { toast('No strong color there. Tap right on a hero ring.'); return; }
+  if (which === 'blue') cfg.blueH = Math.round(best.h); else cfg.redH = Math.round(best.h);
+  syncInputs(); saveCfg(); schedulePreview(); toast(`${which === 'blue' ? 'Blue' : 'Red'} team color set (hue ${Math.round(best.h)}°)`);
+}
+
+const pv = $('#preview'), pctx = pv.getContext('2d');
+pv.addEventListener('click', e => {
+  if (mode !== 'pitA' && mode !== 'pitB') return;
+  const rc = pv.getBoundingClientRect(), x = (e.clientX - rc.left) / rc.width, y = (e.clientY - rc.top) / rc.height;
+  const k = mode === 'pitA' ? 'a' : 'b'; cfg.pits[k].x = x; cfg.pits[k].y = y; saveCfg(); setMode('roi'); schedulePreview();
+});
+let pvPending = false;
+function schedulePreview() { if (pvPending) return; pvPending = true; requestAnimationFrame(() => { pvPending = false; drawPreview(); }); }
+function drawPreview() {
+  if (!screen || !screen.W) return;
+  const img = grab(), mask = classify(img, cfg), comps = components(mask, cfg.minArea);
+  const W = pv.width, s = W / N;
+  pctx.imageSmoothingEnabled = false; pctx.drawImage(grabCv, 0, 0, W, W);
+  pctx.fillStyle = 'rgba(0,0,0,.35)'; pctx.fillRect(0, 0, W, W);
+  const ov = pctx.getImageData(0, 0, W, W);
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    const m = mask[((y / s) | 0) * N + ((x / s) | 0)]; if (!m) continue;
+    const q = (y * W + x) * 4; if (m === 1) { ov.data[q] = 60; ov.data[q + 1] = 150; ov.data[q + 2] = 255; } else { ov.data[q] = 255; ov.data[q + 1] = 80; ov.data[q + 2] = 80; }
+  }
+  pctx.putImageData(ov, 0, 0);
+  const unit = cfg.unitGuess || 60;
+  let nb = 0, nr = 0;
+  for (const c of comps) {
+    const n = Math.max(1, Math.round(c.a / unit)); if (c.c === 1) nb += n; else nr += n;
+    pctx.strokeStyle = '#fff'; pctx.lineWidth = 2; pctx.beginPath(); pctx.arc(c.x * W, c.y * W, 11, 0, 7); pctx.stroke();
+  }
+  pctx.font = '600 11px system-ui'; pctx.textAlign = 'center'; pctx.textBaseline = 'middle';
+  for (const [k, p] of [['a', cfg.pits.a], ['b', cfg.pits.b]]) {
+    pctx.strokeStyle = '#e4b244'; pctx.setLineDash([3, 3]); pctx.beginPath(); pctx.arc(p.x * W, p.y * W, 0.085 * W, 0, 7); pctx.stroke(); pctx.setLineDash([]);
+    pctx.fillStyle = '#e4b244'; pctx.fillText(p.name, p.x * W, p.y * W);
+  }
+  $('#previewInfo').innerHTML = `This frame: <b class="cb">${nb} blue</b>, <b class="cr">${nr} red</b> marker${nb + nr === 1 ? '' : 's'} found. ` +
+    (nb + nr === 0 ? 'Nothing found: check the square sits on the minimap and tap a hero of each team to set the colors.'
+      : 'Turrets may show here; they are removed during analysis because they never move.');
+}
+
+function syncInputs() {
+  $('#speed').value = String(cfg.speed); $('#every').value = String(cfg.every); $('#myTeam').value = cfg.my; $('#greenTeam').value = cfg.greenTeam;
+  for (const [id, v, f] of [['blueTol', cfg.blueTol, v => v + '°'], ['redTol', cfg.redTol, v => v + '°'], ['sMin', Math.round(cfg.sMin * 100), v => v + '%'], ['vMin', Math.round(cfg.vMin * 100), v => v + '%'], ['minArea', cfg.minArea, v => v]]) {
+    $('#' + id).value = v; $('#' + id + 'O').textContent = f(v);
+  }
+  $('#swB').style.background = `hsl(${cfg.blueH} 85% 55%)`; $('#swR').style.background = `hsl(${cfg.redH} 85% 55%)`;
+  $('#pitAName').textContent = cfg.pits.a.name; $('#pitBName').textContent = cfg.pits.b.name;
+  $('#fromV').textContent = cfg.fromV ? fmt(cfg.fromV) : 'start'; $('#toV').textContent = cfg.toV != null ? fmt(cfg.toV) : 'end';
+  $('#clockIn').value = fmt(screen ? Math.max(0, toGame(screen.time())) : 0);
+}
+$('#speed').onchange = e => { cfg.speed = +e.target.value; saveCfg(); updateClock(); };
+$('#every').onchange = e => { cfg.every = +e.target.value; saveCfg(); };
+$('#myTeam').onchange = e => { cfg.my = e.target.value; saveCfg(); if (R) { R.my = cfg.my; renderResults(); } };
+$('#greenTeam').onchange = e => { cfg.greenTeam = e.target.value; saveCfg(); schedulePreview(); };
+for (const [id, key, f, scale] of [['blueTol', 'blueTol', v => v + '°', 1], ['redTol', 'redTol', v => v + '°', 1], ['sMin', 'sMin', v => v + '%', 100], ['vMin', 'vMin', v => v + '%', 100], ['minArea', 'minArea', v => v, 1]]) {
+  $('#' + id).oninput = e => { cfg[key] = +e.target.value / scale; $('#' + id + 'O').textContent = f(+e.target.value); saveCfg(); schedulePreview(); };
+}
+$('#clockSet').onclick = () => {
+  const g = parseClock($('#clockIn').value); if (g == null) { toast('Type the game clock as m:ss, e.g. 0:05'); return; }
+  cfg.anchorVideo = screen.time(); cfg.anchorGame = g; updateClock(); toast(`Game clock ${fmt(g)} matched to video ${fmt(cfg.anchorVideo)}`);
+};
+$('#fromBtn').onclick = () => { cfg.fromV = screen.time(); syncInputs(); };
+$('#toBtn').onclick = () => { cfg.toV = screen.time() > cfg.fromV ? screen.time() : null; syncInputs(); };
+$('#pickB').onclick = () => setMode('pickB');
+$('#pickR').onclick = () => setMode('pickR');
+$('#pitABtn').onclick = () => setMode('pitA');
+$('#pitBBtn').onclick = () => setMode('pitB');
+$('#swapPits').onclick = () => { const a = cfg.pits.a.name; cfg.pits.a.name = cfg.pits.b.name; cfg.pits.b.name = a; saveCfg(); syncInputs(); schedulePreview(); };
+$('#demoSeek').oninput = e => { screen.seek(+e.target.value); updateClock(); schedulePreview(); };
+window.addEventListener('resize', () => { sizeOverlay(); if (R) { drawTimeline(); } });
+
+$('#file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.controls = true; v.src = URL.createObjectURL(f);
+  v.addEventListener('loadedmetadata', async () => {
+    if (!isFinite(v.duration)) { v.currentTime = 1e9; await new Promise(r => v.addEventListener('seeked', r, { once: true })); }
+    isDemo = false;
+    const saved = store.get('rl-cfg', {});
+    Object.assign(cfg, JSON.parse(JSON.stringify(DEFAULTS)), saved, { anchorVideo: 0, anchorGame: 0, fromV: 0, toV: null, unitGuess: null });
+    if (!saved.roiSet) { const side = 0.27 * v.videoHeight; cfg.roi = { x: 0.004, y: 0.01, w: side / v.videoWidth, h: 0.27 }; }
+    attachScreen(videoScreen(v), f.name);
+    await screen.seek(Math.min(5, v.duration / 3)); updateClock(); schedulePreview();
+    $('#stepSetup').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, { once: true });
+  v.addEventListener('error', () => toast('This browser cannot play that video. Try an MP4 (H.264) recording.'));
+  for (const ev of ['seeked', 'timeupdate']) v.addEventListener(ev, () => { updateClock(); if (v.paused || ev === 'seeked') schedulePreview(); });
+  v.addEventListener('loadeddata', sizeOverlay);
+};
+
+function loadDemo() {
+  isDemo = true;
+  Object.assign(cfg, { roi: { ...Demo.roi }, speed: 1, anchorVideo: 0, anchorGame: 0, fromV: 0, toV: null, every: 1, blueH: 214, redH: 0, blueTol: 22, redTol: 16,
+    sMin: 0.45, vMin: 0.42, minArea: 16, greenTeam: 'off', my: 'b', pits: { a: { x: 0.30, y: 0.30, name: 'Lord' }, b: { x: 0.70, y: 0.70, name: 'Turtle' } } });
+  attachScreen(Demo.makeScreen(), 'Demo match (simulated, 14:00)');
+  $('#demoSeek').value = 60;
+}
+$('#demoBtn').onclick = () => { loadDemo(); runAnalysis(); };
+
+/* ---------------- analysis run ---------------- */
+let R = null, running = false, stopReq = false;
+$('#stopBtn').onclick = () => { stopReq = true; };
+$('#runBtn').onclick = () => runAnalysis();
+
+async function runAnalysis() {
+  if (!screen || running) return;
+  running = true; stopReq = false;
+  $('#runBtn').disabled = true; $('#stopBtn').hidden = false;
+  const c = JSON.parse(JSON.stringify(cfg));
+  const dur = screen.duration, v0 = Math.max(0, c.fromV || 0), v1 = Math.min(dur, c.toV != null ? c.toV : dur);
+  const stepV = c.every / c.speed;
+  const count = Math.max(0, Math.floor((v1 - v0) / stepV) + 1);
+  const masks = [], times = [], ever = new Uint8Array(N * N);
+  let thumb = null; const thumbAt = Math.floor(count * 0.35);
+  const started = performance.now();
+  for (let i = 0; i < count && !stopReq; i++) {
+    const vt = v0 + i * stepV, g = c.anchorGame + (vt - c.anchorVideo) * c.speed;
+    if (g < 0) continue;
+    await screen.seek(vt);
+    const img = grab();
+    const m = classify(img, c); for (let p = 0; p < m.length; p++) if (m[p]) ever[p] = 1;
+    masks.push(m); times.push(g);
+    if (!thumb && i >= thumbAt) { thumb = document.createElement('canvas'); thumb.width = thumb.height = N; thumb.getContext('2d').putImageData(img, 0, 0); }
+    if (i % 8 === 0) {
+      const el = (performance.now() - started) / 1000, eta = el / (i + 1) * (count - i - 1);
+      $('#bar').style.width = (100 * (i + 1) / count).toFixed(1) + '%';
+      $('#runInfo').textContent = `Reading minimap: game ${fmt(g)} (${i + 1}/${count} frames), about ${Math.ceil(eta)} s left`;
+      if (screen.kind === 'demo') { updateClock(); await new Promise(r => setTimeout(r, 0)); }
+    }
+  }
+  $('#runInfo').textContent = 'Finding patterns…'; await new Promise(r => setTimeout(r, 20));
+  if (masks.length < 10) {
+    $('#runInfo').textContent = 'Too little footage to analyze. Check the clock settings: frames before game time 0:00 are skipped.';
+  } else {
+    removeStatic(masks, ever, Math.max(10, Math.round(90 / c.every)));
+    const comps = masks.map(m => components(m, c.minArea));
+    R = analyzeMatch(times, comps, c, thumb);
+    cfg.unitGuess = R.unit.b;
+    $('#bar').style.width = '100%';
+    $('#runInfo').textContent = `Done: ${masks.length} frames, ${fmt(times[0])} to ${fmt(times[times.length - 1])} of game time, in ${((performance.now() - started) / 1000).toFixed(1)} s.` + (stopReq ? ' Stopped early, so later minutes are missing.' : '');
+    $('#stepResults').hidden = false;
+    renderResults();
+    if (!isDemo) $('#stepResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  running = false; $('#runBtn').disabled = false; $('#stopBtn').hidden = true;
+}
+
+/* ---------------- pattern recognition ---------------- */
+function percentile(a, q) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; }
+function capFive(arr) {
+  let tot = arr.reduce((s, p) => s + p.n, 0);
+  while (tot > 5) {
+    const m = arr.reduce((m, p) => (p.n > m.n ? p : m));
+    if (m.n > 1) { m.n--; tot--; } else { arr.sort((a, b) => b.a - a.a); arr.pop(); tot--; }
+  }
+}
+const cnt = pts => pts.reduce((s, p) => s + p.n, 0);
+const near = (pts, c, R) => pts.reduce((s, p) => s + (dist(p, c) < R ? p.n : 0), 0);
+
+// Merge per-sample hits into events: hits closer than `gap` seconds and 0.15 map widths join,
+// events shorter than `minDur` are dropped.
+function mergeHits(hits, gap, minDur) {
+  const out = []; let cur = null;
+  for (const h of hits) {
+    const last = cur && cur.hits[cur.hits.length - 1];
+    if (cur && h.t - cur.end <= gap && Math.hypot(h.x - last.x, h.y - last.y) < 0.15) { cur.end = h.t; cur.hits.push(h); }
+    else { if (cur) out.push(cur); cur = { start: h.t, end: h.t, hits: [h] }; }
+  }
+  if (cur) out.push(cur);
+  return out.filter(e => e.end - e.start >= minDur).map(e => {
+    const x = mean(e.hits.map(h => h.x)), y = mean(e.hits.map(h => h.y));
+    return { start: e.start, end: e.end, x, y, hits: e.hits };
+  });
+}
+
+function kmeans(X, k, rng, iters = 25) {
+  const n = X.length, d = X[0].length; k = Math.min(k, n);
+  const cents = [X[Math.floor(rng() * n)].slice()];
+  const d2 = (a, b) => { let s = 0; for (let i = 0; i < d; i++) s += (a[i] - b[i]) ** 2; return s; };
+  while (cents.length < k) {
+    const ds = X.map(x => Math.min(...cents.map(c => d2(x, c)))); const tot = ds.reduce((a, b) => a + b, 0);
+    if (!tot) break; let r = rng() * tot, i = 0; while (r > ds[i] && i < n - 1) { r -= ds[i]; i++; } cents.push(X[i].slice());
+  }
+  const lab = new Array(n).fill(0);
+  for (let it = 0; it < iters; it++) {
+    let moved = false;
+    for (let i = 0; i < n; i++) { let b = 0, bd = Infinity; for (let j = 0; j < cents.length; j++) { const v = d2(X[i], cents[j]); if (v < bd) { bd = v; b = j; } } if (lab[i] !== b) { lab[i] = b; moved = true; } }
+    const sum = cents.map(() => new Array(d).fill(0)), num = new Array(cents.length).fill(0);
+    for (let i = 0; i < n; i++) { num[lab[i]]++; for (let j = 0; j < d; j++) sum[lab[i]][j] += X[i][j]; }
+    for (let j = 0; j < cents.length; j++) if (num[j]) for (let q = 0; q < d; q++) cents[j][q] = sum[j][q] / num[j];
+    if (!moved) break;
+  }
+  return { cents, lab };
+}
+function describeFormation(v) {
+  // largest-remainder rounding to five heroes
+  const fl = v.map(Math.floor); let left = 5 - fl.reduce((a, b) => a + b, 0);
+  const order = v.map((x, i) => [x - Math.floor(x), i]).sort((a, b) => b[0] - a[0]);
+  for (const [, i] of order) { if (left <= 0) break; fl[i]++; left--; }
+  const parts = fl.map((n, i) => [n, ZONES[i]]).filter(([n]) => n > 0).sort((a, b) => b[0] - a[0]);
+  const z = Object.fromEntries(ZONES.map((k, i) => [k, fl[i]]));
+  let tag;
+  const top = parts[0];
+  if (z.unseen >= 3) tag = 'Wiped / mostly dead';
+  else if (top && top[0] >= 4 && top[1] !== 'unseen' && top[1] !== 'ownBase') tag = `Grouped at ${ZONE_LABEL[top[1]]}`;
+  else if (z.ownBase >= 3) tag = 'Resetting at base';
+  else if (z.enemyJg >= 2) tag = 'Invading';
+  else if (z.river >= 3) tag = 'Setting up objective';
+  else if (z.top >= 1 && z.mid >= 1 && z.bot >= 1) tag = z.enemyBase + z.enemyJg >= 1 ? 'Lanes + pressure' : 'Laning spread';
+  else if (top && top[0] >= 3) tag = `Stack of 3 at ${ZONE_LABEL[top[1]]}`;
+  else tag = 'Split across the map';
+  return { tag, text: parts.map(([n, k]) => `${n} ${ZONE_LABEL[k]}`).join(' · '), key: fl.join('') };
+}
+
+function analyzeMatch(times, compsList, c, thumb) {
+  const dt = times.length > 1 ? median(times.slice(1).map((t, i) => t - times[i])) : 1;
+  // 1. hero count per marker from the typical single-marker area
+  const unit = {};
+  for (const [k, cc] of [['b', 1], ['r', 2]]) {
+    const areas = []; for (const cs of compsList) for (const q of cs) if (q.c === cc) areas.push(q.a);
+    unit[k] = Math.max(c.minArea, percentile(areas, 0.35) || 60);
+  }
+  const samples = times.map((t, i) => {
+    const s = { t, b: [], r: [] };
+    for (const q of compsList[i]) {
+      const k = q.c === 1 ? 'b' : 'r';
+      if (q.a < 0.25 * unit[k]) continue;                  // minion clumps and specks
+      s[k].push({ x: q.x, y: q.y, a: q.a, n: Math.max(1, Math.round(q.a / unit[k])) }); }
+    capFive(s.b); capFive(s.r); return s;
+  });
+  // 2. which base belongs to which team: heroes start the game at their own fountain
+  const early = samples.filter(s => s.t < 120); const use = early.length >= 5 ? early : samples;
+  const lean = k => { let a = 0, n = 0; for (const s of use) for (const p of s[k]) { a += (p.x - p.y) * p.n; n += p.n; } return n ? a / n : 0; };
+  const side = lean('b') <= lean('r') ? { b: 'BL', r: 'TR' } : { b: 'TR', r: 'BL' };
+
+  // 3. deaths. A dead hero vanishes from the minimap and later reappears at the team's fountain.
+  // Markers piling up in a fight also "vanish", so a death only counts once the respawn is seen:
+  // a marker appears at the fountain without walking in, and the team has more heroes on the map afterwards.
+  // A recall also lands at the fountain, but the hero was visible right before, so the count does not rise.
+  const w = Math.max(1, Math.round(3 / dt)), sec = x => Math.max(1, Math.round(x / dt));
+  const vis = {}, deaths = { b: [], r: [] };
+  for (const k of TEAMS) {
+    const raw = samples.map(s => Math.min(5, cnt(s[k])));
+    const sm = raw.map((_, i) => Math.round(median(raw.slice(Math.max(0, i - w), i + w + 1))));
+    const F = side[k] === 'BL' ? { x: 0, y: 1 } : { x: 1, y: 0 };
+    const reach = o => 0.02 + 0.045 * dt * o;             // how far a hero can walk in o samples
+    const drops = [];                                      // count drops: candidate death moments
+    for (let j = 1; j < sm.length; j++) if (sm[j] < sm[j - 1]) drops.push({ j, left: sm[j - 1] - sm[j] });
+    const lastSeen = [];
+    for (let i = 3; i + 2 < samples.length; i++) {
+      const tr = samples[i].t; if (tr < 25) continue;
+      for (const p of samples[i][k]) {
+        if (dist(p, F) >= 0.17 || p.a < 0.55 * unit[k]) continue;   // small blobs at base are minion waves
+        // it must be new: not a hero that was already standing at the fountain a moment ago
+        // (heroes walking in from outside are rejected below, because the team count does not rise)
+        let known = false;
+        for (let j = i - 2; j < i && !known; j++) for (const q of samples[j][k]) if (dist(q, F) < 0.17 && dist(p, q) < reach(i - j)) known = true;
+        if (known) continue;
+        // it must stay: still at the fountain in the next two samples
+        if (![1, 2].every(o => samples[i + o][k].some(q => dist(p, q) < reach(o) + 0.02))) continue;
+        if (lastSeen.some(x => tr - x.t < 4 && dist(p, x) < 0.05)) continue;
+        const before = mean(raw.slice(Math.max(0, i - sec(6)), i)), after = mean(raw.slice(i, i + sec(5)));
+        if (after - before < 0.4) continue;                  // a recall: the hero was visible elsewhere just before
+        lastSeen.push({ t: tr, x: p.x, y: p.y });
+        const n = Math.max(1, Math.min(p.n, Math.round(after - before)));
+        // death moment: the count drop that best fits a typical respawn timer
+        const expect = Math.min(60, 8 + 0.045 * tr);
+        let best = null;
+        for (const d of drops) {
+          const t = samples[d.j].t; if (!d.left || t > tr - 5 || t < tr - 80) continue;
+          const err = Math.abs(tr - t - expect); if (!best || err < best.err) best = { d, err, t };
+        }
+        let td;
+        if (best) { td = best.t; best.d.left = Math.max(0, best.d.left - n); } else td = Math.max(samples[0].t, tr - expect);
+        deaths[k].push({ t: td, n, respawn: tr });
+      }
+    }
+    deaths[k].sort((a, b) => a.t - b.t);
+    const alive = samples.map(s => 5 - deaths[k].reduce((a, d) => a + (s.t >= d.t && s.t < d.respawn ? d.n : 0), 0));
+    vis[k] = { raw, sm, alive: alive.map(v => Math.max(0, v)) };
+  }
+  const deathsIn = (k, a, b) => deaths[k].filter(d => d.t >= a && d.t <= b).reduce((s, d) => s + d.n, 0);
+  // Every living hero is somewhere on the map (replays show both teams), so heroes missing from the count are
+  // hidden inside stacks: hand them to the markers whose area is largest for the heroes already assigned.
+  samples.forEach((s, i) => {
+    for (const k of TEAMS) {
+      const pts = s[k]; if (!pts.length) continue;
+      let diff = vis[k].alive[i] - cnt(pts);
+      while (diff > 0) { const p = pts.reduce((m, q) => (q.a / (q.n + 1) > m.a / (m.n + 1) ? q : m)); p.n++; diff--; }
+      while (diff < 0) { const c = pts.filter(q => q.n > 1); if (!c.length) break; const p = c.reduce((m, q) => (q.a / q.n < m.a / m.n ? q : m)); p.n--; diff++; }
+    }
+  });
+  // Heroes that reached a spot during the last few seconds. Arrivals are seen separately before they stack up.
+  const recent = (i, k, c, R, secs = 6) => { let m = 0; for (let j = Math.max(0, i - sec(secs)); j <= i; j++) m = Math.max(m, near(samples[j][k], c, R)); return m; };
+
+  // 4. teamfights: three or more heroes of each team inside one area
+  const FR = 0.13, fightHits = [];
+  samples.forEach((s, i) => {
+    let best = null;
+    for (const cpt of [...s.b, ...s.r]) {
+      if (!near(s.b, cpt, FR) || !near(s.r, cpt, FR)) continue;      // both teams must be there now
+      const nb = recent(i, 'b', cpt, FR), nr = recent(i, 'r', cpt, FR);
+      if (nb >= 3 && nr >= 3) { const sc = nb + nr; if (!best || sc > best.sc) best = { sc, nb, nr, x: cpt.x, y: cpt.y }; }
+    }
+    if (best) fightHits.push({ t: s.t, ...best });
+  });
+  const fights = mergeHits(fightHits, 5, 3).map(f => {
+    const db = deathsIn('b', f.start - 2, f.end + 12), dr = deathsIn('r', f.start - 2, f.end + 12);
+    return { ...f, type: 'fight', size: Math.max(...f.hits.map(h => h.sc)), db, dr, winner: db === dr ? null : (db < dr ? 'b' : 'r'), region: regionOf(f.x, f.y, c.pits) };
+  });
+  const inFight = t => fights.some(f => t >= f.start - 3 && t <= f.end + 3);
+
+  // 5. ganks and picks: a team arrives and outnumbers an enemy hero
+  const GR = 0.11, back = Math.max(1, Math.round(8 / dt)), ganks = [];
+  for (const A of TEAMS) {
+    const B = other(A), hits = [];
+    samples.forEach((s, i) => {
+      if (inFight(s.t)) return;
+      for (const d of s[B]) {
+        if (!near(s[A], d, GR)) continue;
+        const na = recent(i, A, d, GR, 4), nd = near(s[B], d, GR);
+        if (na >= 2 && na > nd) {
+          const prev = i - back >= 0 ? near(samples[i - back][A], d, GR) : na;
+          hits.push({ t: s.t, x: d.x, y: d.y, na, nd, arrived: na > prev }); break;
+        }
+      }
+    });
+    for (const g of mergeHits(hits, 5, 2)) {
+      if (!g.hits.some(h => h.arrived)) continue;
+      const kills = deathsIn(B, g.start - 2, g.end + 10), lost = deathsIn(A, g.start - 2, g.end + 10);
+      const end = g.hits[g.hits.length - 1], region = regionOf(end.x, end.y, c.pits);  // where the chase ended
+      if (region === 'pitA' || region === 'pitB') continue;   // skirmishes at a pit are listed as objective plays
+      ganks.push({ ...g, type: 'gank', by: A, region, lane: ['top', 'mid', 'bot'].includes(region), na: Math.max(...g.hits.map(h => h.na)), kills, lost, success: kills > 0 });
+    }
+  }
+  ganks.sort((a, b) => a.start - b.start);
+
+  // 6. objective pits
+  const objectives = [];
+  for (const pk of ['a', 'b']) {
+    const P = c.pits[pk], hits = [];
+    samples.forEach((s, i) => {
+      const nb = near(s.b, P, 0.11) ? recent(i, 'b', P, 0.11) : 0, nr = near(s.r, P, 0.11) ? recent(i, 'r', P, 0.11) : 0;
+      if (Math.max(nb, nr) >= 3 || (nb >= 2 && nr >= 2)) hits.push({ t: s.t, x: P.x, y: P.y, nb, nr });
+    });
+    for (const o of mergeHits(hits, 6, 4)) {
+      const mb = Math.max(...o.hits.map(h => h.nb)), mr = Math.max(...o.hits.map(h => h.nr));
+      const contested = o.hits.some(h => h.nb >= 2 && h.nr >= 2);
+      const db = deathsIn('b', o.start - 2, o.end + 6), dr = deathsIn('r', o.start - 2, o.end + 6);
+      const lead = mb === mr ? (db === dr ? null : (db < dr ? 'b' : 'r')) : (mb > mr ? 'b' : 'r');
+      objectives.push({ ...o, type: 'objective', pit: pk, name: P.name, contested, mb, mr, db, dr, lead });
+    }
+  }
+  objectives.sort((a, b) => a.start - b.start);
+
+  // 7. invasions of the enemy jungle
+  const invasions = [];
+  for (const A of TEAMS) {
+    const hits = [];
+    for (const s of samples) {
+      const inv = s[A].filter(p => zoneOf(p.x, p.y, side[A]) === 'enemyJg'), n = cnt(inv);
+      if (n >= 2) hits.push({ t: s.t, x: mean(inv.map(p => p.x)), y: mean(inv.map(p => p.y)), n });
+    }
+    for (const v of mergeHits(hits, 5, 4)) invasions.push({ ...v, type: 'invasion', by: A, n: Math.max(...v.hits.map(h => h.n)), region: regionOf(v.x, v.y, c.pits) });
+  }
+  invasions.sort((a, b) => a.start - b.start);
+
+  // 8. zones, spread, map control
+  const zoneSeries = { b: [], r: [] }, spread = { b: [], r: [] }, enemyHalf = { b: [0, 0], r: [0, 0] };
+  for (const s of samples) for (const k of TEAMS) {
+    const v = new Array(ZONES.length).fill(0);
+    for (const p of s[k]) v[ZONES.indexOf(zoneOf(p.x, p.y, side[k]))] += p.n;
+    v[8] = Math.max(0, 5 - cnt(s[k]));
+    zoneSeries[k].push(v);
+    const n = cnt(s[k]);
+    if (n >= 2) {
+      const cx = s[k].reduce((a, p) => a + p.x * p.n, 0) / n, cy = s[k].reduce((a, p) => a + p.y * p.n, 0) / n;
+      spread[k].push({ t: s.t, v: s[k].reduce((a, p) => a + Math.hypot(p.x - cx, p.y - cy) * p.n, 0) / n });
+    }
+    for (const p of s[k]) { const onEnemy = side[k] === 'BL' ? p.y < p.x : p.y > p.x; enemyHalf[k][0] += onEnemy ? p.n : 0; enemyHalf[k][1] += p.n; }
+  }
+  const phaseOf = t => (t < 300 ? 'early' : t < 720 ? 'mid' : 'late');
+  const spreadBy = {};
+  for (const k of TEAMS) { spreadBy[k] = {}; for (const ph of ['early', 'mid', 'late']) { const a = spread[k].filter(x => phaseOf(x.t) === ph).map(x => x.v); spreadBy[k][ph] = a.length >= 10 ? mean(a) : null; } }
+
+  // 9. rotations: where three or more heroes of a team stand together, and where that group moves next
+  const rotations = [];
+  for (const k of TEAMS) {
+    const segs = []; let cur = null;
+    samples.forEach(s => {
+      const tally = {}; for (const p of s[k]) { const z = zoneOf(p.x, p.y, side[k], true); tally[z] = (tally[z] || 0) + p.n; }
+      let g = null; for (const z in tally) if (tally[z] >= 3) g = z;
+      if (cur && cur.z === g) { cur.end = s.t; return; }
+      if (cur) segs.push(cur); cur = { z: g, start: s.t, end: s.t };
+    });
+    if (cur) segs.push(cur);
+    const stable = segs.filter(sg => sg.z && sg.z !== 'ownBase' && sg.end - sg.start >= 5);
+    for (let i = 1; i < stable.length; i++) {
+      const a = stable[i - 1], b = stable[i];
+      if (a.z !== b.z && b.start - a.end <= 30) rotations.push({ type: 'rotation', by: k, from: a.z, to: b.z, start: a.end, end: b.start, x: 0, y: 0 });
+    }
+  }
+
+  // 10. early lane setup (0:45 to 2:30)
+  const laneSetup = {};
+  for (const k of TEAMS) {
+    const idx = samples.map((s, i) => [s, i]).filter(([s]) => s.t >= 45 && s.t <= 150).map(([, i]) => i);
+    const avg = ZONES.map((_, z) => idx.length ? mean(idx.map(i => zoneSeries[k][i][z])) : 0);
+    laneSetup[k] = { top: avg[0], mid: avg[1], bot: avg[2], jg: avg[3] + avg[4] + avg[5] };
+  }
+
+  // 11. early jungle route: follow the hero that stays in jungle/river
+  const routes = {};
+  for (const k of TEAMS) {
+    let last = null; const seq = [];
+    for (const s of samples) {
+      if (s.t > 240) break;
+      const cand = s[k].filter(p => ['ownJg', 'enemyJg', 'river', 'pitA', 'pitB'].includes(zoneOf(p.x, p.y, side[k], true)));
+      if (!cand.length) continue;
+      const p = last ? cand.reduce((m, q) => (dist(q, last) < dist(m, last) ? q : m)) : cand[0];
+      last = p; const r = regionOf(p.x, p.y, c.pits);
+      if (seq.length && seq[seq.length - 1].r === r) seq[seq.length - 1].end = s.t; else seq.push({ r, start: s.t, end: s.t });
+    }
+    routes[k] = seq.filter(x => x.end - x.start >= 5).filter((x, i, a) => !i || a[i - 1].r !== x.r).slice(0, 7);
+  }
+
+  // 12. formations: cluster each team's per-second zone layout
+  const formations = {};
+  const rng = mulberry32(99);
+  for (const k of TEAMS) {
+    const X = zoneSeries[k];
+    const { cents, lab } = kmeans(X, 7, rng);
+    const groups = new Map();
+    cents.forEach((cv, j) => {
+      const d = describeFormation(cv); const members = [];
+      lab.forEach((l, i) => { if (l === j) members.push(i); });
+      if (!members.length) return;
+      const g = groups.get(d.key) || { ...d, idx: [] }; g.idx.push(...members); groups.set(d.key, g);
+    });
+    const list = [...groups.values()].map(g => {
+      g.idx.sort((a, b) => a - b);
+      const ts = g.idx.map(i => samples[i].t);
+      return { tag: g.tag, text: g.text, key: g.key, share: g.idx.length / X.length, tMed: median(ts), tLo: percentile(ts, 0.1), tHi: percentile(ts, 0.9), idx: g.idx };
+    }).sort((a, b) => b.share - a.share);
+    // what usually follows each formation
+    const labOf = new Array(X.length); list.forEach((f, j) => f.idx.forEach(i => { labOf[i] = j; }));
+    const runs = []; labOf.forEach((l, i) => { if (!runs.length || runs[runs.length - 1].l !== l) runs.push({ l, len: 1 }); else runs[runs.length - 1].len++; });
+    const minRun = Math.max(2, Math.round(4 / dt));
+    const solid = runs.filter(r => r.len >= minRun).filter((r, i, a) => !i || a[i - 1].l !== r.l);
+    list.forEach((f, j) => {
+      const nxt = {}; let tot = 0;
+      for (let i = 0; i + 1 < solid.length; i++) if (solid[i].l === j) { nxt[solid[i + 1].l] = (nxt[solid[i + 1].l] || 0) + 1; tot++; }
+      const best = Object.entries(nxt).sort((a, b) => b[1] - a[1])[0];
+      f.next = best ? { j: +best[0], n: best[1], of: tot } : null;
+      delete f.idx;
+    });
+    formations[k] = list.filter(f => f.share >= 0.02);
+  }
+
+  return { times, samples, dt, unit, side, vis, deaths, fights, ganks, objectives, invasions, rotations, spreadBy, spread,
+    enemyHalf: { b: enemyHalf.b[0] / Math.max(1, enemyHalf.b[1]), r: enemyHalf.r[0] / Math.max(1, enemyHalf.r[1]) },
+    laneSetup, routes, formations, cfg: c, thumb, my: c.my, t0: times[0], t1: times[times.length - 1] };
+}
+
+/* ---------------- wording ---------------- */
+const TN = k => (k === 'b' ? 'Blue' : 'Red');
+const teamTag = k => `<b class="${k === 'b' ? 'cb' : 'cr'}">${TN(k)}${R && R.my === k ? ' (you)' : ''}</b>`;
+function regionName(r, k) {
+  const sideName = s => (R.side.b === s ? 'Blue' : 'Red');
+  switch (r) {
+    case 'baseBL': return `${sideName('BL')} base`; case 'baseTR': return `${sideName('TR')} base`;
+    case 'pitA': return `${R.cfg.pits.a.name} pit`; case 'pitB': return `${R.cfg.pits.b.name} pit`;
+    case 'top': return 'top lane'; case 'mid': return 'mid lane'; case 'bot': return 'bottom lane'; case 'river': return 'river';
+    case 'jgBLt': return `${sideName('BL')} jungle (top side)`; case 'jgBLb': return `${sideName('BL')} jungle (bottom side)`;
+    case 'jgTRt': return `${sideName('TR')} jungle (top side)`; case 'jgTRb': return `${sideName('TR')} jungle (bottom side)`;
+  }
+  return r;
+}
+const zoneName = (z, k) => (['pitA', 'pitB'].includes(z) ? regionName(z) : z === 'ownJg' ? `${TN(k)} jungle` : z === 'enemyJg' ? `${TN(other(k))} jungle` : ZONE_LABEL[z] || z);
+const roundN = v => Math.round(v * 10) / 10;
+
+// Repeated timing: three or more events of one kind at a steady interval
+function cadence(ts) {
+  if (ts.length < 3) return null;
+  const gaps = ts.slice(1).map((t, i) => t - ts[i]); const m = mean(gaps);
+  const sd = Math.sqrt(mean(gaps.map(g => (g - m) ** 2)));
+  return sd / m < 0.3 && m > 30 ? m : null;
+}
+
+function buildInsights() {
+  const out = []; const add = (kind, label, html, t) => out.push({ kind, label, html, t });
+  const my = R.my, op = other(my);
+
+  // lane setup
+  for (const k of [op, my]) {
+    const L = R.laneSetup[k];
+    add('', 'Setup', `${teamTag(k)} opened with about ${roundN(L.top)} in top lane, ${roundN(L.mid)} mid, ${roundN(L.bot)} bottom and ${roundN(L.jg)} in the jungle or river (0:45 to 2:30).` +
+      (L.bot >= 1.6 ? ' The roamer sat in bottom lane.' : L.mid >= 1.6 ? ' The roamer stayed mid.' : L.top >= 1.6 ? ' The roamer went top.' : ''), 45);
+  }
+  // jungle route
+  for (const k of [op, my]) {
+    const r = R.routes[k]; if (r.length < 2) continue;
+    add('', 'Jungle route', `${teamTag(k)} early jungle path: ` + r.map(x => `${regionName(x.r)} ${chip(x.start)}`).join(' → '), r[0].start);
+  }
+  // ganks by team + lane + cadence
+  for (const k of [op, my]) {
+    const g = R.ganks.filter(x => x.by === k);
+    if (!g.length) { add('', 'Ganks', `${teamTag(k)} made no clear ganks the tracker could see.`, null); continue; }
+    const byReg = {}; for (const x of g) (byReg[x.region] = byReg[x.region] || []).push(x);
+    const [reg, list] = Object.entries(byReg).sort((a, b) => b[1].length - a[1].length)[0];
+    const ok = g.filter(x => x.success).length;
+    const first = g[0];
+    add(list.length >= 2 ? 'habit' : '', list.length >= 2 ? 'Habit' : 'Ganks',
+      `${teamTag(k)} ganked ${g.length} time${g.length > 1 ? 's' : ''}, ${ok} with a likely kill. First gank ${chip(first.start)} at ${regionName(first.region)}.` +
+      (list.length >= 2 ? ` Favorite target: <b>${regionName(reg)}</b> (${list.length}×: ${list.map(x => chip(x.start)).join(' ')}).` : ''), first.start);
+    const cad = cadence(g.map(x => x.start));
+    if (cad) add('habit', 'Timing', `${teamTag(k)} ganks come on a steady rhythm, about every <b>${fmt(cad)}</b>. After ${chip(g[g.length - 1].start)}, the next would have been due near ${fmt(g[g.length - 1].start + cad)}.`, g[0].start);
+  }
+  // invasions
+  for (const k of [op, my]) {
+    const inv = R.invasions.filter(x => x.by === k && x.start < 420);
+    if (inv.length) add(inv.length >= 2 ? (k === op ? 'warn' : 'habit') : '', inv.length >= 2 ? 'Habit' : 'Invasion',
+      `${teamTag(k)} entered the enemy jungle with 2+ heroes ${inv.length}× before 7:00: ${inv.map(x => chip(x.start)).join(' ')}.` +
+      (inv.length >= 2 ? ` They like to invade ${regionName(inv[0].region)}.` : ''), inv[0].start);
+  }
+  // objectives
+  for (const pk of ['a', 'b']) {
+    const os = R.objectives.filter(o => o.pit === pk); if (!os.length) continue;
+    const name = R.cfg.pits[pk].name;
+    const parts = os.map(o => `${chip(o.start)} ${o.contested ? 'contested' : 'taken'}${o.lead ? ' (' + TN(o.lead) + ' ahead)' : ''}`);
+    add('', name, `${name} pit had ${os.length} group visit${os.length > 1 ? 's' : ''}: ${parts.join(', ')}.`, os[0].start);
+    const leads = os.filter(o => o.lead); const by = k => leads.filter(o => o.lead === k).length;
+    if (leads.length >= 2 && Math.max(by('b'), by('r')) / leads.length >= 0.75) {
+      const k = by('b') > by('r') ? 'b' : 'r';
+      add(k === my ? 'good' : 'warn', 'Control', `${teamTag(k)} controls the ${name} pit: ahead in ${by(k)} of ${leads.length} visits.`, os[0].start);
+    }
+  }
+  // teamfights
+  if (R.fights.length) {
+    const wb = R.fights.filter(f => f.winner === 'b').length, wr = R.fights.filter(f => f.winner === 'r').length;
+    add('', 'Teamfights', `${R.fights.length} teamfight${R.fights.length > 1 ? 's' : ''}: ${teamTag('b')} won ${wb}, ${teamTag('r')} won ${wr}, ${R.fights.length - wb - wr} even. ` +
+      R.fights.map(f => `${chip(f.start)} ${regionName(f.region)}`).join(', ') + '.', R.fights[0].start);
+    const lost = R.fights.filter(f => f.winner === op); const byR = {};
+    for (const f of lost) byR[f.region] = (byR[f.region] || 0) + 1;
+    const worst = Object.entries(byR).sort((a, b) => b[1] - a[1])[0];
+    if (worst && worst[1] >= 2) add('warn', 'Weak spot', `You lost ${worst[1]} fights at the ${regionName(worst[0])}. Arrive there earlier or with vision, or don't take the fight.`, lost[0].start);
+  }
+  // grouping
+  const sp = R.spreadBy;
+  for (const ph of ['mid', 'late']) {
+    const a = sp.b[ph], b = sp.r[ph]; if (a == null || b == null) continue;
+    if (Math.abs(a - b) > 0.04) {
+      const tight = a < b ? 'b' : 'r', loose = other(tight);
+      add('', 'Grouping', `${ph === 'mid' ? 'From 5 to 12 min' : 'After 12 min'} ${teamTag(tight)} moved as a tighter group (spread ${a < b ? a.toFixed(2) : b.toFixed(2)}) while ${teamTag(loose)} was spread out (${a < b ? b.toFixed(2) : a.toFixed(2)}).` +
+        (ph === 'late' ? ` Expect ${TN(loose)} to split-push and ${TN(tight)} to force 5v5s.` : ''), ph === 'mid' ? 300 : 720);
+    }
+  }
+  // rotations
+  for (const k of [op, my]) {
+    const rs = R.rotations.filter(r => r.by === k); if (rs.length < 2) continue;
+    const c2 = {}; for (const r of rs) { const key = r.from + '>' + r.to; (c2[key] = c2[key] || []).push(r); }
+    const [key, list] = Object.entries(c2).sort((a, b) => b[1].length - a[1].length)[0];
+    const [f, t] = key.split('>');
+    add(list.length >= 2 ? 'habit' : '', list.length >= 2 ? 'Rotation' : 'Rotations',
+      `${teamTag(k)} moved as a group ${rs.length}×. ` + (list.length >= 2 ? `Most common: <b>${zoneName(f, k)} → ${zoneName(t, k)}</b> (${list.map(x => chip(x.start)).join(' ')}).` : `First: ${zoneName(rs[0].from, k)} → ${zoneName(rs[0].to, k)} ${chip(rs[0].start)}.`), rs[0].start);
+  }
+  // map control
+  const eb = R.enemyHalf.b, er = R.enemyHalf.r;
+  add('', 'Map control', `Time on the enemy half of the map: ${teamTag('b')} ${(eb * 100).toFixed(0)}%, ${teamTag('r')} ${(er * 100).toFixed(0)}%.` +
+    (Math.abs(eb - er) > 0.08 ? ` ${TN(eb > er ? 'b' : 'r')} played on the front foot.` : ''), null);
+  // formation habit of the opponent
+  const of = R.formations[op].filter(f => !/dead|base/i.test(f.tag));
+  if (of.length) {
+    const f = of[0];
+    const nx = f.next && R.formations[op][f.next.j];
+    add('habit', 'Formation', `${teamTag(op)}'s most common shape: <b>${esc(f.tag)}</b> (${f.text}), ${(f.share * 100).toFixed(0)}% of the match, usually around ${fmt(f.tMed)}.` +
+      (nx && f.next.n >= 2 ? ` From there they most often switch to <b>${esc(nx.tag)}</b> (${f.next.n} of ${f.next.of} times).` : ''), f.tMed);
+  }
+  return out;
+}
+
+/* ---------------- rendering ---------------- */
+let phase = 'all', scrubI = 0, playH = null;
+function renderResults() {
+  if (!R) return;
+  const my = R.my;
+  const deathsTot = k => R.deaths[k].reduce((s, d) => s + d.n, 0);
+  const g = k => R.ganks.filter(x => x.by === k);
+  const wb = R.fights.filter(f => f.winner === 'b').length, wr = R.fights.filter(f => f.winner === 'r').length;
+  const tiles = [
+    ['Match analyzed', `${fmt(R.t0)}–${fmt(R.t1)}`, `${R.samples.length} frames read`],
+    ['Teamfights won', `<span class="cb">${wb}</span> – <span class="cr">${wr}</span>`, `${R.fights.length} fights in total`],
+    ['Ganks', `<span class="cb">${g('b').length}</span> – <span class="cr">${g('r').length}</span>`, `with kills: ${g('b').filter(x => x.success).length} – ${g('r').filter(x => x.success).length}`],
+    ['Deaths', `<span class="cb">${deathsTot('b')}</span> – <span class="cr">${deathsTot('r')}</span>`, 'confirmed by respawns'],
+    ['Objective visits', String(R.objectives.length), `${R.objectives.filter(o => o.contested).length} contested`],
+    ['Enemy-half time', `<span class="cb">${(R.enemyHalf.b * 100).toFixed(0)}%</span> – <span class="cr">${(R.enemyHalf.r * 100).toFixed(0)}%</span>`, `You are ${TN(my)}`],
+  ];
+  $('#tiles').innerHTML = tiles.map(([k, v, s]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span><span class="s">${s}</span></div>`).join('');
+
+  const ins = buildInsights();
+  $('#insights').innerHTML = ins.map(i => `<li><span class="kind ${i.kind}">${i.label}</span><span>${i.html}</span></li>`).join('');
+
+  // events table
+  const ev = [
+    ...R.fights.map(f => ({ t: f.start, what: 'Teamfight', team: null, where: regionName(f.region), res: f.winner ? `${TN(f.winner)} won (${f.db}–${f.dr} deaths)` : `Even (${f.db}–${f.dr})`, k: f.winner })),
+    ...R.ganks.map(x => ({ t: x.start, what: x.lane ? 'Gank' : 'Pick-off attempt', team: x.by, where: regionName(x.region), res: `${x.na} vs ${Math.max(1, Math.min(...x.hits.map(h => h.nd)))}` + (x.success ? ', likely kill' : ', no kill'), k: x.success ? x.by : null })),
+    ...R.objectives.map(o => ({ t: o.start, what: `${o.name} pit`, team: o.lead, where: `${o.mb} blue / ${o.mr} red near`, res: o.contested ? 'Contested' : 'Uncontested', k: o.lead })),
+    ...R.invasions.map(v => ({ t: v.start, what: 'Jungle invasion', team: v.by, where: regionName(v.region), res: `${v.n} heroes, ${Math.round(v.end - v.start)} s`, k: null })),
+    ...R.rotations.map(r => ({ t: r.start, what: 'Group rotation', team: r.by, where: `${zoneName(r.from, r.by)} → ${zoneName(r.to, r.by)}`, res: '', k: null })),
+  ].sort((a, b) => a.t - b.t);
+  const pill = k => (k ? `<span class="pill ${k === 'b' ? 'cb' : 'cr'}">${TN(k)}</span>` : '');
+  $('#events').innerHTML = `<thead><tr><th>Time</th><th>Event</th><th>Team</th><th>Where</th><th>Result</th></tr></thead><tbody>` +
+    ev.map(e => `<tr class="click" data-t="${e.t}"><td class="t">${fmt(e.t)}</td><td>${e.what}</td><td>${pill(e.team)}</td><td>${esc(e.where)}</td><td>${esc(e.res)}</td></tr>`).join('') + '</tbody>';
+
+  // formations
+  $('#formations').innerHTML = TEAMS.map(k => {
+    const fs = R.formations[k];
+    return `<div class="panel"><b class="${k === 'b' ? 'cb' : 'cr'}">${TN(k)}${k === my ? ' (you)' : ''}</b><div class="tablewrap"><table><thead><tr><th>Shape</th><th>Share</th><th>When</th><th>Usually next</th></tr></thead><tbody>` +
+      fs.map(f => `<tr><td><b>${esc(f.tag)}</b><br><span class="muted small">${esc(f.text)}</span></td><td><div class="bar"><i style="width:${(f.share * 100).toFixed(0)}%"></i></div><span class="small">${(f.share * 100).toFixed(0)}%</span></td>` +
+        `<td class="t">${fmt(f.tLo)}–${fmt(f.tHi)}</td><td class="small">${f.next && fs[f.next.j] ? esc(fs[f.next.j].tag) + ` <span class="muted">(${f.next.n}/${f.next.of})</span>` : '<span class="muted">n/a</span>'}</td></tr>`).join('') +
+      '</tbody></table></div></div>';
+  }).join('');
+
+  $('#heatBCap').textContent = `Blue${my === 'b' ? ' (you)' : ''}`; $('#heatRCap').textContent = `Red${my === 'r' ? ' (you)' : ''}`;
+  const sc = $('#scrub'); sc.max = R.samples.length - 1; scrubI = Math.min(scrubI, R.samples.length - 1); sc.value = scrubI;
+  if (!$('#nameIn').value) $('#nameIn').value = isDemo ? 'Demo match' : ($('#srcName').textContent || '').replace(/\.[^.]+$/, '');
+  drawTimeline(); drawHeat(); drawMap();
+}
+
+function setupCanvas(cv, h) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { ctx, w, h };
+}
+let tlGeom = null;
+function drawTimeline() {
+  const cv = $('#timeline'); const rows = [
+    ['Teamfights', R.fights.map(f => [f.start, f.end, f.winner ? cssVar(f.winner === 'b' ? '--blue' : '--red') : cssVar('--muted')])],
+    ['Objectives', R.objectives.map(o => [o.start, o.end, cssVar('--accent')])],
+    ['Ganks · Blue', R.ganks.filter(g => g.by === 'b').map(g => [g.start, g.end, cssVar('--blue'), g.success])],
+    ['Ganks · Red', R.ganks.filter(g => g.by === 'r').map(g => [g.start, g.end, cssVar('--red'), g.success])],
+    ['Invade · Blue', R.invasions.filter(v => v.by === 'b').map(v => [v.start, v.end, cssVar('--blue')])],
+    ['Invade · Red', R.invasions.filter(v => v.by === 'r').map(v => [v.start, v.end, cssVar('--red')])],
+  ];
+  const narrow = cv.clientWidth < 520, padL = narrow ? 74 : 92, padR = 22, chartH = 72, rowH = 20, top = 8;
+  const H = top + chartH + 14 + rows.length * rowH + 22;
+  const { ctx, w } = setupCanvas(cv, H); cv.style.height = H + 'px';
+  const t0 = R.t0, t1 = Math.max(R.t1, t0 + 1), X = t => padL + (t - t0) / (t1 - t0) * (w - padL - padR);
+  tlGeom = { X, t0, t1, padL, padR, w };
+  const ink = cssVar('--ink'), muted = cssVar('--muted'), line = cssVar('--line');
+  ctx.font = `${narrow ? 10 : 11}px ${cssVar('--body')}`; ctx.textBaseline = 'middle';
+  // minute grid
+  const span = t1 - t0, stepM = span > 1500 ? 300 : span > 700 ? 120 : 60;
+  ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.fillStyle = muted; ctx.textAlign = 'center';
+  for (let t = Math.ceil(t0 / stepM) * stepM; t <= t1; t += stepM) { const x = X(t); ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, H - 18); ctx.stroke(); ctx.fillText(fmt(t), x, H - 8); }
+  // hero count lines
+  ctx.textAlign = 'right'; ctx.fillStyle = muted; ctx.fillText('Alive (0–5)', padL - 8, top + chartH / 2);
+  const Y = v => top + chartH - v / 5 * chartH;
+  for (const k of TEAMS) {
+    ctx.strokeStyle = cssVar(k === 'b' ? '--blue' : '--red'); ctx.lineWidth = 1.6; ctx.beginPath();
+    R.vis[k].alive.forEach((v, i) => { const x = X(R.samples[i].t), y = Y(v) + (k === 'b' ? -1 : 1); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+    for (const d of R.deaths[k]) { ctx.fillStyle = cssVar(k === 'b' ? '--blue' : '--red'); ctx.beginPath(); ctx.arc(X(d.t), top + chartH + 7, 2.6, 0, 7); ctx.fill(); }
+  }
+  ctx.strokeStyle = line; ctx.beginPath(); ctx.moveTo(padL, top + chartH + 0.5); ctx.lineTo(w - padR, top + chartH + 0.5); ctx.stroke();
+  rows.forEach(([label, evs], r) => {
+    const y = top + chartH + 14 + r * rowH;
+    ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.fillText(label, padL - 8, y + rowH / 2);
+    for (const [a, b, col, solid] of evs) {
+      const x = X(a), ww = Math.max(4, X(b) - X(a));
+      ctx.fillStyle = col; ctx.globalAlpha = solid === false ? 0.45 : 0.9; ctx.fillRect(x, y + 4, ww, rowH - 8); ctx.globalAlpha = 1;
+    }
+  });
+  if (R.samples[scrubI]) { const x = X(R.samples[scrubI].t); ctx.strokeStyle = ink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, H - 18); ctx.stroke(); }
+}
+$('#timeline').addEventListener('click', e => {
+  if (!R || !tlGeom) return;
+  const rc = e.currentTarget.getBoundingClientRect(), x = e.clientX - rc.left;
+  const t = tlGeom.t0 + (x - tlGeom.padL) / (tlGeom.w - tlGeom.padL - tlGeom.padR) * (tlGeom.t1 - tlGeom.t0);
+  jumpTo(Math.max(tlGeom.t0, Math.min(tlGeom.t1, t)));
+});
+
+function drawMapBase(ctx, S, dim) {
+  ctx.fillStyle = cssVar('--map'); ctx.fillRect(0, 0, S, S);
+  if (R.thumb) { ctx.globalAlpha = dim; ctx.imageSmoothingEnabled = true; ctx.drawImage(R.thumb, 0, 0, S, S); ctx.globalAlpha = 1; }
+  ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0.13 * S, 0.13 * S); ctx.lineTo(0.13 * S, 0.8 * S); ctx.moveTo(0.13 * S, 0.13 * S); ctx.lineTo(0.8 * S, 0.13 * S);
+  ctx.moveTo(0.87 * S, 0.87 * S); ctx.lineTo(0.2 * S, 0.87 * S); ctx.moveTo(0.87 * S, 0.87 * S); ctx.lineTo(0.87 * S, 0.2 * S);
+  ctx.moveTo(0.2 * S, 0.93 * S); ctx.lineTo(0.93 * S, 0.2 * S); ctx.moveTo(0.07 * S, 0.8 * S); ctx.lineTo(0.8 * S, 0.07 * S); ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = `600 ${Math.round(S / 30)}px ${cssVar('--body')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const p of [R.cfg.pits.a, R.cfg.pits.b]) {
+    ctx.strokeStyle = 'rgba(228,178,68,.75)'; ctx.beginPath(); ctx.arc(p.x * S, p.y * S, 0.085 * S, 0, 7); ctx.stroke();
+    ctx.fillStyle = 'rgba(228,178,68,.9)'; ctx.fillText(p.name, p.x * S, p.y * S - 0.1 * S);
+  }
+}
+function drawMap() {
+  if (!R) return;
+  const cv = $('#mapView'), S = cv.width, ctx = cv.getContext('2d');
+  drawMapBase(ctx, S, 0.55);
+  const i = scrubI, s = R.samples[i]; if (!s) return;
+  const teamCol = { b: '#4f94ff', r: '#ff5c5c' };
+  for (let j = Math.max(0, i - 10); j < i; j++) {
+    const a = (j - i + 11) / 14;
+    for (const k of TEAMS) for (const p of R.samples[j][k]) { ctx.fillStyle = teamCol[k]; ctx.globalAlpha = a * 0.5; ctx.beginPath(); ctx.arc(p.x * S, p.y * S, 3, 0, 7); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+  ctx.font = `700 ${Math.round(S / 30)}px ${cssVar('--body')}`;
+  for (const k of TEAMS) for (const p of s[k]) {
+    const r = S * (0.03 + 0.008 * (p.n - 1));
+    ctx.fillStyle = teamCol[k]; ctx.beginPath(); ctx.arc(p.x * S, p.y * S, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    if (p.n > 1) { ctx.fillStyle = '#fff'; ctx.fillText(p.n, p.x * S, p.y * S + 1); }
+  }
+  const t = s.t;
+  const f = R.fights.find(x => t >= x.start - 1 && t <= x.end + 1);
+  if (f) { ctx.strokeStyle = '#e4b244'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.arc(f.x * S, f.y * S, 0.13 * S, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+  $('#scrubT').textContent = fmt(t);
+  const now = [
+    f && `Teamfight at ${regionName(f.region)}`,
+    ...R.ganks.filter(g => t >= g.start - 1 && t <= g.end + 1).map(g => `${TN(g.by)} gank at ${regionName(g.region)}`),
+    ...R.objectives.filter(o => t >= o.start && t <= o.end).map(o => `${o.name} pit ${o.contested ? 'contested' : 'visit'}`),
+    ...R.invasions.filter(v => t >= v.start && t <= v.end).map(v => `${TN(v.by)} invading`),
+  ].filter(Boolean);
+  $('#mapNote').textContent = (now.length ? now.join(' · ') : 'Nothing special happening.') + ` Alive: Blue ${R.vis.b.alive[i]}, Red ${R.vis.r.alive[i]}.`;
+}
+$('#scrub').oninput = e => { scrubI = +e.target.value; drawMap(); drawTimeline(); };
+$('#playBtn').onclick = () => {
+  if (playH) { clearInterval(playH); playH = null; $('#playBtn').textContent = 'Play'; return; }
+  $('#playBtn').textContent = 'Pause';
+  playH = setInterval(() => {
+    if (!R || scrubI >= R.samples.length - 1) { clearInterval(playH); playH = null; $('#playBtn').textContent = 'Play'; return; }
+    scrubI += Math.max(1, Math.round(1 / R.dt)); $('#scrub').value = scrubI; drawMap(); if (scrubI % 5 === 0) drawTimeline();
+  }, 90);
+};
+async function jumpTo(t) {
+  if (!R) return;
+  let best = 0; R.samples.forEach((s, i) => { if (Math.abs(s.t - t) < Math.abs(R.samples[best].t - t)) best = i; });
+  scrubI = best; $('#scrub').value = best; drawMap(); drawTimeline();
+  if (screen) { const vt = toVideo(t, R.cfg); if (vt >= 0 && vt <= screen.duration) { await screen.seek(vt); if (screen.kind === 'demo') $('#demoSeek').value = vt; updateClock(); schedulePreview(); } }
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('.tchip'); if (c) { jumpTo(+c.dataset.t); return; }
+  const tr = e.target.closest('tr.click'); if (tr) jumpTo(+tr.dataset.t);
+});
+
+function drawHeat() {
+  const G = 48;
+  for (const k of TEAMS) {
+    const cv = $(k === 'b' ? '#heatB' : '#heatR'), S = cv.width, ctx = cv.getContext('2d');
+    drawMapBase(ctx, S, 0.35);
+    let grid = new Float32Array(G * G);
+    for (const s of R.samples) {
+      if (phase !== 'all' && (s.t < 300 ? 'early' : s.t < 720 ? 'mid' : 'late') !== phase) continue;
+      for (const p of s[k]) { const gx = Math.min(G - 1, (p.x * G) | 0), gy = Math.min(G - 1, (p.y * G) | 0); grid[gy * G + gx] += p.n; }
+    }
+    for (let pass = 0; pass < 2; pass++) {
+      const nx = new Float32Array(G * G);
+      for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) { let s = 0, n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < G && yy < G) { s += grid[yy * G + xx]; n++; } } nx[y * G + x] = s / n; }
+      grid = nx;
+    }
+    const mx = Math.max(...grid) || 1, cell = S / G, rgb = k === 'b' ? '79,148,255' : '255,92,92';
+    for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+      const v = grid[y * G + x] / mx; if (v < 0.03) continue;
+      ctx.fillStyle = `rgba(${rgb},${(Math.sqrt(v) * 0.85).toFixed(3)})`; ctx.fillRect(x * cell, y * cell, cell + 0.5, cell + 0.5);
+    }
+  }
+}
+$('#phaseChips').addEventListener('click', e => {
+  const b = e.target.closest('button[data-ph]'); if (!b || !R) return;
+  phase = b.dataset.ph; document.querySelectorAll('#phaseChips button').forEach(x => x.classList.toggle('on', x === b)); drawHeat();
+});
+
+/* ---------------- report, export, library ---------------- */
+function reportText() {
+  const tmp = document.createElement('div');
+  const lines = buildInsights().map(i => { tmp.innerHTML = i.html; return `- [${i.label}] ${tmp.textContent}`; });
+  return `MLBB Replay Lens: ${$('#nameIn').value || 'match'}\nYou: ${TN(R.my)}\n\n${lines.join('\n')}\n`;
+}
+$('#copyBtn').onclick = async () => {
+  if (!R) return;
+  const txt = reportText();
+  try { await navigator.clipboard.writeText(txt); toast('Report copied'); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('Report copied'); } catch (_) { toast('Copy is blocked here'); } ta.remove(); }
+};
+$('#jsonBtn').onclick = () => {
+  if (!R) return;
+  const data = { name: $('#nameIn').value, my: R.my, side: R.side, fights: R.fights.map(({ hits, ...f }) => f), ganks: R.ganks.map(({ hits, ...g }) => g),
+    objectives: R.objectives.map(({ hits, ...o }) => o), invasions: R.invasions.map(({ hits, ...v }) => v), rotations: R.rotations, deaths: R.deaths,
+    formations: R.formations, samples: R.samples.map(s => ({ t: s.t, b: s.b.map(p => [+p.x.toFixed(3), +p.y.toFixed(3), p.n]), r: s.r.map(p => [+p.x.toFixed(3), +p.y.toFixed(3), p.n]) })) };
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+  a.download = (data.name || 'match').replace(/[^\w-]+/g, '_') + '.json'; document.body.appendChild(a); a.click(); a.remove();
+  toast('If nothing downloaded, this page blocks downloads. Use Copy report instead.');
+};
+function summarize() {
+  const strip = ({ hits, ...e }) => e;
+  return {
+    id: Date.now().toString(36), name: $('#nameIn').value || 'Match', savedAt: new Date().toISOString().slice(0, 10), demo: isDemo,
+    my: R.my, t1: R.t1,
+    fights: R.fights.map(f => ({ t: f.start, region: f.region, winner: f.winner })),
+    ganks: R.ganks.map(g => ({ t: g.start, by: g.by, region: g.region, ok: g.success })),
+    inv: R.invasions.map(v => ({ t: v.start, by: v.by })),
+    obj: R.objectives.map(o => ({ t: o.start, name: o.name, lead: o.lead, contested: o.contested })),
+    spread: R.spreadBy, half: R.enemyHalf,
+    form: { b: R.formations.b.slice(0, 4).map(f => ({ tag: f.tag, share: f.share })), r: R.formations.r.slice(0, 4).map(f => ({ tag: f.tag, share: f.share })) },
+    routes: { b: R.routes.b.map(strip), r: R.routes.r.map(strip) }, side: R.side,
+  };
+}
+$('#saveBtn').onclick = () => {
+  if (!R) return;
+  const lib = store.get('rl-lib', []); lib.push(summarize());
+  if (store.set('rl-lib', lib)) toast('Saved to your library'); else toast('This browser blocks saving here');
+  renderLibrary();
+};
+function renderLibrary() {
+  const lib = store.get('rl-lib', []);
+  $('#library').innerHTML = lib.length ? lib.map(m => `<div class="libitem"><span class="grow"><b>${esc(m.name)}</b> <span class="muted small">${m.savedAt} · ${fmt(m.t1)} · you were ${TN(m.my)}${m.demo ? ' · demo' : ''}</span></span>` +
+    `<button class="btn sm" type="button" data-del="${m.id}">Remove</button></div>`).join('')
+    : '<p class="muted">No saved matches yet. Analyze a replay, then press <b>Save to library</b>. Two or more saved matches unlock cross-match patterns: the enemy habits that repeat from game to game.</p>';
+  $('#cross').innerHTML = crossInsights(lib).map(i => `<li><span class="kind ${i.kind}">${i.label}</span><span>${i.html}</span></li>`).join('');
+}
+$('#library').addEventListener('click', e => {
+  const b = e.target.closest('button[data-del]'); if (!b) return;
+  if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Tap again to remove'; return; }
+  store.set('rl-lib', store.get('rl-lib', []).filter(m => m.id !== b.dataset.del)); renderLibrary();
+});
+function crossInsights(lib) {
+  if (lib.length < 2) return [];
+  const out = []; const add = (kind, label, html) => out.push({ kind, label, html });
+  const n = lib.length;
+  let fw = 0, fl = 0; for (const m of lib) for (const f of m.fights) { if (f.winner === m.my) fw++; else if (f.winner) fl++; }
+  add('', 'Record', `Across ${n} matches you won ${fw} teamfights and lost ${fl}.`);
+  const firstG = lib.map(m => m.ganks.find(g => g.by !== m.my)).filter(Boolean);
+  if (firstG.length) {
+    const lanes = {}; firstG.forEach(g => { lanes[g.region] = (lanes[g.region] || 0) + 1; });
+    const [lane, k] = Object.entries(lanes).sort((a, b) => b[1] - a[1])[0];
+    add(k >= 2 ? 'habit' : '', 'Enemy ganks', `The enemy's first gank came at ${fmt(mean(firstG.map(g => g.t)))} on average (earliest ${fmt(Math.min(...firstG.map(g => g.t)))}).` +
+      (k >= 2 ? ` In ${k} of ${firstG.length} matches it hit the <b>${lane === 'bot' ? 'bottom lane' : lane === 'top' ? 'top lane' : lane === 'mid' ? 'mid lane' : 'jungle or river'}</b> first. Ward that side before ${fmt(Math.min(...firstG.map(g => g.t)))}.` : ''));
+  }
+  const inv = lib.filter(m => m.inv.some(v => v.by !== m.my && v.t < 240)).length;
+  if (inv) add(inv / n >= 0.5 ? 'warn' : '', 'Invasions', `Enemies invaded your jungle before 4:00 in ${inv} of ${n} matches.` + (inv / n >= 0.5 ? ' Expect it, and keep your jungler\'s first buff covered.' : ''));
+  const firstObj = lib.map(m => m.obj[0]).filter(Boolean);
+  if (firstObj.length) add('', 'Objectives', `First group play at an objective pit: ${fmt(mean(firstObj.map(o => o.t)))} on average. You were ahead there in ${firstObj.filter((o, i) => o.lead === lib.filter(m => m.obj[0])[i].my).length} of ${firstObj.length}.`);
+  const lost = {}; for (const m of lib) for (const f of m.fights) if (f.winner && f.winner !== m.my) lost[f.region] = (lost[f.region] || 0) + 1;
+  const worst = Object.entries(lost).sort((a, b) => b[1] - a[1])[0];
+  if (worst && worst[1] >= 2) add('warn', 'Weak spot', `Most of your lost fights happen at <b>${({ pitA: 'the first objective pit', pitB: 'the second objective pit', top: 'top lane', mid: 'mid lane', bot: 'bottom lane', river: 'the river' })[worst[0]] || 'the jungle'}</b> (${worst[1]} lost fights).`);
+  const late = lib.filter(m => m.spread[m.my].late != null && m.spread[other(m.my)].late != null);
+  if (late.length >= 2) {
+    const us = mean(late.map(m => m.spread[m.my].late)), them = mean(late.map(m => m.spread[other(m.my)].late));
+    add('', 'Late game', `After 12 minutes your team's spread averages ${us.toFixed(2)} against ${them.toFixed(2)} for opponents. ${us > them + 0.03 ? 'You split up more than they do. Groups that stay together win most late fights.' : us < them - 0.03 ? 'You group tighter than your opponents. Look for 5v4 fights when they split.' : 'Both sides group about the same.'}`);
+  }
+  const tags = {}; for (const m of lib) for (const f of m.form[other(m.my)]) tags[f.tag] = (tags[f.tag] || 0) + f.share / n;
+  const topTag = Object.entries(tags).filter(([t]) => !/dead|base/i.test(t)).sort((a, b) => b[1] - a[1])[0];
+  if (topTag) add('habit', 'Enemy shape', `Opponents' most common formation across your matches: <b>${esc(topTag[0])}</b> (${(topTag[1] * 100).toFixed(0)}% of game time).`);
+  const gUs = lib.flatMap(m => m.ganks.filter(g => g.by === m.my)), gThem = lib.flatMap(m => m.ganks.filter(g => g.by !== m.my));
+  if (gUs.length + gThem.length >= 4) add('', 'Gank success', `Your ganks: ${gUs.filter(g => g.ok).length} kills from ${gUs.length}. Theirs: ${gThem.filter(g => g.ok).length} from ${gThem.length}.`);
+  return out;
+}
+
+/* ---------------- start: open on the demo so the page shows what it does ---------------- */
+renderLibrary();
+loadDemo();
+runAnalysis();
+</script>
+</body>
+</html>

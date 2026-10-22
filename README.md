@@ -1,5 +1,7 @@
 # Chess Helper
 
+> Also in this repo: [**MLBB Replay Lens**](mlbb-replay-lens/), a Mobile Legends match analyzer that finds patterns in replay recordings.
+
 A chess assistant for games you play on a real board: enter the moves, and it tells you the best move,
 predicts your opponent, warns you about blunders and mates, and reviews the game afterwards.
 
