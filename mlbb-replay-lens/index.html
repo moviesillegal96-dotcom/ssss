@@ -147,6 +147,19 @@
   .forms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
   @media (max-width: 760px) { .forms { grid-template-columns: minmax(0, 1fr); } }
 
+  .now { display: grid; gap: .7rem; max-width: 420px; }
+  .nowteam { display: grid; gap: .3rem; border-top: 1px solid var(--line); padding-top: .55rem; font-size: .88rem; }
+  .meter { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr) 2.6rem; gap: .5rem; align-items: center; font-size: .8rem; }
+  .meter .bar i { transition: width .15s; }
+  .meter output { font-family: var(--mono); text-align: right; }
+  .warnline { color: var(--red); font-weight: 600; }
+  .signs { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+  .signs li { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: .5rem; align-items: baseline; }
+  .count { font-family: var(--mono); font-size: .78rem; color: var(--accent); }
+  .tag2 { display: inline-block; font-size: .75rem; padding: 0 .4rem; margin: 0 .25rem .2rem 0; border-radius: 4px; background: var(--sunk); border: 1px solid var(--line); white-space: nowrap; }
+  .watch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  @media (max-width: 760px) { .watch { grid-template-columns: minmax(0, 1fr); } }
+  .watch > div { display: grid; gap: .6rem; align-content: start; min-width: 0; }
   .lib { display: grid; gap: .4rem; }
   .libitem { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; font-size: .9rem; border-bottom: 1px solid var(--line); padding-bottom: .4rem; }
   .libitem .grow { flex: 1; min-width: 0; }
@@ -227,6 +240,9 @@
             <button class="btn sm" id="pitBBtn" type="button">Set <span id="pitBName">Turtle</span> pit</button>
             <button class="btn sm" id="swapPits" type="button">Swap names</button>
           </div></div>
+        <div class="field"><span>Objective spawn times</span>
+          <div class="inline">Turtle from <input type="text" id="turtleAt" value="2:00" inputmode="numeric" aria-label="Turtle first spawn">
+            Lord from <input type="text" id="lordAt" value="8:00" inputmode="numeric" aria-label="Lord spawn"></div></div>
         <details class="tune">
           <summary>Fine-tune detection</summary>
           <div class="slider"><label for="blueTol">Blue hue range</label><input type="range" id="blueTol" min="6" max="40" value="22"><output id="blueTolO">22°</output></div>
@@ -276,6 +292,26 @@
           <span id="scrubT">0:00</span>
         </div>
         <p id="mapNote"></p>
+        <div class="now" id="nowBox" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Lord &amp; Turtle watch</h3>
+      <p class="muted small">What happened in the seconds before each objective play, so you can spot the next one coming. The threat meter beside the minimap replay scores these signs every second.</p>
+      <div class="watch" id="objWatch"></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <h3>Playbook: what they do next</h3>
+        <p class="muted small">What each team did in the 50 seconds after a fight, a pick, an objective or a turret.</p>
+        <div id="playbook"></div>
+      </div>
+      <div class="panel">
+        <h3>What they protect</h3>
+        <p class="muted small">Seconds spent guarding something: a turret under attack, their jungle with invaders in it, an objective area, the base, or a laner kept company.</p>
+        <div id="protects"></div>
       </div>
     </div>
 
@@ -362,6 +398,7 @@ const DEFAULTS = {
   blueH: 214, blueTol: 22, redH: 0, redTol: 16, greenH: 125, greenTol: 22, greenTeam: 'off',
   sMin: 0.45, vMin: 0.42, minArea: 16,
   pits: { a: { x: 0.30, y: 0.30, name: 'Lord' }, b: { x: 0.70, y: 0.70, name: 'Turtle' } },
+  turtleAt: 120, lordAt: 480,                         // first spawn times (game seconds); editable in step 2
 };
 let isDemo = false;
 const cfg = JSON.parse(JSON.stringify(DEFAULTS));
@@ -489,22 +526,64 @@ function components(mask, minArea) {
 }
 // Pixels that stay colored for most of any 90-second window are map furniture (turrets, base icons): drop them.
 function removeStatic(masks, ever, W) {
-  const S = masks.length; if (!S) return;
+  const S = masks.length; if (!S) return null;
   const pre = new Uint16Array(S + 1), full = S < W;
+  // what was removed, per pixel: its team color and the first and last sample it was there (turret alive span)
+  const stat = { cls: new Uint8Array(N * N), first: new Int32Array(N * N).fill(-1), last: new Int32Array(N * N).fill(-1) };
+  const mark = (p, s, c) => { masks[s][p] = 0; stat.cls[p] = c; if (stat.first[p] < 0) stat.first[p] = s; stat.last[p] = s; };
   for (let p = 0; p < N * N; p++) {
     if (!ever[p]) continue;
     for (let c = 1; c <= 2; c++) {
       for (let s = 0; s < S; s++) pre[s + 1] = pre[s] + (masks[s][p] === c ? 1 : 0);
       if (!pre[S]) continue;
-      if (full) { if (pre[S] / S >= 0.85) for (let s = 0; s < S; s++) if (masks[s][p] === c) masks[s][p] = 0; continue; }
+      if (full) { if (pre[S] / S >= 0.85) for (let s = 0; s < S; s++) if (masks[s][p] === c) mark(p, s, c); continue; }
       for (let s = 0; s < S; s++) {
         if (masks[s][p] !== c) continue;
         const trail = s + 1 >= W ? (pre[s + 1] - pre[s + 1 - W]) / W : 0;
         const lead = s + W <= S ? (pre[s + W] - pre[s]) / W : 0;
-        if (trail >= 0.85 || lead >= 0.85) masks[s][p] = 0;
+        if (trail >= 0.85 || lead >= 0.85) mark(p, s, c);
       }
     }
   }
+  return stat;
+}
+// Group the removed static pixels into structures and find when each one disappeared (destroyed).
+function findStructures(stat, samples, side, masks) {
+  const S = samples.length, seen = new Uint8Array(N * N), out = [];
+  for (let p = 0; p < N * N; p++) {
+    const c = stat.cls[p]; if (!c || seen[p]) continue;
+    const px = [], st = [p]; seen[p] = 1;
+    while (st.length) {
+      const q = st.pop(); px.push(q); const x = q % N, y = (q / N) | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue;
+        const r = yy * N + xx; if (!seen[r] && stat.cls[r] === c) { seen[r] = 1; st.push(r); }
+      }
+    }
+    if (px.length < 4) continue;
+    const first = percentile(px.map(q => stat.first[q]), 0.1), last = percentile(px.map(q => stat.last[q]), 0.9);
+    if (first > Math.max(3, S * 0.01)) continue;          // real structures are there from the first frames
+    // When the static color stops, the structure was destroyed, unless its pixels keep showing up
+    // (a group of heroes parked on top of it hides it without it being gone).
+    let lost = last >= S - 3 ? null : last + 1;
+    if (lost != null && masks) {
+      let on = 0, tot = 0;
+      for (let s = lost; s < S; s++) for (const q of px) { tot++; if (masks[s][q] === c) on++; }
+      if (tot && on / tot > 0.3) lost = null;
+    }
+    const x = mean(px.map(q => q % N + 0.5)) / N, y = mean(px.map(q => ((q / N) | 0) + 0.5)) / N;
+    const team = c === 1 ? 'b' : 'r', cn = side[team] === 'BL' ? { x: 0, y: 1 } : { x: 1, y: 0 };
+    const dCorner = Math.hypot(x - cn.x, y - cn.y);
+    const lanes = { top: Math.min(x, y), bot: Math.min(1 - x, 1 - y), mid: Math.abs(x + y - 1) / Math.SQRT2 };
+    out.push({ team, x, y, dCorner, kind: dCorner < 0.2 ? 'base' : 'turret', lane: Object.entries(lanes).sort((a, b) => a[1] - b[1])[0][0],
+      lostAt: lost == null ? null : samples[Math.min(S - 1, lost)].t });
+  }
+  for (const k of TEAMS) for (const ln of ['top', 'mid', 'bot']) {
+    out.filter(s => s.team === k && s.kind === 'turret' && s.lane === ln).sort((a, b) => b.dCorner - a.dCorner)
+      .forEach((s, i) => { s.tier = ['outer', 'inner', 'base'][Math.min(i, 2)]; });
+  }
+  out.forEach((s, i) => { s.id = i; });
+  return out;
 }
 
 /* ---------------- demo match (simulated) ---------------- */
@@ -523,15 +602,22 @@ const Demo = (() => {
     { from: 150, to: 178, ids: [8, 6], at: [0.78, 0.90], die: { 2: 172 } },                 // red gank bottom
     { from: 195, to: 228, ids: [3, 4], at: [0.24, 0.10], die: { 5: 222 } },                 // blue gank top
     { from: 300, to: 330, ids: [8, 9], at: [0.24, 0.56] },                                  // red invades again
+    { from: 305, to: 330, ids: [3], at: [0.25, 0.55] },                                     // blue jungler defends
     { from: 345, to: 385, ids: [8, 6], at: [0.78, 0.90], die: { 2: 380 } },                 // red gank bottom
+    { from: 383, to: 398, ids: [8, 6, 7], at: [0.54, 0.91] },                               // ...push the bottom turret
+    { from: 400, to: 428, ids: [8, 6, 7, 9], at: [0.70, 0.70] },                            // ...then take Turtle
+    { from: 452, to: 474, ids: [0, 3], at: [0.47, 0.10] },                                  // blue pushes red top turret
+    { from: 455, to: 474, ids: [5], at: [0.44, 0.13] },                                     // red EXP defends it
     { from: 478, to: 522, ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], at: [0.30, 0.30], die: { 0: 500, 3: 506, 4: 510, 9: 503 } }, // lord fight
     { from: 530, to: 570, ids: [8, 6, 9], at: [0.78, 0.90], die: { 2: 562 } },              // red gank bottom (3rd)
     { from: 628, to: 662, ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], at: [0.50, 0.50], die: { 5: 645, 7: 650, 8: 655, 1: 648, 2: 652 } },
-    { from: 716, to: 752, ids: [5, 6, 7, 8, 9, 3, 4], at: [0.30, 0.30], die: { 4: 740 } },   // red takes lord
+    { from: 662, to: 684, ids: [0, 3, 4], at: [0.58, 0.43] },                               // blue pushes red mid turret
+    { from: 690, to: 715, ids: [5, 8], at: [0.30, 0.08], die: { 0: 712 } },                 // red catches blue's split pusher
+    { from: 716, to: 752, ids: [5, 6, 7, 8, 9, 3, 4], at: [0.30, 0.30], die: { 4: 740 } },   // ...and takes lord
   ];
   const lanePaths = { top: [[0.07, 0.93], [0.07, 0.07], [0.93, 0.07]], mid: [[0.07, 0.93], [0.93, 0.07]], bot: [[0.07, 0.93], [0.93, 0.93], [0.93, 0.07]] };
   const turrets = [
-    ...[[0.07, 0.72, 0], [0.07, 0.46, 0], [0.28, 0.93, 0], [0.52, 0.93, 390], [0.33, 0.67, 0], [0.41, 0.59, 0]].map(([x, y, d]) => ({ t: 'b', x, y, d })),
+    ...[[0.07, 0.72, 0], [0.07, 0.46, 0], [0.28, 0.93, 0], [0.52, 0.93, 395], [0.33, 0.67, 0], [0.41, 0.59, 0]].map(([x, y, d]) => ({ t: 'b', x, y, d })),
     ...[[0.72, 0.07, 0], [0.46, 0.07, 470], [0.93, 0.28, 0], [0.93, 0.52, 0], [0.67, 0.33, 0], [0.59, 0.41, 680]].map(([x, y, d]) => ({ t: 'r', x, y, d })),
   ];
   const portraits = Array.from({ length: 10 }, (_, i) => `hsl(${(i * 37 + 20) % 360} 22% ${40 + (i % 3) * 8}%)`);
@@ -746,6 +832,7 @@ function syncInputs() {
   }
   $('#swB').style.background = `hsl(${cfg.blueH} 85% 55%)`; $('#swR').style.background = `hsl(${cfg.redH} 85% 55%)`;
   $('#pitAName').textContent = cfg.pits.a.name; $('#pitBName').textContent = cfg.pits.b.name;
+  $('#turtleAt').value = fmt(cfg.turtleAt); $('#lordAt').value = fmt(cfg.lordAt);
   $('#fromV').textContent = cfg.fromV ? fmt(cfg.fromV) : 'start'; $('#toV').textContent = cfg.toV != null ? fmt(cfg.toV) : 'end';
   $('#clockIn').value = fmt(screen ? Math.max(0, toGame(screen.time())) : 0);
 }
@@ -766,6 +853,9 @@ $('#pickB').onclick = () => setMode('pickB');
 $('#pickR').onclick = () => setMode('pickR');
 $('#pitABtn').onclick = () => setMode('pitA');
 $('#pitBBtn').onclick = () => setMode('pitB');
+for (const [id, key] of [['#turtleAt', 'turtleAt'], ['#lordAt', 'lordAt']]) {
+  $(id).onchange = e => { const v = parseClock(e.target.value); if (v == null) { toast('Type the time as m:ss, e.g. 8:00'); e.target.value = fmt(cfg[key]); return; } cfg[key] = v; e.target.value = fmt(v); saveCfg(); };
+}
 $('#swapPits').onclick = () => { const a = cfg.pits.a.name; cfg.pits.a.name = cfg.pits.b.name; cfg.pits.b.name = a; saveCfg(); syncInputs(); schedulePreview(); };
 $('#demoSeek').oninput = e => { screen.seek(+e.target.value); updateClock(); schedulePreview(); };
 window.addEventListener('resize', () => { sizeOverlay(); if (R) { drawTimeline(); } });
@@ -792,7 +882,7 @@ $('#file').onchange = e => {
 function loadDemo() {
   isDemo = true;
   Object.assign(cfg, { roi: { ...Demo.roi }, speed: 1, anchorVideo: 0, anchorGame: 0, fromV: 0, toV: null, every: 1, blueH: 214, redH: 0, blueTol: 22, redTol: 16,
-    sMin: 0.45, vMin: 0.42, minArea: 16, greenTeam: 'off', my: 'b', pits: { a: { x: 0.30, y: 0.30, name: 'Lord' }, b: { x: 0.70, y: 0.70, name: 'Turtle' } } });
+    sMin: 0.45, vMin: 0.42, minArea: 16, greenTeam: 'off', my: 'b', turtleAt: 120, lordAt: 480, pits: { a: { x: 0.30, y: 0.30, name: 'Lord' }, b: { x: 0.70, y: 0.70, name: 'Turtle' } } });
   attachScreen(Demo.makeScreen(), 'Demo match (simulated, 14:00)');
   $('#demoSeek').value = 60;
 }
@@ -833,9 +923,9 @@ async function runAnalysis() {
   if (masks.length < 10) {
     $('#runInfo').textContent = 'Too little footage to analyze. Check the clock settings: frames before game time 0:00 are skipped.';
   } else {
-    removeStatic(masks, ever, Math.max(10, Math.round(90 / c.every)));
+    const stat = removeStatic(masks, ever, Math.max(10, Math.round(90 / c.every)));
     const comps = masks.map(m => components(m, c.minArea));
-    R = analyzeMatch(times, comps, c, thumb);
+    R = analyzeMatch(times, comps, c, thumb, stat, masks);
     cfg.unitGuess = R.unit.b;
     $('#bar').style.width = '100%';
     $('#runInfo').textContent = `Done: ${masks.length} frames, ${fmt(times[0])} to ${fmt(times[times.length - 1])} of game time, in ${((performance.now() - started) / 1000).toFixed(1)} s.` + (stopReq ? ' Stopped early, so later minutes are missing.' : '');
@@ -913,7 +1003,7 @@ function describeFormation(v) {
   return { tag, text: parts.map(([n, k]) => `${n} ${ZONE_LABEL[k]}`).join(' · '), key: fl.join('') };
 }
 
-function analyzeMatch(times, compsList, c, thumb) {
+function analyzeMatch(times, compsList, c, thumb, stat, masks) {
   const dt = times.length > 1 ? median(times.slice(1).map((t, i) => t - times[i])) : 1;
   // 1. hero count per marker from the typical single-marker area
   const unit = {};
@@ -1158,7 +1248,162 @@ function analyzeMatch(times, compsList, c, thumb) {
     formations[k] = list.filter(f => f.share >= 0.02);
   }
 
+  /* ---- 13. structures: turrets and base icons are the markers that never move ---- */
+  const idxAt = t => { let lo = 0, hi = samples.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (samples[m].t < t) lo = m + 1; else hi = m; } return lo; };
+  const corner = k => (side[k] === 'BL' ? { x: 0, y: 1 } : { x: 1, y: 0 });
+  const structures = stat ? findStructures(stat, samples, side, masks) : [];
+  const turretLosses = structures.filter(s => s.kind === 'turret' && s.lostAt != null).map(s => {
+    const i = idxAt(s.lostAt), o = other(s.team);
+    let atk = 0, def = 0;
+    for (let j = idxAt(s.lostAt - 15); j <= i; j++) { atk = Math.max(atk, near(samples[j][o], s, 0.2)); def = Math.max(def, near(samples[j][s.team], s, 0.2)); }
+    const tally = {}; for (const p of samples[i][s.team]) { const z = zoneOf(p.x, p.y, side[s.team], true); tally[z] = (tally[z] || 0) + p.n; }
+    const away = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+    return { type: 'turret', t: s.lostAt, start: s.lostAt, end: s.lostAt, x: s.x, y: s.y, team: s.team, lane: s.lane, tier: s.tier, sid: s.id,
+      by: atk ? o : null, atk, def, away: away ? away[0] : null };
+  }).sort((a, b) => a.t - b.t);
+
+  /* ---- 14. objective threat: is a team about to start Lord or Turtle? ----
+     Signals: heroes already near the pit, heroes walking toward it, more heroes alive than the enemy,
+     the enemy far from the pit, a fight or pick won in the last 40 s, and whether the objective is up. */
+  const spawnOf = pk => (c.pits[pk].name === 'Lord' ? [c.lordAt, Infinity] : [c.turtleAt, c.lordAt]);
+  const avail = (pk, t) => { const [a, b] = spawnOf(pk); if (t >= a && t < b) return 1; if (t < a && a - t <= 40) return 0.85; return 0.35; };
+  const wins = { b: [], r: [] };
+  for (const f of fights) if (f.winner) wins[f.winner].push(f.end);
+  for (const g of ganks) if (g.success) wins[g.by].push(g.end);
+  const teamAt = (o, k) => (k === 'b' ? o.mb : o.mr);
+  const objBusy = (pk, k, t) => objectives.some(o => o.pit === pk && teamAt(o, k) >= 2 && t >= o.start - 1 && t <= o.end + 15);
+  const threat = { b: { a: [], b: [] }, r: { a: [], b: [] } }, b5 = sec(5);
+  samples.forEach((s, i) => {
+    for (const k of TEAMS) {
+      const o = other(k), adv = vis[k].alive[i] - vis[o].alive[i];
+      const won = wins[k].some(t => s.t - t >= 0 && s.t - t <= 40) ? 1 : 0;
+      for (const pk of ['a', 'b']) {
+        const P = c.pits[pk], nr = Math.min(4, near(s[k], P, 0.28));
+        let ap = 0;
+        if (i >= b5) for (const p of s[k]) {
+          const d = dist(p, P); if (d > 0.5) continue;
+          let best = null, bd = 1e9; for (const q of samples[i - b5][k]) { const e = dist(q, p); if (e < bd) { bd = e; best = q; } }
+          if (best && dist(best, P) - d > 0.05) ap += p.n;
+        }
+        const en = near(s[o], P, 0.3);
+        const z = -2.7 + 0.55 * nr + 0.8 * Math.min(4, ap) + 0.45 * Math.max(-2, Math.min(3, adv)) + (en ? -0.1 * en : 0.4) + 0.8 * won;
+        threat[k][pk].push(avail(pk, s.t) / (1 + Math.exp(-z)));
+      }
+    }
+  });
+  const alerts = [];
+  for (const k of TEAMS) for (const pk of ['a', 'b']) {
+    const hits = []; samples.forEach((s, i) => { if (threat[k][pk][i] >= 0.5 && !objBusy(pk, k, s.t)) hits.push({ t: s.t, x: c.pits[pk].x, y: c.pits[pk].y }); });
+    for (const w of mergeHits(hits, 4, 2)) {
+      const ev = objectives.find(o => o.pit === pk && teamAt(o, k) >= 2 && o.start >= w.start - 2 && o.start <= w.start + 50);
+      alerts.push({ type: 'alert', by: k, pit: pk, start: w.start, end: w.end, x: w.x, y: w.y, hit: ev ? ev.start : null });
+    }
+  }
+  alerts.sort((a, b) => a.start - b.start);
+  const forecast = {};
+  for (const k of TEAMS) {
+    const plays = objectives.filter(o => teamAt(o, k) >= 2);
+    const flagged = plays.map(o => { const a = alerts.filter(x => x.by === k && x.pit === o.pit && x.start >= o.start - 50 && x.start <= o.start + 2); return a.length ? o.start - Math.min(...a.map(x => x.start)) : null; });
+    forecast[k] = { plays: plays.length, flagged: flagged.filter(x => x != null).length, lead: mean(flagged.filter(x => x != null)), falseAlarms: alerts.filter(x => x.by === k && x.hit == null).length };
+  }
+
+  /* ---- 15. what happened right before each objective play ---- */
+  const signatures = objectives.map(o => {
+    const A = o.lead || (o.mb >= o.mr ? 'b' : 'r'), B = other(A), P = c.pits[o.pit], i0 = idxAt(o.start);
+    if (teamAt(o, A) < 2) return null;
+    let first = o.start, miss = 0;
+    for (let j = i0; j >= 0 && samples[j].t >= o.start - 90; j--) { if (near(samples[j][A], P, 0.22)) { first = samples[j].t; miss = 0; } else if (++miss > sec(3)) break; }
+    const tally = {}; for (const p of samples[i0][B]) { const z = zoneOf(p.x, p.y, side[B], true); tally[z] = (tally[z] || 0) + p.n; }
+    const eMain = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+    const prior = [];
+    for (const f of fights) if (f.winner === A && f.start < o.start - 2 && f.end <= o.start + 2 && f.end >= o.start - 50) prior.push({ k: 'fight', t: f.start, r: f.region });
+    for (const g of ganks) if (g.by === A && g.success && g.end <= o.start + 2 && g.end >= o.start - 50) prior.push({ k: 'pick', t: g.start, r: g.region });
+    for (const tl of turretLosses) if (tl.by === A && tl.t <= o.start && tl.t >= o.start - 50) prior.push({ k: 'turret', t: tl.t, r: tl.lane });
+    const [sa] = spawnOf(o.pit);
+    return { pit: o.pit, name: o.name, team: A, start: o.start, contested: o.contested, lead: o.start - first,
+      conv: [near(samples[idxAt(o.start - 30)][A], P, 0.35), recent(i0, A, P, 0.35)],
+      adv: vis[A].alive[i0] - vis[B].alive[i0], down: 5 - vis[B].alive[i0], eNear: near(samples[i0][B], P, 0.35),
+      eMain: eMain ? eMain[0] : null, prior, spawnRel: Math.abs(o.start - sa) <= 60 ? o.start - sa : null };
+  }).filter(Boolean);
+
+  /* ---- 16. what each team is protecting, second by second ---- */
+  const protect = { b: [], r: [] };
+  samples.forEach(s => {
+    for (const k of TEAMS) {
+      const o = other(k), F = corner(k); let st = null;
+      const home = s[k].reduce((a, p) => a + (dist(p, F) < 0.3 ? p.n : 0), 0), push = s[o].reduce((a, p) => a + (dist(p, F) < 0.45 ? p.n : 0), 0);
+      if (home >= 2 && push >= 2) st = 'base';
+      if (!st) {
+        let best = 0;
+        for (const T of structures) {
+          if (T.team !== k || T.kind !== 'turret' || (T.lostAt != null && s.t >= T.lostAt)) continue;
+          // under attack: two enemies at the turret, or one right on it; laning in front of it does not count
+          const en = near(s[o], T, 0.12), on = near(s[o], T, 0.08);
+          if ((en >= 2 || on >= 1) && en > best && near(s[k], T, 0.18)) { best = en; st = 'turret:' + T.id; }
+        }
+      }
+      if (!st) {
+        const inv = s[o].filter(p => zoneOf(p.x, p.y, side[k]) === 'ownJg');
+        const guard = s[k].find(p => zoneOf(p.x, p.y, side[k]) === 'ownJg' && inv.some(q => dist(p, q) < 0.25));
+        if (guard) st = 'jungle:' + regionOf(guard.x, guard.y, c.pits);
+      }
+      if (!st) for (const pk of ['a', 'b']) {
+        const P = c.pits[pk];
+        if (near(s[k], P, 0.25) >= 2 && !near(s[o], P, 0.3) && !objectives.some(x => x.pit === pk && s.t >= x.start && s.t <= x.end)) { st = 'obj:' + pk; break; }
+      }
+      if (!st && s.t < 600) for (const p of s[k]) {
+        const r = regionOf(p.x, p.y, c.pits);
+        if ((r === 'top' || r === 'bot' || r === 'mid') && (p.n >= 2 || s[k].some(q => q !== p && dist(p, q) < 0.08 && regionOf(q.x, q.y, c.pits) === r))) { st = 'escort:' + r; break; }
+      }
+      protect[k].push(st);
+    }
+  });
+  const guards = [];
+  for (const k of TEAMS) {
+    let cur = null;
+    const close = () => { if (cur && cur.end - cur.start >= 4) guards.push(cur); };
+    protect[k].forEach((st, i) => {
+      const t = samples[i].t;
+      if (st && cur && cur.key === st && t - cur.end <= 3) { cur.end = t; return; }
+      close(); cur = st ? { by: k, key: st, start: t, end: t } : null;
+    });
+    close();
+  }
+  for (const g of guards) if (g.key.startsWith('turret:')) {
+    const T = structures[+g.key.slice(7)]; g.lost = T.lostAt != null && T.lostAt >= g.start && T.lostAt <= g.end + 20;
+  }
+
+  /* ---- 17. playbook: what a team does in the 50 s after a fight, pick, objective or turret ---- */
+  const triggers = [];
+  for (const f of fights) if (f.winner) { triggers.push({ team: f.winner, kind: 'wonFight', t: f.end }); triggers.push({ team: other(f.winner), kind: 'lostFight', t: f.end }); }
+  for (const g of ganks) if (g.success) triggers.push({ team: g.by, kind: 'pick', t: g.end });
+  for (const o of objectives) if (o.lead) triggers.push({ team: o.lead, kind: 'obj:' + o.pit, t: o.end });
+  for (const tl of turretLosses) if (tl.by) triggers.push({ team: tl.by, kind: 'turret', t: tl.t });
+  const nextAction = (A, t) => {
+    const cands = [];
+    for (const o of objectives) if (teamAt(o, A) >= 2 && o.start > t + 1 && o.start <= t + 50) cands.push({ t: o.start, a: 'obj:' + o.pit });
+    for (const tl of turretLosses) if (tl.by === A && tl.t > t + 1 && tl.t <= t + 60) cands.push({ t: tl.t, a: 'turret:' + tl.lane });
+    for (const g of ganks) if (g.by === A && g.start > t + 1 && g.start <= t + 50) cands.push({ t: g.start, a: 'gank:' + g.region });
+    for (const v of invasions) if (v.by === A && v.start > t + 1 && v.start <= t + 50) cands.push({ t: v.start, a: 'invade' });
+    for (const r of rotations) if (r.by === A && r.start > t + 1 && r.start <= t + 50) cands.push({ t: r.start, a: 'group:' + r.to });
+    const F = corner(A);
+    for (let i = idxAt(t + 3); i < samples.length && samples[i].t <= t + 45; i++) {
+      if (samples[i][A].reduce((a, p) => a + (dist(p, F) < 0.3 ? p.n : 0), 0) >= 3) { cands.push({ t: samples[i].t, a: 'reset' }); break; }
+    }
+    const rank = x => x.t - (/^(obj|turret)/.test(x.a) ? 15 : 0);
+    cands.sort((a, b) => rank(a) - rank(b));
+    return cands[0] ? cands[0].a : 'hold';
+  };
+  const playbook = { b: {}, r: {} };
+  for (const tr of triggers.sort((a, b) => a.t - b.t)) {
+    if (tr.t > times[times.length - 1] - 20) continue;           // too close to the end to see what followed
+    tr.next = nextAction(tr.team, tr.t);
+    const e = playbook[tr.team][tr.kind] = playbook[tr.team][tr.kind] || { n: 0, acts: {}, ts: [] };
+    e.n++; e.acts[tr.next] = (e.acts[tr.next] || 0) + 1; e.ts.push({ t: tr.t, a: tr.next });
+  }
+
   return { times, samples, dt, unit, side, vis, deaths, fights, ganks, objectives, invasions, rotations, spreadBy, spread,
+    structures, turretLosses, threat, alerts, forecast, signatures, protect, guards, playbook, triggers,
     enemyHalf: { b: enemyHalf.b[0] / Math.max(1, enemyHalf.b[1]), r: enemyHalf.r[0] / Math.max(1, enemyHalf.r[1]) },
     laneSetup, routes, formations, cfg: c, thumb, my: c.my, t0: times[0], t1: times[times.length - 1] };
 }
@@ -1179,6 +1424,56 @@ function regionName(r, k) {
 }
 const zoneName = (z, k) => (['pitA', 'pitB'].includes(z) ? regionName(z) : z === 'ownJg' ? `${TN(k)} jungle` : z === 'enemyJg' ? `${TN(other(k))} jungle` : ZONE_LABEL[z] || z);
 const roundN = v => Math.round(v * 10) / 10;
+const LANE = { top: 'top lane', mid: 'mid lane', bot: 'bottom lane' };
+const LANE1 = { top: 'top', mid: 'mid', bot: 'bottom' };
+const turretName = T => `${TN(T.team)} ${LANE1[T.lane]} ${T.tier ? T.tier + ' ' : ''}turret`;
+function protectLabel(key) {
+  const [a, b] = key.split(':');
+  if (a === 'base') return 'their base';
+  if (a === 'turret') return `the ${turretName(R.structures[+b]).replace(/^(Blue|Red) /, '')}`;
+  if (a === 'jungle') return regionName(b);
+  if (a === 'obj') return `the ${R.cfg.pits[b].name} area`;
+  if (a === 'escort') return `their ${LANE[b]} laner (2 heroes together)`;
+  return key;
+}
+function actionLabel(a, k) {
+  const [x, y] = a.split(':');
+  switch (x) {
+    case 'obj': return `go for ${R.cfg.pits[y].name}`;
+    case 'turret': return `push a ${LANE[y]} turret`;
+    case 'gank': return `gank ${regionName(y)}`;
+    case 'invade': return 'invade the enemy jungle';
+    case 'group': return `group at ${zoneName(y, k)}`;
+    case 'reset': return 'go back to base';
+    default: return 'hold position or farm';
+  }
+}
+function triggerLabel(kind) {
+  const [x, y] = kind.split(':');
+  return { wonFight: 'After winning a teamfight', lostFight: 'After losing a teamfight', pick: 'After a successful gank', turret: 'After taking a turret' }[x] || `After taking ${R.cfg.pits[y].name}`;
+}
+const PRIOR = { fight: 'win a fight', pick: 'get a pick', turret: 'take a turret' };
+// The signs that came before a team's objective plays, most frequent first.
+function objectiveSigns(k) {
+  const sg = R.signatures.filter(s => s.team === k); const n = sg.length; if (!n) return { n: 0, signs: [] };
+  const signs = [];
+  const early = sg.filter(s => s.lead >= 8);
+  if (early.length) signs.push({ c: early.length, text: `One hero shows up near the pit first, about ${Math.round(mean(early.map(s => s.lead)))} s before the rest (jungler or roamer checking it).` });
+  const gather = sg.filter(s => s.conv[1] - s.conv[0] >= 2);
+  if (gather.length) signs.push({ c: gather.length, text: `They gather fast: from ${roundN(mean(gather.map(s => s.conv[0])))} to ${roundN(mean(gather.map(s => s.conv[1])))} heroes near the pit within 30 s.` });
+  const adv = sg.filter(s => s.adv > 0);
+  if (adv.length) signs.push({ c: adv.length, text: `They have more heroes alive (+${roundN(mean(adv.map(s => s.adv)))} on average). Watch the respawn timers.` });
+  const prior = sg.filter(s => s.prior.length);
+  if (prior.length) { const kinds = [...new Set(prior.flatMap(s => s.prior.map(p => PRIOR[p.k])))]; signs.push({ c: prior.length, text: `It comes right after they ${kinds.join(' or ')} (within 50 s).` }); }
+  const spawn = sg.filter(s => s.spawnRel != null && s.spawnRel <= 20);
+  if (spawn.length) signs.push({ c: spawn.length, text: 'They are there the moment it spawns.' });
+  const zs = {}; for (const s of sg) if (s.eMain && !['pitA', 'pitB', 'river', 'unseen'].includes(s.eMain)) zs[s.eMain] = (zs[s.eMain] || 0) + 1;
+  const z = Object.entries(zs).sort((a, b) => b[1] - a[1])[0];
+  if (z && z[1] >= 1) signs.push({ c: z[1], text: `${TN(other(k))}'s main group was away at ${zoneName(z[0], other(k))}.` });
+  const free = sg.filter(s => !s.contested);
+  if (free.length) signs.push({ c: free.length, text: 'Nobody contested it.' });
+  return { n, signs: signs.sort((a, b) => b.c - a.c) };
+}
 
 // Repeated timing: three or more events of one kind at a steady interval
 function cadence(ts) {
@@ -1265,6 +1560,29 @@ function buildInsights() {
     add(list.length >= 2 ? 'habit' : '', list.length >= 2 ? 'Rotation' : 'Rotations',
       `${teamTag(k)} moved as a group ${rs.length}×. ` + (list.length >= 2 ? `Most common: <b>${zoneName(f, k)} → ${zoneName(t, k)}</b> (${list.map(x => chip(x.start)).join(' ')}).` : `First: ${zoneName(rs[0].from, k)} → ${zoneName(rs[0].to, k)} ${chip(rs[0].start)}.`), rs[0].start);
   }
+  // objective signs, forecast quality, protection, playbook, turrets
+  for (const k of [op, my]) {
+    const os = objectiveSigns(k); if (!os.n) continue;
+    const top = os.signs.filter(x => x.c >= Math.max(1, os.n / 2)).slice(0, 3);
+    if (top.length) add(k === op ? 'habit' : '', 'Obj. signs', `Before ${teamTag(k)} goes for Lord or Turtle (${os.n} plays): ` + top.map(x => `${x.text.replace(/\.$/, '')} <span class="count">${x.c}/${os.n}</span>`).join('; ') + '.', R.signatures.find(s => s.team === k).start);
+    const f = R.forecast[k];
+    if (f.plays) add('', 'Forecast', `The threat meter warned of ${f.flagged} of ${teamTag(k)}'s ${f.plays} objective plays` + (f.flagged ? `, on average ${Math.round(f.lead)} s before the group arrived` : '') + `. ${f.falseAlarms} warning${f.falseAlarms === 1 ? '' : 's'} led to nothing.`, null);
+  }
+  for (const k of [op, my]) {
+    const pb = Object.entries(R.playbook[k]).map(([kind, e]) => { const [a, c] = Object.entries(e.acts).sort((x, y) => y[1] - x[1])[0]; return { kind, a, c, n: e.n, e }; })
+      .filter(x => x.a !== 'hold' && x.c >= 1).sort((x, y) => y.c - x.c || y.n - x.n);
+    if (pb.length) { const x = pb[0]; add(k === op ? 'habit' : '', 'Next move', `${triggerLabel(x.kind)}, ${teamTag(k)} tends to <b>${actionLabel(x.a, k)}</b> (${x.c} of ${x.n}: ${x.e.ts.filter(q => q.a === x.a).map(q => chip(q.t)).join(' ')}).`, x.e.ts[0].t); }
+  }
+  for (const k of [op, my]) {
+    const tally = {}; R.protect[k].forEach(st => { if (st && !st.startsWith('escort')) tally[st] = (tally[st] || 0) + 1; });
+    const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+    if (top && top[1] * R.dt >= 8) add('', 'Protects', `${teamTag(k)} spent the most guarding time on <b>${protectLabel(top[0])}</b> (${Math.round(top[1] * R.dt)} s).`, null);
+  }
+  for (const tl of R.turretLosses) {
+    const T = R.structures[tl.sid];
+    add(tl.team === my ? 'warn' : 'good', 'Turret', `${chip(tl.t)} ${turretName(T)} fell` + (tl.by ? ` to ${tl.atk} ${TN(tl.by)} hero${tl.atk > 1 ? 'es' : ''}` : '') +
+      (tl.def ? `, with ${tl.def} defending.` : `, undefended: ${TN(tl.team)}'s main group was at ${zoneName(tl.away, tl.team)}.`), tl.t);
+  }
   // map control
   const eb = R.enemyHalf.b, er = R.enemyHalf.r;
   add('', 'Map control', `Time on the enemy half of the map: ${teamTag('b')} ${(eb * 100).toFixed(0)}%, ${teamTag('r')} ${(er * 100).toFixed(0)}%.` +
@@ -1308,6 +1626,8 @@ function renderResults() {
     ...R.objectives.map(o => ({ t: o.start, what: `${o.name} pit`, team: o.lead, where: `${o.mb} blue / ${o.mr} red near`, res: o.contested ? 'Contested' : 'Uncontested', k: o.lead })),
     ...R.invasions.map(v => ({ t: v.start, what: 'Jungle invasion', team: v.by, where: regionName(v.region), res: `${v.n} heroes, ${Math.round(v.end - v.start)} s`, k: null })),
     ...R.rotations.map(r => ({ t: r.start, what: 'Group rotation', team: r.by, where: `${zoneName(r.from, r.by)} → ${zoneName(r.to, r.by)}`, res: '', k: null })),
+    ...R.turretLosses.map(x => ({ t: x.t, what: 'Turret destroyed', team: x.team, where: turretName(R.structures[x.sid]), res: (x.by ? `by ${x.atk} ${TN(x.by)}` : 'no attacker seen') + (x.def ? `, ${x.def} defending` : ', undefended'), k: x.by })),
+    ...R.alerts.map(a => ({ t: a.start, what: `${R.cfg.pits[a.pit].name} warning`, team: a.by, where: 'signs of an objective attempt', res: a.hit != null ? `play started ${fmt(a.hit)}` : 'nothing followed', k: null })),
   ].sort((a, b) => a.t - b.t);
   const pill = k => (k ? `<span class="pill ${k === 'b' ? 'cb' : 'cr'}">${TN(k)}</span>` : '');
   $('#events').innerHTML = `<thead><tr><th>Time</th><th>Event</th><th>Team</th><th>Where</th><th>Result</th></tr></thead><tbody>` +
@@ -1322,6 +1642,7 @@ function renderResults() {
       '</tbody></table></div></div>';
   }).join('');
 
+  renderWatch(); renderPlaybook(); renderProtects();
   $('#heatBCap').textContent = `Blue${my === 'b' ? ' (you)' : ''}`; $('#heatRCap').textContent = `Red${my === 'r' ? ' (you)' : ''}`;
   const sc = $('#scrub'); sc.max = R.samples.length - 1; scrubI = Math.min(scrubI, R.samples.length - 1); sc.value = scrubI;
   if (!$('#nameIn').value) $('#nameIn').value = isDemo ? 'Demo match' : ($('#srcName').textContent || '').replace(/\.[^.]+$/, '');
@@ -1333,6 +1654,63 @@ function setupCanvas(cv, h) {
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { ctx, w, h };
 }
+function renderWatch() {
+  $('#objWatch').innerHTML = [other(R.my), R.my].map(k => {
+    const os = objectiveSigns(k), f = R.forecast[k];
+    const plays = R.signatures.filter(s => s.team === k);
+    if (!plays.length) return `<div><b class="${k === 'b' ? 'cb' : 'cr'}">${TN(k)}${k === R.my ? ' (you)' : ''}</b><p class="muted small">No Lord or Turtle plays seen.</p></div>`;
+    const names = {}; plays.forEach(s => { names[s.name] = (names[s.name] || 0) + 1; });
+    return `<div><b class="${k === 'b' ? 'cb' : 'cr'}">${TN(k)}${k === R.my ? ' (you)' : ''}: ${plays.length} objective play${plays.length > 1 ? 's' : ''} (${Object.entries(names).map(([n, c]) => `${n} ×${c}`).join(', ')})</b>
+      <div class="small"><b>Signs to watch for</b></div>
+      <ul class="signs small">${os.signs.map(x => `<li><span class="count">${x.c}/${os.n}</span><span>${esc(x.text)}</span></li>`).join('')}</ul>
+      <p class="small muted">Threat meter: warned of ${f.flagged} of ${f.plays} plays${f.flagged ? `, ${Math.round(f.lead)} s early on average` : ''}; ${f.falseAlarms} false alarm${f.falseAlarms === 1 ? '' : 's'}.</p>
+      <div class="tablewrap"><table><thead><tr><th>Time</th><th>Play</th><th>What came before</th></tr></thead><tbody>${plays.map(s => `<tr class="click" data-t="${s.start}"><td class="t">${fmt(s.start)}</td><td>${s.name}${s.contested ? '<br><span class="muted small">contested</span>' : ''}</td><td>` +
+        [s.lead >= 5 && `first hero ${Math.round(s.lead)} s early`, `${s.conv[0]}→${s.conv[1]} near pit`, s.adv && `${s.adv > 0 ? '+' : ''}${s.adv} alive`,
+         ...s.prior.map(p => `${({ fight: 'after a won fight', pick: 'after a pick', turret: 'after taking a turret' })[p.k]} ${fmt(p.t)}`),
+         s.spawnRel != null && `${s.spawnRel >= 0 ? s.spawnRel + ' s after' : -s.spawnRel + ' s before'} spawn`, s.eMain && `${TN(other(k))} mostly at ${zoneName(s.eMain, other(k))}`]
+          .filter(Boolean).map(x => `<span class="tag2">${esc(x)}</span>`).join('') + '</td></tr>').join('')}</tbody></table></div></div>`;
+  }).join('');
+}
+function renderPlaybook() {
+  $('#playbook').innerHTML = [other(R.my), R.my].map(k => {
+    const rows = Object.entries(R.playbook[k]).sort((a, b) => b[1].n - a[1].n);
+    if (!rows.length) return `<p class="small"><b class="${k === 'b' ? 'cb' : 'cr'}">${TN(k)}</b> <span class="muted">had no fights, picks or objectives to learn from.</span></p>`;
+    return `<div class="tablewrap"><table><thead><tr><th><span class="${k === 'b' ? 'cb' : 'cr'}">${TN(k)}${k === R.my ? ' (you)' : ''}</span></th><th>Usually next</th><th>Seen</th></tr></thead><tbody>` +
+      rows.map(([kind, e]) => {
+        const acts = Object.entries(e.acts).sort((a, b) => b[1] - a[1]);
+        return `<tr><td>${triggerLabel(kind)}</td><td><b>${actionLabel(acts[0][0], k)}</b>${acts.slice(1).map(([a, c]) => `<br><span class="muted small">or ${actionLabel(a, k)} (${c})</span>`).join('')}</td><td class="t">${acts[0][1]}/${e.n}</td></tr>`;
+      }).join('') + '</tbody></table></div>';
+  }).join('');
+}
+function renderProtects() {
+  $('#protects').innerHTML = [other(R.my), R.my].map(k => {
+    const tally = {}; R.protect[k].forEach(st => { if (st) tally[st] = (tally[st] || 0) + 1; });
+    const list = Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 5), mx = list.length ? list[0][1] : 1;
+    const losses = R.turretLosses.filter(t => t.team === k);
+    return `<div class="panel"><b class="${k === 'b' ? 'cb' : 'cr'}">${TN(k)}${k === R.my ? ' (you)' : ''}</b>` +
+      (list.length ? `<div class="tablewrap"><table><tbody>${list.map(([key, c]) => `<tr><td>${esc(protectLabel(key))}</td><td style="width:40%"><div class="bar"><i style="width:${(100 * c / mx).toFixed(0)}%"></i></div></td><td class="t">${Math.round(c * R.dt)} s</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small">Never seen guarding anything.</p>') +
+      (losses.length ? `<div class="small">${losses.map(tl => `${chip(tl.t)} lost the ${esc(turretName(R.structures[tl.sid]).replace(/^(Blue|Red) /, ''))}${tl.def ? ` (${tl.def} defended)` : `, undefended (group at ${esc(zoneName(tl.away, k))})`}`).join('<br>')}</div>` : '') + '</div>';
+  }).join('');
+}
+// The "right now" box beside the minimap replay: threat meters, what each team guards, what the playbook expects next.
+function drawNow() {
+  const i = scrubI, s = R.samples[i]; if (!s) return;
+  $('#nowBox').innerHTML = [other(R.my), R.my].map(k => {
+    const col = cssVar(k === 'b' ? '--blue' : '--red');
+    const meters = ['a', 'b'].map(pk => { const v = R.threat[k][pk][i]; return `<div class="meter"><span>${R.cfg.pits[pk].name}</span><div class="bar"><i style="width:${(v * 100).toFixed(0)}%;background:${v >= 0.5 ? col : 'var(--muted)'}"></i></div><output>${(v * 100).toFixed(0)}%</output></div>`; }).join('');
+    const al = R.alerts.find(a => a.by === k && s.t >= a.start && s.t <= a.end + 3);
+    const guard = R.protect[k][i];
+    const trig = R.triggers.filter(tr => tr.team === k && tr.next && tr.t <= s.t && s.t - tr.t <= 50).pop();
+    let next = '';
+    if (trig) {
+      const e = R.playbook[k][trig.kind]; const [a, c] = Object.entries(e.acts).sort((x, y) => y[1] - x[1])[0];
+      next = `<div>${triggerLabel(trig.kind)} ${fmt(trig.t)}: this match says they <b>${actionLabel(a, k)}</b> next (${c}/${e.n}).</div>`;
+    }
+    return `<div class="nowteam"><b class="${k === 'b' ? 'cb' : 'cr'}">${TN(k)}${k === R.my ? ' (you)' : ''}</b>${meters}` +
+      (al ? `<div class="warnline">Signs of a ${R.cfg.pits[al.pit].name} attempt</div>` : '') +
+      `<div>Protecting: ${guard ? `<b>${esc(protectLabel(guard))}</b>` : '<span class="muted">nothing in particular</span>'}</div>${next}</div>`;
+  }).join('');
+}
 let tlGeom = null;
 function drawTimeline() {
   const cv = $('#timeline'); const rows = [
@@ -1342,8 +1720,11 @@ function drawTimeline() {
     ['Ganks · Red', R.ganks.filter(g => g.by === 'r').map(g => [g.start, g.end, cssVar('--red'), g.success])],
     ['Invade · Blue', R.invasions.filter(v => v.by === 'b').map(v => [v.start, v.end, cssVar('--blue')])],
     ['Invade · Red', R.invasions.filter(v => v.by === 'r').map(v => [v.start, v.end, cssVar('--red')])],
+    ['Turrets lost', R.turretLosses.map(x => [x.t, x.t, cssVar(x.team === 'b' ? '--blue' : '--red')])],
+    ['Obj. threat · Blue', 'heat:b'],
+    ['Obj. threat · Red', 'heat:r'],
   ];
-  const narrow = cv.clientWidth < 520, padL = narrow ? 74 : 92, padR = 22, chartH = 72, rowH = 20, top = 8;
+  const narrow = cv.clientWidth < 520, padL = narrow ? 92 : 116, padR = 22, chartH = 72, rowH = 20, top = 8;
   const H = top + chartH + 14 + rows.length * rowH + 22;
   const { ctx, w } = setupCanvas(cv, H); cv.style.height = H + 'px';
   const t0 = R.t0, t1 = Math.max(R.t1, t0 + 1), X = t => padL + (t - t0) / (t1 - t0) * (w - padL - padR);
@@ -1366,6 +1747,17 @@ function drawTimeline() {
   rows.forEach(([label, evs], r) => {
     const y = top + chartH + 14 + r * rowH;
     ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.fillText(label, padL - 8, y + rowH / 2);
+    if (typeof evs === 'string') {               // heat strip: the stronger of the two objective threats
+      const k = evs.slice(5); ctx.fillStyle = cssVar(k === 'b' ? '--blue' : '--red');
+      R.samples.forEach((s, i) => {
+        const v = Math.max(R.threat[k].a[i], R.threat[k].b[i]); if (v < 0.2) return;
+        const x = X(s.t), x2 = X(R.samples[Math.min(i + 1, R.samples.length - 1)].t);
+        ctx.globalAlpha = Math.min(1, (v - 0.15) * 1.3); ctx.fillRect(x, y + 4, Math.max(1, x2 - x + 0.5), rowH - 8);
+      });
+      ctx.globalAlpha = 1;
+      for (const a of R.alerts.filter(a => a.by === k)) { ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.strokeRect(X(a.start) - 0.5, y + 3.5, Math.max(3, X(a.end) - X(a.start)) + 1, rowH - 7); }
+      return;
+    }
     for (const [a, b, col, solid] of evs) {
       const x = X(a), ww = Math.max(4, X(b) - X(a));
       ctx.fillStyle = col; ctx.globalAlpha = solid === false ? 0.45 : 0.9; ctx.fillRect(x, y + 4, ww, rowH - 8); ctx.globalAlpha = 1;
@@ -1420,8 +1812,17 @@ function drawMap() {
     ...R.ganks.filter(g => t >= g.start - 1 && t <= g.end + 1).map(g => `${TN(g.by)} gank at ${regionName(g.region)}`),
     ...R.objectives.filter(o => t >= o.start && t <= o.end).map(o => `${o.name} pit ${o.contested ? 'contested' : 'visit'}`),
     ...R.invasions.filter(v => t >= v.start && t <= v.end).map(v => `${TN(v.by)} invading`),
+    ...R.turretLosses.filter(x => t >= x.t && t <= x.t + 4).map(x => `${turretName(R.structures[x.sid])} destroyed`),
   ].filter(Boolean);
+  for (const T of R.structures) {
+    if (T.kind !== 'turret') continue;
+    const up = T.lostAt == null || t < T.lostAt;
+    ctx.fillStyle = up ? teamCol[T.team] : 'rgba(150,150,150,.6)'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.rect(T.x * S - 4, T.y * S - 4, 8, 8); ctx.fill(); ctx.stroke();
+    if (!up) { ctx.beginPath(); ctx.moveTo(T.x * S - 5, T.y * S - 5); ctx.lineTo(T.x * S + 5, T.y * S + 5); ctx.stroke(); }
+  }
   $('#mapNote').textContent = (now.length ? now.join(' · ') : 'Nothing special happening.') + ` Alive: Blue ${R.vis.b.alive[i]}, Red ${R.vis.r.alive[i]}.`;
+  drawNow();
 }
 $('#scrub').oninput = e => { scrubI = +e.target.value; drawMap(); drawTimeline(); };
 $('#playBtn').onclick = () => {
@@ -1491,6 +1892,12 @@ $('#jsonBtn').onclick = () => {
   a.download = (data.name || 'match').replace(/[^\w-]+/g, '_') + '.json'; document.body.appendChild(a); a.click(); a.remove();
   toast('If nothing downloaded, this page blocks downloads. Use Copy report instead.');
 };
+const pitKey = a => a.replace(/^obj:([ab])$/, (m, q) => 'obj:' + R.cfg.pits[q].name);
+// Labels for saved matches, where pits are stored by name and regions are not tied to one map orientation.
+function libAction(a) {
+  const [x, y] = a.split(':');
+  return ({ obj: `go for ${y}`, turret: `push a ${LANE[y] || 'lane'} turret`, gank: 'gank a lane', invade: 'invade your jungle', group: `group at ${ZONE_LABEL[y] || (y || '').replace(/^pit[AB]$/, 'an objective pit')}`, reset: 'go back to base' })[x] || 'hold position or farm';
+}
 function summarize() {
   const strip = ({ hits, ...e }) => e;
   return {
@@ -1503,6 +1910,10 @@ function summarize() {
     spread: R.spreadBy, half: R.enemyHalf,
     form: { b: R.formations.b.slice(0, 4).map(f => ({ tag: f.tag, share: f.share })), r: R.formations.r.slice(0, 4).map(f => ({ tag: f.tag, share: f.share })) },
     routes: { b: R.routes.b.map(strip), r: R.routes.r.map(strip) }, side: R.side,
+    sig: R.signatures.map(x => ({ team: x.team, name: x.name, t: x.start, adv: x.adv, prior: x.prior.map(q => q.k), lead: x.lead, contested: x.contested })),
+    play: Object.fromEntries(TEAMS.map(k => [k, Object.fromEntries(Object.entries(R.playbook[k]).map(([kind, e]) =>
+      [pitKey(kind), Object.fromEntries(Object.entries(e.acts).map(([a, c]) => [pitKey(a), c]))]))])),
+    turrets: R.turretLosses.map(x => ({ team: x.team, t: x.t, def: x.def })),
   };
 }
 $('#saveBtn').onclick = () => {
@@ -1552,6 +1963,17 @@ function crossInsights(lib) {
   const topTag = Object.entries(tags).filter(([t]) => !/dead|base/i.test(t)).sort((a, b) => b[1] - a[1])[0];
   if (topTag) add('habit', 'Enemy shape', `Opponents' most common formation across your matches: <b>${esc(topTag[0])}</b> (${(topTag[1] * 100).toFixed(0)}% of game time).`);
   const gUs = lib.flatMap(m => m.ganks.filter(g => g.by === m.my)), gThem = lib.flatMap(m => m.ganks.filter(g => g.by !== m.my));
+  const theirSig = lib.flatMap(m => (m.sig || []).filter(x => x.team !== m.my));
+  if (theirSig.length >= 2) {
+    const after = theirSig.filter(x => x.prior.length).length, ahead = theirSig.filter(x => x.adv > 0).length, early = theirSig.filter(x => x.lead >= 8);
+    add('habit', 'Obj. signs', `Across your matches the enemy made ${theirSig.length} Lord/Turtle plays. ${after} came right after they won a fight, got a pick or took a turret; ${ahead} with more heroes alive than you` +
+      (early.length ? `; ${early.length} started with one hero checking the pit about ${Math.round(mean(early.map(x => x.lead)))} s ahead` : '') + '. When you see those signs, move to the pit or trade elsewhere.');
+  }
+  const after = {}; for (const m of lib) { const pb = (m.play || {})[other(m.my)] || {}; for (const [a, c] of Object.entries(pb.wonFight || {})) after[a] = (after[a] || 0) + c; }
+  const topAfter = Object.entries(after).filter(([a]) => a !== 'hold').sort((a, b) => b[1] - a[1])[0];
+  if (topAfter && topAfter[1] >= 2) add('habit', 'Next move', `After the enemy wins a teamfight, they most often <b>${libAction(topAfter[0])}</b> (${topAfter[1]} times across your matches).`);
+  const undef = lib.flatMap(m => (m.turrets || []).filter(x => x.team === m.my && !x.def));
+  if (undef.length >= 2) add('warn', 'Turrets', `${undef.length} of your turrets fell with nobody defending. Check the minimap when your group commits elsewhere.`);
   if (gUs.length + gThem.length >= 4) add('', 'Gank success', `Your ganks: ${gUs.filter(g => g.ok).length} kills from ${gUs.length}. Theirs: ${gThem.filter(g => g.ok).length} from ${gThem.length}.`);
   return out;
 }

@@ -35,6 +35,11 @@ The minimap in a recording shows the same information: where all ten heroes are,
 | Rotations | A group of 3+ moving from one zone to another. |
 | Lane setup and jungle route | Who stood where from 0:45 to 2:30, and the early path of each jungler. |
 | Formations | Each second, each team's five heroes are sorted into zones (lanes, own/enemy jungle, river, base, dead), then clustered with k-means. You get the recurring shapes, how often they happen, and which shape usually follows. |
+| Turrets | Turret icons are the colored markers that never move. When one stops showing, the turret fell: who took it, and whether anyone defended. |
+| Lord & Turtle threat | Every second, each team gets a score for each pit: heroes near it, heroes walking toward it, more heroes alive, enemies far away, a fight or pick just won, and whether the objective has spawned. A high score raises a warning, and the app reports how many real plays it warned about and how early. |
+| Signs before objectives | For every Lord/Turtle play: how early the first hero showed up, how fast the team gathered, the alive count, what came right before (won fight, pick, turret), where the other team's group was, and timing against the spawn. The repeated signs become a "signs to watch for" list. |
+| What they protect | Seconds spent guarding a turret under attack, their jungle with invaders in it, an objective area, the base, or a laner kept company (two heroes together in a lane early). |
+| Playbook | What a team did in the 50 s after winning or losing a fight, a pick, an objective or a turret: go for Lord/Turtle, push a turret, gank, invade, group, reset or hold. The minimap replay shows what that predicts at any moment. |
 | Habits | Favorite gank lane, repeated invasions, steady gank timing (e.g. "about every 3:10"), fights lost at the same place, grouping vs split-pushing late. |
 
 ## Limits
@@ -42,6 +47,9 @@ The minimap in a recording shows the same information: where all ten heroes are,
 - Hero identities are not tracked. It works at team level: it knows "two Red heroes", not "Ling and Tigreal".
 - Deaths still on a respawn timer when the recording ends are not counted. In big fights the death time can be a few
   seconds off.
+- Spawn times are settings in step 2 (default: Turtle 2:00, Lord 8:00). Check them against the current patch.
+- Predictions come from the patterns seen so far. One match gives a few examples each, so read them as tendencies.
+  Saving several matches against the same opponents makes them more reliable.
 - The map zones (lanes, river, jungles) are fixed proportions of the minimap square. If the Lord and Turtle pits are
   elsewhere in your recording, tap **Set Lord pit / Set Turtle pit** on the preview.
 - If you record your own replay, your own hero may have a green ring. Set *Your own hero's green marker counts as* in
