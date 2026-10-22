@@ -40,6 +40,9 @@ The minimap in a recording shows the same information: where all ten heroes are,
 | Signs before objectives | For every Lord/Turtle play: how early the first hero showed up, how fast the team gathered, the alive count, what came right before (won fight, pick, turret), where the other team's group was, and timing against the spawn. The repeated signs become a "signs to watch for" list. |
 | What they protect | Seconds spent guarding a turret under attack, their jungle with invaders in it, an objective area, the base, or a laner kept company (two heroes together in a lane early). |
 | Playbook | What a team did in the 50 s after winning or losing a fight, a pick, an objective or a turret: go for Lord/Turtle, push a turret, gank, invade, group, reset or hold. The minimap replay shows what that predicts at any moment. |
+| Macro score | Map play, 0–100: map control (share of the map closer to each team's heroes, by phase), won fights and picks turned into Lord/Turtle/turrets, objective and turret trades, enemy objectives left unanswered and how fast the team shows up, fights taken with fewer heroes alive, time spent dead. |
+| Micro score | Execution, 0–100: fights won (including outplays with fewer heroes and throws with more), kills vs deaths, deaths caught alone, deaths deep in enemy territory, seconds between the first and third hero reaching a fight, gank kills and ganks that backfired, ganks survived, teammates coming to help. |
+| Coaching | Tips for your team ("4 deaths with no teammate nearby, mostly bottom lane") and openings against the opponent ("Red arrives at fights one by one: start early"), each with clickable times. Across saved matches: macro/micro averages and the mistakes that repeat. |
 | Habits | Favorite gank lane, repeated invasions, steady gank timing (e.g. "about every 3:10"), fights lost at the same place, grouping vs split-pushing late. |
 
 ## Limits
@@ -48,6 +51,8 @@ The minimap in a recording shows the same information: where all ten heroes are,
 - Deaths still on a respawn timer when the recording ends are not counted. In big fights the death time can be a few
   seconds off.
 - Spawn times are settings in step 2 (default: Turtle 2:00, Lord 8:00). Check them against the current patch.
+- Macro and micro are measured from the minimap only. Last hits, skill accuracy, items and gold are not visible
+  there, so micro here means positioning and fight execution, not mechanics.
 - Predictions come from the patterns seen so far. One match gives a few examples each, so read them as tendencies.
   Saving several matches against the same opponents makes them more reliable.
 - The map zones (lanes, river, jungles) are fixed proportions of the minimap square. If the Lord and Turtle pits are

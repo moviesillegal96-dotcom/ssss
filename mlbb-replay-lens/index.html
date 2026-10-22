@@ -160,6 +160,18 @@
   .watch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
   @media (max-width: 760px) { .watch { grid-template-columns: minmax(0, 1fr); } }
   .watch > div { display: grid; gap: .6rem; align-content: start; min-width: 0; }
+  .mm { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  @media (max-width: 760px) { .mm { grid-template-columns: minmax(0, 1fr); } }
+  .mm > div { display: grid; gap: .7rem; align-content: start; min-width: 0; }
+  .scores { display: flex; gap: 1.2rem; align-items: baseline; flex-wrap: wrap; }
+  .score { font-family: var(--display); font-size: 2rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .score small { font-size: .8rem; font-family: var(--body); font-weight: 500; color: var(--muted); margin-left: .25rem; }
+  td.val { font-family: var(--mono); white-space: nowrap; text-align: right; }
+  td.best { font-weight: 700; color: var(--ink); background: var(--sunk); }
+  .tips { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; font-size: .9rem; }
+  .tips li { padding-left: .9rem; position: relative; }
+  .tips li::before { content: ""; position: absolute; left: 0; top: .55em; width: .4rem; height: .4rem; border-radius: 50%; background: var(--accent); }
+  .tips.warn li::before { background: var(--red); }
   .lib { display: grid; gap: .4rem; }
   .libitem { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; font-size: .9rem; border-bottom: 1px solid var(--line); padding-bottom: .4rem; }
   .libitem .grow { flex: 1; min-width: 0; }
@@ -293,6 +305,18 @@
         </div>
         <p id="mapNote"></p>
         <div class="now" id="nowBox" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Macro &amp; micro</h3>
+      <p class="muted small"><b>Macro</b> is the map game: control, turning wins into objectives, answering the enemy's objectives, turret trades, fighting only with the numbers, time spent dead.
+        <b>Micro</b> is execution: winning fights, not getting caught alone, not overextending, arriving at fights together, landing ganks and surviving them.
+        Scores are 0–100, the average of the parts this match could measure.</p>
+      <div class="mm" id="macroMicro"></div>
+      <div class="two">
+        <div class="panel"><b>Coaching for you</b><ul class="tips warn" id="coach"></ul></div>
+        <div class="panel"><b>How to beat them</b><ul class="tips" id="exploit"></ul></div>
       </div>
     </div>
 
@@ -1402,8 +1426,129 @@ function analyzeMatch(times, compsList, c, thumb, stat, masks) {
     e.n++; e.acts[tr.next] = (e.acts[tr.next] || 0) + 1; e.ts.push({ t: tr.t, a: tr.next });
   }
 
+  /* ---- 18. where each death happened, and the situation around it ---- */
+  const onEnemyHalf = (k, p) => (side[k] === 'BL' ? p.y < p.x : p.y > p.x);
+  for (const k of TEAMS) for (const d of deaths[k]) {
+    const o = other(k), i = idxAt(d.t);
+    // a death during an enemy gank or a fight happened there; otherwise look for the marker that vanished
+    // (one with no teammate marker within walking distance afterwards), preferring the one nearest enemies
+    const g = ganks.find(e => e.by === o && d.t >= e.start - 3 && d.t <= e.end + 8), f = fights.find(e => d.t >= e.start - 3 && d.t <= e.end + 8);
+    let at = g ? g.hits[g.hits.length - 1] : f ? { x: f.x, y: f.y } : null;
+    if (!at) {
+      const before = samples[Math.max(0, i - sec(2))][k], after = samples[Math.min(samples.length - 1, i + sec(2))][k];
+      const gone = before.filter(p => !after.some(q => dist(p, q) < 0.2));
+      at = gone.sort((p, q) => near(samples[i][o], q, 0.2) - near(samples[i][o], p, 0.2))[0] || null;
+    }
+    if (!at) continue;
+    d.x = at.x; d.y = at.y;
+    const j = Math.max(0, i - sec(4));
+    d.allies = Math.max(0, near(samples[j][k], at, 0.15) - 1);
+    if (f) d.allies = Math.max(d.allies, Math.max(...f.hits.map(h => (k === 'b' ? h.nb : h.nr))) - 1);   // a teamfight is never "alone"
+    d.enemies = recent(i, o, at, 0.18, 8);
+    d.zone = zoneOf(at.x, at.y, side[k]);
+    d.over = d.zone === 'enemyJg' || d.zone === 'enemyBase' || (onEnemyHalf(k, at) && d.zone !== 'river' && !['top', 'mid', 'bot'].includes(d.zone));
+  }
+
+  /* ---- 19. map control: each patch of the map belongs to the team whose nearest hero is closer ---- */
+  const cells = []; for (let gy = 0; gy < 16; gy++) for (let gx = 0; gx < 16; gx++) cells.push({ x: (gx + 0.5) / 16, y: (gy + 0.5) / 16 });
+  const control = samples.map(s => {
+    if (!s.b.length && !s.r.length) return 0.5;
+    let b = 0, r = 0;
+    for (const cl of cells) {
+      let db = 9, dr = 9;
+      for (const p of s.b) db = Math.min(db, dist(p, cl));
+      for (const p of s.r) dr = Math.min(dr, dist(p, cl));
+      if (db < dr) b++; else if (dr < db) r++;
+    }
+    return b / (b + r || 1);
+  });
+
+  /* ---- 20. macro and micro scorecards ---- */
+  const stagger = (f, k) => {
+    const C = { x: f.x, y: f.y }, target = Math.min(3, Math.max(...f.hits.map(h => (k === 'b' ? h.nb : h.nr))));
+    let t1 = null;
+    for (let i = idxAt(f.start - 20); i < samples.length && samples[i].t <= f.end; i++) {
+      const n = near(samples[i][k], C, 0.2);
+      if (n >= 1 && t1 == null) t1 = samples[i].t;
+      if (n >= target) return t1 == null ? 0 : samples[i].t - t1;
+    }
+    return null;
+  };
+  const macro = {}, micro = {};
+  for (const k of TEAMS) {
+    const o = other(k);
+    const ctl = control.map(v => (k === 'b' ? v : 1 - v));
+    const ctlBy = {}; for (const ph of ['early', 'mid', 'late']) { const a = ctl.filter((_, i) => phaseOf(samples[i].t) === ph); ctlBy[ph] = a.length >= 10 ? mean(a) : null; }
+    const advs = triggers.filter(t => t.team === k && (t.kind === 'wonFight' || t.kind === 'pick') && t.next);
+    const enemyPlays = objectives.filter(x => x.lead === o);
+    const answers = enemyPlays.map(x => {
+      const P = c.pits[x.pit];
+      let resp = null;
+      for (let i = idxAt(x.start - 5); i < samples.length && samples[i].t <= x.end + 5; i++) if (near(samples[i][k], P, 0.2) >= 2) { resp = Math.max(0, samples[i].t - x.start); break; }
+      const trade = turretLosses.some(tl => tl.by === k && tl.t >= x.start - 10 && tl.t <= x.end + 20) ||
+        objectives.some(y => y !== x && y.lead === k && y.start <= x.end + 20 && y.end >= x.start - 10);
+      return { t: x.start, resp, trade };
+    });
+    const behind = fights.filter(f => { const h = f.hits[0]; return (k === 'b' ? h.nb < h.nr : h.nr < h.nb) || vis[k].alive[idxAt(f.start)] < vis[o].alive[idxAt(f.start)]; });
+    const deadSec = deaths[k].reduce((a, d) => a + d.n * (d.respawn - d.t), 0);
+    macro[k] = {
+      ctl: mean(ctl), ctlBy,
+      conv: advs.filter(t => /^(obj|turret)/.test(t.next)).length, convOf: advs.length, convTs: advs.map(t => ({ t: t.t, ok: /^(obj|turret)/.test(t.next) })),
+      objTaken: objectives.filter(x => x.lead === k).length, objLost: enemyPlays.length,
+      turTaken: turretLosses.filter(x => x.team === o).length, turLost: turretLosses.filter(x => x.team === k).length,
+      turLostFree: turretLosses.filter(x => x.team === k && !x.def).length,
+      answers, given: answers.filter(a => a.resp == null && !a.trade).length,
+      resp: mean(answers.filter(a => a.resp != null).map(a => a.resp)),
+      behind: behind.map(f => f.start), fightsN: fights.length, deadSec,
+    };
+    const ds = deaths[k].filter(d => d.x != null), allD = deaths[k].reduce((a, d) => a + d.n, 0);
+    const fr = fights.map(f => { const h = f.hits[0], nk = k === 'b' ? h.nb : h.nr, no = k === 'b' ? h.nr : h.nb; return { t: f.start, nk, no, won: f.winner === k, lost: f.winner === o, st: stagger(f, k) }; });
+    const myG = ganks.filter(g => g.by === k), vsG = ganks.filter(g => g.by === o);
+    const helped = vsG.filter(g => {
+      const i0 = idxAt(g.start), C = g.hits[0], n0 = near(samples[i0][k], C, 0.15);
+      for (let i = i0; i < samples.length && samples[i].t <= g.start + 10; i++) if (near(samples[i][k], C, 0.15) > n0) return true;
+      return false;
+    });
+    const st = fr.map(f => f.st).filter(v => v != null);
+    micro[k] = {
+      deaths: allD, kills: deaths[o].reduce((a, d) => a + d.n, 0), located: ds.length,
+      isolated: ds.filter(d => d.allies === 0), over: ds.filter(d => d.over),
+      fightsWon: fr.filter(f => f.won).length, fightsLost: fr.filter(f => f.lost).length,
+      outplays: fr.filter(f => f.won && f.nk < f.no).map(f => f.t), throws: fr.filter(f => f.lost && f.nk > f.no).map(f => f.t),
+      stagger: st.length ? mean(st) : null,
+      gankN: myG.length, gankKill: myG.filter(g => g.success).length, backfire: myG.filter(g => g.lost > g.kills).map(g => g.start),
+      vsGN: vsG.length, escapes: vsG.filter(g => !g.success).length, helped: helped.length,
+    };
+  }
+  // 0-100 scores: the average of the parts that could be measured in this match
+  const part = (v, lo = 0, hi = 1) => (v == null || !isFinite(v) ? null : Math.max(0, Math.min(1, (v - lo) / (hi - lo))));
+  const ratio = (a, b) => (a + b ? a / (a + b) : null);
+  for (const k of TEAMS) {
+    const M = macro[k], Mo = macro[other(k)], m = micro[k];
+    M.parts = [
+      ['Map control', part(M.ctl, 0.3, 0.7)],
+      ['Turning wins into objectives', M.convOf ? M.conv / M.convOf : null],
+      ['Lord & Turtle share', ratio(M.objTaken, M.objLost)],
+      ['Turret trades', ratio(M.turTaken, M.turLost)],
+      ['Answering enemy objectives', M.answers.length ? 1 - M.given / M.answers.length : null],
+      ['Fighting with the numbers', M.fightsN ? 1 - M.behind.length / M.fightsN : null],
+      ['Less time dead', ratio(Mo.deadSec, M.deadSec)],
+    ];
+    m.parts = [
+      ['Fights won', ratio(m.fightsWon, m.fightsLost)],
+      ['Kills vs deaths', ratio(m.kills, m.deaths)],
+      ['Not caught alone', m.located ? 1 - m.isolated.length / m.located : null],
+      ['Not overextending', m.located ? 1 - m.over.length / m.located : null],
+      ['Arriving together', m.stagger == null ? null : part(10 - m.stagger, 0, 8)],
+      ['Gank execution', m.gankN ? (m.gankKill - 0.5 * m.backfire.length) / m.gankN : null],
+      ['Surviving ganks', m.vsGN ? m.escapes / m.vsGN : null],
+    ].map(([n, v]) => [n, v == null ? null : Math.max(0, Math.min(1, v))]);
+    for (const X of [M, m]) { const v = X.parts.map(p => p[1]).filter(x => x != null); X.score = v.length ? Math.round(100 * mean(v)) : null; }
+  }
+
   return { times, samples, dt, unit, side, vis, deaths, fights, ganks, objectives, invasions, rotations, spreadBy, spread,
     structures, turretLosses, threat, alerts, forecast, signatures, protect, guards, playbook, triggers,
+    control, macro, micro,
     enemyHalf: { b: enemyHalf.b[0] / Math.max(1, enemyHalf.b[1]), r: enemyHalf.r[0] / Math.max(1, enemyHalf.r[1]) },
     laneSetup, routes, formations, cfg: c, thumb, my: c.my, t0: times[0], t1: times[times.length - 1] };
 }
@@ -1560,6 +1705,14 @@ function buildInsights() {
     add(list.length >= 2 ? 'habit' : '', list.length >= 2 ? 'Rotation' : 'Rotations',
       `${teamTag(k)} moved as a group ${rs.length}×. ` + (list.length >= 2 ? `Most common: <b>${zoneName(f, k)} → ${zoneName(t, k)}</b> (${list.map(x => chip(x.start)).join(' ')}).` : `First: ${zoneName(rs[0].from, k)} → ${zoneName(rs[0].to, k)} ${chip(rs[0].start)}.`), rs[0].start);
   }
+  // macro and micro
+  {
+    const sc = key => TEAMS.map(k => `${teamTag(k)} ${R[key][k].score ?? '–'}`).join(' vs ');
+    const better = key => (R[key][my].score ?? 0) >= (R[key][op].score ?? 0);
+    const tips = coaching(my, false).filter(t => t.startsWith('<b>'));
+    add(better('macro') ? 'good' : 'warn', 'Macro', `Macro score ${sc('macro')}.` + (tips.find(t => t.includes('Macro:')) ? ' ' + tips.find(t => t.includes('Macro:')).replace('<b>Macro:</b> ', 'Biggest fix: ') : ''), null);
+    add(better('micro') ? 'good' : 'warn', 'Micro', `Micro score ${sc('micro')}.` + (tips.find(t => t.includes('Micro:')) ? ' ' + tips.find(t => t.includes('Micro:')).replace('<b>Micro:</b> ', 'Biggest fix: ') : ''), null);
+  }
   // objective signs, forecast quality, protection, playbook, turrets
   for (const k of [op, my]) {
     const os = objectiveSigns(k); if (!os.n) continue;
@@ -1613,6 +1766,8 @@ function renderResults() {
     ['Deaths', `<span class="cb">${deathsTot('b')}</span> – <span class="cr">${deathsTot('r')}</span>`, 'confirmed by respawns'],
     ['Objective visits', String(R.objectives.length), `${R.objectives.filter(o => o.contested).length} contested`],
     ['Enemy-half time', `<span class="cb">${(R.enemyHalf.b * 100).toFixed(0)}%</span> – <span class="cr">${(R.enemyHalf.r * 100).toFixed(0)}%</span>`, `You are ${TN(my)}`],
+    ['Macro score', `<span class="cb">${R.macro.b.score ?? '–'}</span> – <span class="cr">${R.macro.r.score ?? '–'}</span>`, 'map play, 0–100'],
+    ['Micro score', `<span class="cb">${R.micro.b.score ?? '–'}</span> – <span class="cr">${R.micro.r.score ?? '–'}</span>`, 'execution, 0–100'],
   ];
   $('#tiles').innerHTML = tiles.map(([k, v, s]) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span><span class="s">${s}</span></div>`).join('');
 
@@ -1642,7 +1797,7 @@ function renderResults() {
       '</tbody></table></div></div>';
   }).join('');
 
-  renderWatch(); renderPlaybook(); renderProtects();
+  renderMacroMicro(); renderWatch(); renderPlaybook(); renderProtects();
   $('#heatBCap').textContent = `Blue${my === 'b' ? ' (you)' : ''}`; $('#heatRCap').textContent = `Red${my === 'r' ? ' (you)' : ''}`;
   const sc = $('#scrub'); sc.max = R.samples.length - 1; scrubI = Math.min(scrubI, R.samples.length - 1); sc.value = scrubI;
   if (!$('#nameIn').value) $('#nameIn').value = isDemo ? 'Demo match' : ($('#srcName').textContent || '').replace(/\.[^.]+$/, '');
@@ -1653,6 +1808,84 @@ function setupCanvas(cv, h) {
   const dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 600;
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { ctx, w, h };
+}
+const pct = v => (v == null ? '–' : Math.round(v * 100) + '%');
+// Rows of the scorecards: label, value for one team as text, and a number where higher is better.
+function macroRows(k) {
+  const M = R.macro[k];
+  return [
+    ['Map control (share of the map nearer to them)', pct(M.ctl), M.ctl],
+    ['  0–5 / 5–12 / 12+ min', ['early', 'mid', 'late'].map(ph => pct(M.ctlBy[ph])).join(' / '), null],
+    ['Won fights & picks turned into Lord, Turtle or a turret', M.convOf ? `${M.conv}/${M.convOf}` : '–', M.convOf ? M.conv / M.convOf : null],
+    ['Lord & Turtle plays won', String(M.objTaken), M.objTaken],
+    ['Turrets taken / lost', `${M.turTaken} / ${M.turLost}`, M.turTaken - M.turLost],
+    ['Enemy objectives left unanswered (no contest, no trade)', M.answers.length ? `${M.given}/${M.answers.length}` : '–', M.answers.length ? -M.given : null],
+    ['Time to show up at an enemy objective', M.answers.some(a => a.resp != null) ? `${Math.round(M.resp)} s` : '–', M.answers.some(a => a.resp != null) ? -M.resp : null],
+    ['Fights taken with fewer heroes', M.fightsN ? `${M.behind.length}/${M.fightsN}` : '–', M.fightsN ? -M.behind.length : null],
+    ['Hero-seconds spent dead', String(Math.round(M.deadSec)), -M.deadSec],
+  ];
+}
+function microRows(k) {
+  const m = R.micro[k];
+  return [
+    ['Teamfights won / lost', `${m.fightsWon} / ${m.fightsLost}`, m.fightsWon - m.fightsLost],
+    ['Kills / deaths (confirmed)', `${m.kills} / ${m.deaths}`, m.kills - m.deaths],
+    ['Fights won with fewer heroes (outplays)', String(m.outplays.length), m.outplays.length],
+    ['Fights lost with more heroes (throws)', String(m.throws.length), -m.throws.length],
+    ['Deaths caught alone', m.located ? `${m.isolated.length}/${m.located}` : '–', m.located ? -m.isolated.length / m.located : null],
+    ['Deaths deep in enemy territory', m.located ? `${m.over.length}/${m.located}` : '–', m.located ? -m.over.length / m.located : null],
+    ['Seconds between 1st and 3rd hero reaching a fight', m.stagger == null ? '–' : `${roundN(m.stagger)} s`, m.stagger == null ? null : -m.stagger],
+    ['Ganks with a kill / ganks that backfired', m.gankN ? `${m.gankKill}/${m.gankN} · ${m.backfire.length}` : '–', m.gankN ? (m.gankKill - m.backfire.length) / m.gankN : null],
+    ['Enemy ganks survived', m.vsGN ? `${m.escapes}/${m.vsGN}` : '–', m.vsGN ? m.escapes / m.vsGN : null],
+    ['Enemy ganks where a teammate came to help', m.vsGN ? `${m.helped}/${m.vsGN}` : '–', m.vsGN ? m.helped / m.vsGN : null],
+  ];
+}
+function scoreTable(title, key, rowsOf) {
+  const rb = rowsOf('b'), rr = rowsOf('r');
+  const head = `<div class="scores"><span>${title}</span>${TEAMS.map(k => `<span class="score ${k === 'b' ? 'cb' : 'cr'}">${R[key][k].score ?? '–'}<small>${TN(k)}${k === R.my ? ' (you)' : ''}</small></span>`).join('')}</div>`;
+  const parts = TEAMS.map(k => `<span class="muted small">${TN(k)}: ` + R[key][k].parts.filter(p => p[1] != null).map(p => `${p[0]} ${pct(p[1])}`).join(' · ') + '</span>').join('<br>');
+  return `<div>${head}<div class="tablewrap"><table><thead><tr><th></th><th class="cb" style="text-align:right">Blue</th><th class="cr" style="text-align:right">Red</th></tr></thead><tbody>` +
+    rb.map((row, i) => {
+      const a = row[2], b = rr[i][2], bb = a != null && b != null && a > b, rb2 = a != null && b != null && b > a;
+      return `<tr><td class="${row[0].startsWith('  ') ? 'muted small' : ''}">${esc(row[0].trim())}</td><td class="val${bb ? ' best' : ''}">${row[1]}</td><td class="val${rb2 ? ' best' : ''}">${rr[i][1]}</td></tr>`;
+    }).join('') + `</tbody></table></div><details class="small"><summary class="muted">How the score is built</summary>${parts}</details></div>`;
+}
+// Advice for the viewer's team, and openings in the opponent's play.
+function coaching(k, forEnemy) {
+  const M = R.macro[k], m = R.micro[k], out = [], o = other(k);
+  const zoneMost = list => { const z = {}; list.forEach(d => { z[d.zone] = (z[d.zone] || 0) + 1; }); const e = Object.entries(z).sort((a, b) => b[1] - a[1])[0]; return e ? zoneName(e[0], k) : ''; };
+  const ts = a => a.map(t => chip(t)).join(' ');
+  if (!forEnemy) {
+    if (M.convOf >= 2 && M.conv / M.convOf < 0.5) out.push(`<b>Macro:</b> you turned ${M.conv} of ${M.convOf} won fights or picks into an objective or turret. After a win, walk straight to Turtle/Lord or the nearest turret instead of chasing or farming.`);
+    if (M.given) out.push(`<b>Macro:</b> the enemy took ${M.given} objective${M.given > 1 ? 's' : ''} with no contest and no trade from you (${ts(M.answers.filter(a => a.resp == null && !a.trade).map(a => a.t))}). Either show up or take a turret on the other side at the same time.`);
+    if (M.behind.length) out.push(`<b>Macro:</b> ${M.behind.length} fight${M.behind.length > 1 ? 's were' : ' was'} taken with fewer heroes (${ts(M.behind)}). Wait for respawns or back off and give up a small objective instead.`);
+    if (M.ctlBy.late != null && M.ctlBy.late < 0.45) out.push(`<b>Macro:</b> after 12 min you held only ${pct(M.ctlBy.late)} of the map. Clear the side waves and move as five before entering their jungle.`);
+    if (M.turLostFree) out.push(`<b>Macro:</b> ${M.turLostFree} of your turrets fell with nobody defending. Watch the minimap when the team commits to one side.`);
+    if (M.answers.some(a => a.resp != null) && M.resp > 12) out.push(`<b>Macro:</b> you reach enemy objectives about ${Math.round(M.resp)} s after they start, often too late. Move when you see their signs (Lord &amp; Turtle watch below).`);
+    if (m.isolated.length >= 2) out.push(`<b>Micro:</b> ${m.isolated.length} deaths happened with no teammate nearby, mostly in ${zoneMost(m.isolated)} (${ts(m.isolated.map(d => d.t))}). Don't face-check bushes alone; walk with your roamer or jungler.`);
+    if (m.over.length >= 2) out.push(`<b>Micro:</b> ${m.over.length} deaths were deep in enemy territory (${ts(m.over.map(d => d.t))}). Stop chasing past the river unless the enemy is out of heroes.`);
+    if (m.stagger != null && m.stagger > 5) out.push(`<b>Micro:</b> your team reaches fights one by one, ${roundN(m.stagger)} s between the first and third hero. Group up before the engage instead of walking in alone.`);
+    if (m.throws.length) out.push(`<b>Micro:</b> you lost ${m.throws.length} fight${m.throws.length > 1 ? 's' : ''} while having more heroes (${ts(m.throws)}). Focus one target and don't split damage.`);
+    if (m.backfire.length) out.push(`<b>Micro:</b> ${m.backfire.length} of your ganks cost you more than they got (${ts(m.backfire)}). Check where their jungler is before diving.`);
+    if (m.vsGN >= 2 && m.helped / m.vsGN < 0.5) out.push(`<b>Micro:</b> when the enemy ganked you, a teammate came to help only ${m.helped} of ${m.vsGN} times. Rotate toward a teammate who is being dived.`);
+    if (!out.length) out.push('No clear macro or micro problems showed up in this match.');
+  } else {
+    if (m.isolated.length >= 2) out.push(`${TN(k)} gets caught alone, mostly in ${zoneMost(m.isolated)} (${m.isolated.length}×). Set up picks there with 2–3 heroes.`);
+    if (m.stagger != null && m.stagger > 5) out.push(`${TN(k)} arrives at fights one by one (${roundN(m.stagger)} s gap). Start the fight early, before their third hero arrives.`);
+    if (M.given) out.push(`${TN(k)} leaves objectives unanswered (${M.given}×). Take Turtle/Lord while their group is on the other side.`);
+    if (M.convOf >= 2 && M.conv / M.convOf < 0.5) out.push(`${TN(k)} rarely follows up a win (${M.conv}/${M.convOf}). After losing a fight, you usually have time to reset safely.`);
+    if (M.behind.length) out.push(`${TN(k)} takes fights with fewer heroes (${M.behind.length}×). Bait them into fighting right after you get a kill.`);
+    if (m.over.length >= 2) out.push(`${TN(k)} overextends into your side (${m.over.length} deaths there). Let them chase into your jungle and turn on them.`);
+    if (m.vsGN >= 2 && m.escapes / m.vsGN < 0.5) out.push(`${TN(k)} rarely survives ganks (${m.escapes}/${m.vsGN} survived). Keep ganking, especially ${(() => { const z = {}; R.ganks.filter(g => g.by === o && g.success).forEach(g => { z[g.region] = (z[g.region] || 0) + 1; }); const e = Object.entries(z).sort((a, b) => b[1] - a[1])[0]; return e ? regionName(e[0]) : 'their weak lane'; })()}.`);
+    if (M.ctlBy.late != null && M.ctlBy.late < 0.45) out.push(`${TN(k)} loses the map late (${pct(M.ctlBy.late)} control after 12 min). Push the side lanes and force them to answer.`);
+    if (!out.length) out.push(`${TN(k)} showed no obvious weakness in this match.`);
+  }
+  return out;
+}
+function renderMacroMicro() {
+  $('#macroMicro').innerHTML = scoreTable('Macro', 'macro', macroRows) + scoreTable('Micro', 'micro', microRows);
+  $('#coach').innerHTML = coaching(R.my, false).map(t => `<li>${t}</li>`).join('');
+  $('#exploit').innerHTML = coaching(other(R.my), true).map(t => `<li>${t}</li>`).join('');
 }
 function renderWatch() {
   $('#objWatch').innerHTML = [other(R.my), R.my].map(k => {
@@ -1721,6 +1954,7 @@ function drawTimeline() {
     ['Invade · Blue', R.invasions.filter(v => v.by === 'b').map(v => [v.start, v.end, cssVar('--blue')])],
     ['Invade · Red', R.invasions.filter(v => v.by === 'r').map(v => [v.start, v.end, cssVar('--red')])],
     ['Turrets lost', R.turretLosses.map(x => [x.t, x.t, cssVar(x.team === 'b' ? '--blue' : '--red')])],
+    ['Map control', 'ctl'],
     ['Obj. threat · Blue', 'heat:b'],
     ['Obj. threat · Red', 'heat:r'],
   ];
@@ -1747,6 +1981,14 @@ function drawTimeline() {
   rows.forEach(([label, evs], r) => {
     const y = top + chartH + 14 + r * rowH;
     ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.fillText(label, padL - 8, y + rowH / 2);
+    if (evs === 'ctl') {                         // map control: color of the team holding more of the map
+      R.samples.forEach((s, i) => {
+        const v = R.control[i], x = X(s.t), x2 = X(R.samples[Math.min(i + 1, R.samples.length - 1)].t);
+        ctx.fillStyle = cssVar(v >= 0.5 ? '--blue' : '--red'); ctx.globalAlpha = Math.min(1, Math.abs(v - 0.5) * 3);
+        ctx.fillRect(x, y + 4, Math.max(1, x2 - x + 0.5), rowH - 8);
+      });
+      ctx.globalAlpha = 1; return;
+    }
     if (typeof evs === 'string') {               // heat strip: the stronger of the two objective threats
       const k = evs.slice(5); ctx.fillStyle = cssVar(k === 'b' ? '--blue' : '--red');
       R.samples.forEach((s, i) => {
@@ -1914,6 +2156,8 @@ function summarize() {
     play: Object.fromEntries(TEAMS.map(k => [k, Object.fromEntries(Object.entries(R.playbook[k]).map(([kind, e]) =>
       [pitKey(kind), Object.fromEntries(Object.entries(e.acts).map(([a, c]) => [pitKey(a), c]))]))])),
     turrets: R.turretLosses.map(x => ({ team: x.team, t: x.t, def: x.def })),
+    mm: Object.fromEntries(TEAMS.map(k => [k, { macro: R.macro[k].score, micro: R.micro[k].score, isolated: R.micro[k].isolated.length,
+      over: R.micro[k].over.length, stagger: R.micro[k].stagger, conv: R.macro[k].conv, convOf: R.macro[k].convOf, given: R.macro[k].given, behind: R.macro[k].behind.length }])),
   };
 }
 $('#saveBtn').onclick = () => {
@@ -1963,6 +2207,22 @@ function crossInsights(lib) {
   const topTag = Object.entries(tags).filter(([t]) => !/dead|base/i.test(t)).sort((a, b) => b[1] - a[1])[0];
   if (topTag) add('habit', 'Enemy shape', `Opponents' most common formation across your matches: <b>${esc(topTag[0])}</b> (${(topTag[1] * 100).toFixed(0)}% of game time).`);
   const gUs = lib.flatMap(m => m.ganks.filter(g => g.by === m.my)), gThem = lib.flatMap(m => m.ganks.filter(g => g.by !== m.my));
+  const withMM = lib.filter(m => m.mm);
+  if (withMM.length >= 2) {
+    const avg = (f) => Math.round(mean(withMM.map(f).filter(v => v != null)));
+    const usMa = avg(m => m.mm[m.my].macro), themMa = avg(m => m.mm[other(m.my)].macro), usMi = avg(m => m.mm[m.my].micro), themMi = avg(m => m.mm[other(m.my)].micro);
+    add(usMa - themMa < usMi - themMi ? 'warn' : '', 'Macro/micro', `Average over ${withMM.length} matches: your macro ${usMa} vs ${themMa}, your micro ${usMi} vs ${themMi}. ` +
+      (usMa - themMa < usMi - themMi ? 'Your map play is the weaker side: work on objectives after wins and answering theirs.' : 'Your execution is the weaker side: work on positioning and arriving at fights together.'));
+    const rep = [
+      [withMM.filter(m => m.mm[m.my].isolated >= 2).length, 'you got caught alone 2+ times'],
+      [withMM.filter(m => m.mm[m.my].over >= 2).length, 'you died 2+ times deep in enemy territory'],
+      [withMM.filter(m => m.mm[m.my].convOf >= 2 && m.mm[m.my].conv / m.mm[m.my].convOf < 0.5).length, 'you did not turn most wins into objectives'],
+      [withMM.filter(m => m.mm[m.my].given >= 1).length, 'you left an enemy objective unanswered'],
+      [withMM.filter(m => m.mm[m.my].behind >= 1).length, 'you took a fight with fewer heroes'],
+      [withMM.filter(m => m.mm[m.my].stagger != null && m.mm[m.my].stagger > 5).length, 'your team arrived at fights one by one'],
+    ].filter(([c]) => c >= 2).sort((a, b) => b[0] - a[0]);
+    if (rep.length) add('warn', 'Repeat mistake', rep.map(([c, t]) => `In ${c} of ${withMM.length} matches ${t}.`).join(' '));
+  }
   const theirSig = lib.flatMap(m => (m.sig || []).filter(x => x.team !== m.my));
   if (theirSig.length >= 2) {
     const after = theirSig.filter(x => x.prior.length).length, ahead = theirSig.filter(x => x.adv > 0).length, early = theirSig.filter(x => x.lead >= 8);
