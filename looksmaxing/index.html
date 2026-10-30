@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Looks Maxing in 10 Minutes</title>
+<style>
+  :root {
+    --bg: #f5f3fb; --card: #ffffff; --text: #1d1730; --muted: #6d6585; --line: #e6e1f2;
+    --accent: #6d4aff; --accent2: #ff5d8f; --good: #1fa971; --warn: #e89a1c; --bad: #e0444e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #120f1c; --card: #1d1830; --text: #f1edff; --muted: #a49cc0; --line: #2d2645; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 96px; }
+  h1, h2, h3 { line-height: 1.2; margin: 0 0 8px; }
+  h1 { font-size: 26px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 17px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 12px; }
+  .hero { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border: 0; }
+  .hero .muted { color: rgba(255,255,255,.85); }
+  button { font: inherit; font-weight: 650; border: 0; border-radius: 14px; padding: 12px 18px; cursor: pointer; background: var(--accent); color: #fff; }
+  button.light { background: rgba(255,255,255,.22); color: #fff; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  button.big { width: 100%; font-size: 18px; padding: 16px; }
+  button:disabled { opacity: .4; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .grow { flex: 1; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+  .stats .card { text-align: center; margin: 0; padding: 12px 6px; }
+  .stats b { display: block; font-size: 24px; }
+  .stats span { font-size: 12px; color: var(--muted); }
+  .seg { display: flex; background: var(--line); border-radius: 12px; padding: 4px; margin-bottom: 12px; }
+  .seg button { flex: 1; background: transparent; color: var(--muted); padding: 8px; border-radius: 9px; }
+  .seg button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--line); display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
+  nav button { flex: 1; max-width: 140px; background: transparent; color: var(--muted); border-radius: 0; padding: 10px 4px 12px; font-size: 12px; font-weight: 600; }
+  nav button i { display: block; font-style: normal; font-size: 22px; line-height: 1.2; }
+  nav button.on { color: var(--accent); }
+  .view { display: none; }
+  .view.on { display: block; }
+  .steps { list-style: none; padding: 0; margin: 0; }
+  .steps li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .steps li:last-child { border: 0; }
+  .steps .t { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Routine player */
+  .player { text-align: center; }
+  .ring { width: 220px; height: 220px; margin: 8px auto 12px; position: relative; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .time { position: absolute; inset: 0; display: grid; place-items: center; font-size: 46px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .ring .time small { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-top: -40px; }
+  .why { text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+  .progressbar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 8px 0 14px; }
+  .progressbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .3s; }
+  /* Library */
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; scrollbar-width: none; }
+  .chips button { white-space: nowrap; background: var(--card); color: var(--text); border: 1px solid var(--line); padding: 7px 12px; font-size: 14px; }
+  .chips button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  details.card summary { list-style: none; cursor: pointer; }
+  details.card summary::-webkit-details-marker { display: none; }
+  details.card[open] summary { margin-bottom: 10px; }
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; color: #fff; white-space: nowrap; }
+  .lvl-Strong { background: var(--good); } .lvl-Moderate { background: var(--warn); } .lvl-Weak { background: #8a8aa0; } .lvl-None, .lvl-Harmful { background: var(--bad); }
+  .art ul { padding-left: 20px; margin: 6px 0 10px; }
+  .art li { margin-bottom: 4px; }
+  .cite { font-size: 13px; border-left: 3px solid var(--accent); padding: 4px 10px; margin: 6px 0; background: var(--bg); border-radius: 0 8px 8px 0; }
+  .cite em { color: var(--muted); }
+  /* Progress */
+  .habit { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .habit:last-child { border: 0; }
+  .check { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); display: grid; place-items: center; flex: none; color: #fff; font-weight: 800; }
+  .habit.done .check { background: var(--good); border-color: var(--good); }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal div { aspect-ratio: 1; border-radius: 8px; background: var(--line); display: grid; place-items: center; font-size: 11px; color: var(--muted); }
+  .cal div.l1 { background: #c9bcff; color: #2b1d6e; } .cal div.l2 { background: var(--accent); color: #fff; }
+  .moods { display: flex; gap: 8px; }
+  .moods button { flex: 1; font-size: 24px; padding: 8px; background: var(--bg); border: 2px solid var(--line); }
+  .moods button.on { border-color: var(--accent); }
+  .disclaimer { font-size: 12px; color: var(--muted); text-align: center; margin-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <!-- TODAY -->
+  <section class="view on" id="v-today">
+    <div class="card hero">
+      <p class="small muted" id="hello"></p>
+      <h1>Looks Maxing in 10 Minutes</h1>
+      <p id="quote" style="font-size:18px;font-weight:600;margin:12px 0 4px"></p>
+      <p class="small muted" id="quoteBy"></p>
+      <button class="light big" id="startBtn" style="margin-top:10px">▶ Start today's 10 minutes</button>
+    </div>
+    <div class="stats">
+      <div class="card"><b id="sStreak">0</b><span>day streak 🔥</span></div>
+      <div class="card"><b id="sTotal">0</b><span>routines done</span></div>
+      <div class="card"><b id="sHabits">0/6</b><span>habits today</span></div>
+    </div>
+    <div class="card">
+      <h3>Today's tip</h3>
+      <p id="tip"></p>
+      <button class="ghost" id="tipMore">Read the research →</button>
+    </div>
+    <div class="card">
+      <h3>What "looks maxing" means here</h3>
+      <p class="muted small" style="margin:0">Healthy skin, good sleep, a fit body, good posture, good grooming and a confident smile. These are the things research shows change how people see you. No dangerous hacks and no rating your face.</p>
+    </div>
+  </section>
+
+  <!-- ROUTINE -->
+  <section class="view" id="v-routine">
+    <div id="routineList">
+      <h2>Your 10-minute routine</h2>
+      <div class="seg" id="timeSeg">
+        <button data-r="morning">☀️ Morning</button>
+        <button data-r="evening">🌙 Evening</button>
+      </div>
+      <div class="card"><ul class="steps" id="stepList"></ul></div>
+      <button class="big" id="go">▶ Start</button>
+    </div>
+    <div id="player" class="player" style="display:none">
+      <div class="progressbar"><i id="pBar"></i></div>
+      <p class="small muted" id="pCount"></p>
+      <h2 id="pTitle"></h2>
+      <div class="ring">
+        <svg viewBox="0 0 120 120" width="220" height="220">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/>
+          <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="url(#g)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="0"/>
+          <defs><linearGradient id="g"><stop offset="0" stop-color="#6d4aff"/><stop offset="1" stop-color="#ff5d8f"/></linearGradient></defs>
+        </svg>
+        <div class="time"><div><small id="pEmoji"></small><span id="pTime"></span></div></div>
+      </div>
+      <p id="pHow" style="font-size:17px"></p>
+      <div class="why"><b>Why it works:</b> <span id="pWhy"></span></div>
+      <div class="row" style="margin-top:16px">
+        <button class="ghost" id="pBack">⏮</button>
+        <button class="grow" id="pPause">Pause</button>
+        <button class="ghost" id="pNext">⏭</button>
+      </div>
+      <button class="ghost" id="pQuit" style="margin-top:10px;width:100%">End routine</button>
+    </div>
+    <div id="done" class="player" style="display:none">
+      <div style="font-size:72px">🏆</div>
+      <h1>10 minutes. Done.</h1>
+      <p id="doneMsg" class="muted"></p>
+      <div class="card" style="text-align:left">
+        <h3>How confident do you feel right now?</h3>
+        <div class="moods" id="moods"></div>
+      </div>
+      <button class="big" id="doneBtn">Back to today</button>
+    </div>
+  </section>
+
+  <!-- LEARN -->
+  <section class="view" id="v-learn">
+    <h2>The research</h2>
+    <p class="muted small">What science actually says about looking better. Each topic shows how strong the evidence is.</p>
+    <div class="chips" id="chips"></div>
+    <div id="articles"></div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section class="view" id="v-progress">
+    <h2>Daily habits</h2>
+    <div class="card" id="habits"></div>
+    <div class="card">
+      <h3>Last 28 days</h3>
+      <div class="cal" id="cal"></div>
+      <p class="small muted" style="margin:8px 0 0">Light = habits only · Dark = routine finished</p>
+    </div>
+    <div class="card">
+      <h3>Confidence check-ins</h3>
+      <div id="moodChart" class="small muted"></div>
+    </div>
+    <div class="card">
+      <h3>Your name</h3>
+      <div class="row"><input id="name" class="grow" maxlength="20" placeholder="What should we call you?" style="font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)"><button id="saveName">Save</button></div>
+    </div>
+    <p class="disclaimer">For education and motivation only, not medical advice. For skin problems that don't get better, see a doctor or dermatologist. If thinking about your looks is making you unhappy most days, talk to someone you trust.</p>
+  </section>
+</main>
+
+<nav>
+  <button data-v="today" class="on"><i>🏠</i>Today</button>
+  <button data-v="routine"><i>⏱️</i>Routine</button>
+  <button data-v="learn"><i>🔬</i>Research</button>
+  <button data-v="progress"><i>📈</i>Progress</button>
+</nav>
+
+<script>
+// ---------- Content ----------
+const ROUTINES = {
+  morning: [
+    { e: '💧', t: 'Drink a glass of water', s: 30, how: 'Drink a full glass of water before anything else.', why: 'You wake up a little dehydrated. Water helps your energy and focus. Evidence that extra water improves skin is weak, but it won\'t hurt.', ref: 'hydration' },
+    { e: '🧼', t: 'Wash your face', s: 60, how: 'Use lukewarm water and a gentle cleanser. Massage for 30 seconds, rinse, then pat dry. Don\'t rub.', why: 'Dermatologists recommend gentle cleansing. Harsh scrubbing and hot water irritate skin and can make acne worse.', ref: 'acne' },
+    { e: '🧴', t: 'Moisturize', s: 45, how: 'Put a pea-sized amount of moisturizer on slightly damp skin.', why: 'Moisturizer protects your skin barrier. Even oily, acne-prone skin does better with a light, non-comedogenic one.', ref: 'acne' },
+    { e: '☀️', t: 'Sunscreen SPF 30+', s: 45, how: 'Use about two finger-lengths for face and neck, including ears. Do this every day, even when it\'s cloudy.', why: 'In a 4.5-year randomized trial, people who used sunscreen daily showed no detectable increase in skin aging.', ref: 'sunscreen' },
+    { e: '🧍', t: 'Posture reset', s: 120, how: '10 wall angels (back and arms against a wall, slide your arms up and down), then 10 chin tucks. Finish standing tall: shoulders back and down.', why: 'Sitting upright made people feel more self-confident and less afraid under stress in a randomized trial.', ref: 'posture' },
+    { e: '💪', t: 'Quick workout', s: 180, how: '3 rounds of 40 seconds work, 20 seconds rest: squats, push-ups (knees are fine), then jumping jacks.', why: 'Regular exercise improves body shape, mood and sleep, and in one study it even made older adults\' skin look younger.', ref: 'exercise' },
+    { e: '🪥', t: 'Grooming check', s: 60, how: 'Hair styled, teeth brushed (2 minutes, fluoride), lip balm, nails clean, clothes that fit.', why: 'Grooming is the fastest visible upgrade. It shows you take care of yourself, and people notice.', ref: 'grooming' },
+    { e: '😁', t: 'Smile & set your intention', s: 60, how: 'Look in the mirror, give a real smile, and say one thing you\'re going to get done today.', why: 'In studies, the same people were rated more attractive in photos where they smiled.', ref: 'smile' },
+  ],
+  evening: [
+    { e: '🧼', t: 'Wash off the day', s: 75, how: 'Wash your face gently to remove sunscreen, sweat and oil. If you wore sunscreen or makeup, wash twice.', why: 'Leftover oil and product can clog pores. Washing at night lets acne treatments work on clean skin.', ref: 'acne' },
+    { e: '🧪', t: 'Treat & moisturize', s: 60, how: 'Use your treatment (e.g. adapalene or benzoyl peroxide for acne, ask a pharmacist), then moisturizer.', why: 'Topical retinoids and benzoyl peroxide are first-line, guideline-recommended acne treatments.', ref: 'acne' },
+    { e: '🧘', t: 'Stretch & breathe', s: 150, how: 'Stretch your chest in a doorway, do a hip-flexor lunge, then 5 slow breaths: in for 4 seconds, out for 6.', why: 'Opening up tight chest and hips helps your posture, and slow breathing helps you calm down before bed.', ref: 'posture' },
+    { e: '🥗', t: 'Plan tomorrow\'s food', s: 60, how: 'Pick 2–3 fruits or vegetables you\'ll eat tomorrow and put them where you\'ll see them.', why: 'Eating more fruit and vegetables gave people a healthier skin glow within 6 weeks that others noticed.', ref: 'diet' },
+    { e: '🪥', t: 'Teeth & lips', s: 150, how: 'Brush for 2 minutes with fluoride toothpaste, floss, then put on lip balm.', why: 'A healthy smile is one of the first things people notice. Flossing also stops bad breath.', ref: 'grooming' },
+    { e: '📵', t: 'Screens down, sleep prep', s: 60, how: 'Set your alarm for 8+ hours from now. Put your phone across the room.', why: 'People who missed sleep were rated less attractive, less healthy and more tired-looking by strangers.', ref: 'sleep' },
+    { e: '🙏', t: 'One win', s: 45, how: 'Think of one thing you did well today, however small.', why: 'Confidence comes from keeping promises to yourself. Noticing your wins helps you keep going.', ref: 'mind' },
+  ],
+};
+
+const LIBRARY = [
+  { id: 'sunscreen', cat: 'Dermatology', e: '☀️', title: 'Sunscreen: the #1 anti-aging step', level: 'Strong',
+    tldr: 'Most visible skin aging is caused by the sun. Daily sunscreen is the best-proven way to keep skin looking young.',
+    points: ['Use SPF 30 or higher, broad-spectrum (UVA + UVB), every morning.', 'Reapply every 2 hours when you\'re outside or after swimming or sweating.', 'Don\'t use tanning beds. They\'re classified as a definite cause of cancer.'],
+    cites: [
+      ['Hughes MCB et al. Sunscreen and prevention of skin aging: a randomized trial. Annals of Internal Medicine, 2013;158(11):781-790.', '903 adults, 4.5 years: the daily-sunscreen group showed no detectable increase in skin aging and was 24% less likely to show more aging than the group that used sunscreen whenever they liked.'],
+      ['El Ghissassi F et al. A review of human carcinogens, part D: radiation. Lancet Oncology, 2009;10(8):751-752.', 'The WHO\'s cancer agency (IARC) put UV tanning devices in its highest risk group (Group 1, "carcinogenic to humans").'],
+    ] },
+  { id: 'acne', cat: 'Dermatology', e: '🧴', title: 'Clear skin & acne', level: 'Strong',
+    tldr: 'Gentle cleansing and moisturizer, plus a proven treatment, used consistently for 8–12 weeks.',
+    points: ['Wash twice a day with a gentle cleanser. Scrubbing makes acne worse.', 'Over-the-counter options with strong evidence: benzoyl peroxide and adapalene (a retinoid). Start slowly, every other night.', 'Don\'t pick or pop. It causes marks and scars that last much longer than the spot.', 'If nothing improves after 3 months, or you get painful cysts, see a doctor. Prescription options work well.'],
+    cites: [
+      ['Zaenglein AL et al. Guidelines of care for the management of acne vulgaris. Journal of the American Academy of Dermatology, 2016;74(5):945-973.', 'Recommends topical retinoids and benzoyl peroxide as core acne treatments, often combined.'],
+    ] },
+  { id: 'retinol', cat: 'Dermatology', e: '🧪', title: 'Retinol & retinoids', level: 'Strong',
+    tldr: 'Vitamin A creams are the best-studied ingredient for smoother skin and fine lines. Mainly for adults. For teens, adapalene is the version used for acne.',
+    points: ['Start 2–3 nights a week. Dryness and peeling at first are normal.', 'Always pair with daily sunscreen, because retinoids make skin more sun-sensitive.', 'Don\'t use if pregnant. Check with a pharmacist if unsure.'],
+    cites: [
+      ['Kafi R et al. Improvement of naturally aged skin with vitamin A (retinol). Archives of Dermatology, 2007;143(5):606-612.', '0.4% retinol for 24 weeks significantly improved fine wrinkles compared with a placebo cream.'],
+    ] },
+  { id: 'sleep', cat: 'Sleep', e: '😴', title: 'Beauty sleep is real', level: 'Moderate',
+    tldr: 'Strangers can tell from your face when you\'ve slept badly, and they rate you as less attractive.',
+    points: ['Teens need 8–10 hours, adults 7–9.', 'Keep the same wake-up time every day, weekends included.', 'Phone out of bed. Dark, cool room.'],
+    cites: [
+      ['Axelsson J et al. Beauty sleep: experimental study on the perceived health and attractiveness of sleep deprived people. BMJ, 2010;341:c6614.', 'After sleep deprivation, the same people were rated less healthy, less attractive and more tired.'],
+      ['Sundelin T et al. Negative effects of restricted sleep on facial appearance and social appeal. Royal Society Open Science, 2017;4:160918.', 'Just two nights of short sleep made people look less attractive, and strangers wanted to socialize with them less.'],
+    ] },
+  { id: 'diet', cat: 'Food', e: '🥕', title: 'Eat your glow', level: 'Moderate',
+    tldr: 'Colorful fruit and vegetables give skin a warm, healthy tone that people notice, in just weeks.',
+    points: ['Aim for 5+ servings of fruit and vegetables a day: carrots, peppers, tomatoes, leafy greens, berries.', 'Plenty of protein helps muscles, hair and skin repair.', 'Crash diets backfire. They cost you muscle, energy and skin quality.'],
+    cites: [
+      ['Whitehead RD et al. You are what you eat: within-subject increases in fruit and vegetable consumption confer beneficial skin-color changes. PLoS ONE, 2012;7(3):e32988.', 'Eating more fruit and vegetables changed skin color within 6 weeks, and observers rated the changed skin as healthier-looking.'],
+    ] },
+  { id: 'hydration', cat: 'Food', e: '💧', title: 'Water & skin', level: 'Weak',
+    tldr: 'Drinking enough water is good for energy and focus. The idea that extra water fixes your skin has little evidence behind it.',
+    points: ['Drink when thirsty. Pale yellow urine is a good sign you\'re drinking enough.', 'Moisturizer does far more for dry skin than extra glasses of water.'],
+    cites: [
+      ['Palma L et al. Dietary water affects human skin hydration and biomechanics. Clinical, Cosmetic and Investigational Dermatology, 2015;8:413-421.', 'A small study found some effect of extra water on skin hydration, mostly in people who drank little to begin with. Not strong proof.'],
+    ] },
+  { id: 'exercise', cat: 'Fitness', e: '🏋️', title: 'Exercise & your look', level: 'Moderate',
+    tldr: 'Training changes your shape, posture, energy and mood. There\'s even early evidence that it helps skin.',
+    points: ['Strength training 2–3×/week: squats, push-ups, rows, lunges.', '150 minutes a week of movement that gets you breathing harder.', 'Progress takes months. Keeping it up week after week matters more than how hard each workout is.'],
+    cites: [
+      ['Crane JD et al. Exercise-stimulated interleukin-15 is controlled by AMPK and regulates skin metabolism and aging. Aging Cell, 2015;14(4):625-634.', 'Previously inactive older adults who did 3 months of endurance training had skin structure closer to that of younger adults.'],
+    ] },
+  { id: 'posture', cat: 'Confidence', e: '🧍', title: 'Posture', level: 'Moderate',
+    tldr: 'Standing and sitting tall changes how you come across and how you feel.',
+    points: ['Ear over shoulder, shoulder over hip.', 'Every hour: stand up, roll your shoulders back, take one deep breath.', 'Wall angels and chin tucks help undo "phone neck".'],
+    cites: [
+      ['Nair S et al. Do slumped and upright postures affect stress responses? A randomized trial. Health Psychology, 2015;34(6):632-641.', 'People made to sit upright reported higher self-esteem, better mood and less fear during a stressful task than people who slumped.'],
+      ['Ranehill E et al. Assessing the robustness of power posing. Psychological Science, 2015;26(5):653-656.', 'Honest note: the famous claim that "power poses" change your hormones did NOT replicate. Good posture helps how you feel, not your testosterone.'],
+    ] },
+  { id: 'smile', cat: 'Confidence', e: '😁', title: 'Smile', level: 'Moderate',
+    tldr: 'It\'s the easiest attractiveness boost there is.',
+    points: ['Practice a real smile that reaches your eyes.', 'Brush for 2 minutes twice a day with fluoride toothpaste, and floss.', 'Make eye contact for a few seconds when you talk.'],
+    cites: [
+      ['Reis HT et al. What is smiling is beautiful and good. European Journal of Social Psychology, 1990;20(3):259-267.', 'The same people were rated more attractive, and judged to have nicer qualities, in photos where they smiled.'],
+    ] },
+  { id: 'grooming', cat: 'Style', e: '✂️', title: 'Grooming & style', level: 'Weak',
+    tldr: 'Few studies, but it\'s the fastest visible change: fit, cleanliness and a haircut that suits you.',
+    points: ['Get a haircut that suits your face shape every 4–8 weeks. Ask the barber or stylist what they\'d recommend.', 'Clothes that fit beat expensive clothes. Get them tailored or try a size down.', 'Clean nails, tidy eyebrows, lip balm, deodorant.', 'Wear colors that suit your skin tone. Ask a friend which ones look best on you.'],
+    cites: [] },
+  { id: 'avoid', cat: 'Avoid', e: '🚭', title: 'Things that age you fast', level: 'Strong',
+    tldr: 'Smoking, vaping, heavy drinking and sunburns show up on your face.',
+    points: ['Smoking is one of the strongest known causes of facial aging.', 'Heavy drinking is linked to puffiness and more visible aging.', 'Never use tanning beds.'],
+    cites: [
+      ['Guyuron B et al. Factors contributing to the facial aging of identical twins. Plastic and Reconstructive Surgery, 2009;123(4):1321-1331.', 'In identical twins (same genes), the twin who smoked more or got more sun looked older.'],
+      ['Goodman GD et al. Impact of smoking and alcohol use on facial aging in women. Journal of Clinical and Aesthetic Dermatology, 2019;12(8):28-39.', 'Heavy drinking and smoking were both linked to more signs of facial aging in a large multinational survey.'],
+    ] },
+  { id: 'myths', cat: 'Myths', e: '⚠️', title: 'Dangerous "looksmaxxing" trends', level: 'Harmful',
+    tldr: 'Some online looksmaxxing advice is useless, and some of it can seriously hurt you.',
+    points: [
+      '<b>Bone smashing</b> (hitting your face to "grow bone"): no evidence it works. It can cause fractures, nerve damage and permanent asymmetry. Never do it.',
+      '<b>Mewing</b> (tongue posture to reshape the jaw): there are no clinical trials showing it changes an adult\'s face. Good posture is fine; don\'t expect a new jawline.',
+      '<b>Steroids, SARMs, "peptides" from the internet</b>: risk to your heart, liver and hormones, and acne and hair loss. Teens are especially at risk.',
+      '<b>DIY skin "hacks"</b> (lemon juice, toothpaste, baking soda on your face): these burn and irritate skin.',
+      '<b>Crash diets / extreme cutting</b>: lose muscle, look drained, risk eating disorders.',
+      '<b>Tanning beds</b>: a definite cause of skin cancer.',
+    ],
+    cites: [] },
+  { id: 'mind', cat: 'Mindset', e: '🧠', title: 'Keeping it healthy', level: 'Moderate',
+    tldr: 'Looking after yourself is good. Worrying about your looks all the time is not.',
+    points: ['Compare yourself with yourself from last month, not with filtered photos.', 'Most people you see online use lighting, angles, filters or editing.', 'If you check mirrors for hours, avoid people because of your looks, or feel distressed about a "flaw" others don\'t notice, talk to a doctor or someone you trust.'],
+    cites: [
+      ['Veale D et al. Body dysmorphic disorder in different settings: a systematic review and estimated weighted prevalence. Body Image, 2016;18:168-186.', 'About 2% of people have body dysmorphic disorder, an obsession with perceived flaws. It\'s treatable, and asking for help works.'],
+    ] },
+];
+
+const QUOTES = [
+  ['Discipline is choosing between what you want now and what you want most.', 'Abraham Lincoln (attributed)'],
+  ['We are what we repeatedly do. Excellence, then, is not an act, but a habit.', 'Will Durant'],
+  ['Take care of your body. It\'s the only place you have to live.', 'Jim Rohn'],
+  ['You don\'t have to be great to start, but you have to start to be great.', 'Zig Ziglar'],
+  ['Small daily improvements are the key to staggering long-term results.', 'Unknown'],
+  ['Confidence is not "they will like me." It\'s "I\'ll be fine if they don\'t."', 'Unknown'],
+  ['The best project you\'ll ever work on is you.', 'Unknown'],
+  ['Motivation gets you going. Habit keeps you going.', 'Jim Ryun'],
+  ['Ten minutes a day is 60 hours a year. Use them well.', 'Looks Maxing'],
+];
+
+const HABITS = [
+  ['sleep', '😴', 'Slept 8+ hours'],
+  ['spf', '☀️', 'Wore sunscreen'],
+  ['veg', '🥕', '5 servings of fruit & veg'],
+  ['move', '🏃', '30 minutes of movement'],
+  ['water', '💧', 'Drank enough water'],
+  ['teeth', '🪥', 'Brushed twice, flossed'],
+];
+
+// ---------- Storage ----------
+const KEY = 'looksmax10';
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+let S = Object.assign({ name: '', days: {}, total: 0, moods: [] }, load());
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+const dayKey = (d = new Date()) => d.toLocaleDateString('en-CA');
+const today = () => (S.days[dayKey()] ||= { routine: false, habits: {} });
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function streak() {
+  let n = 0;
+  const d = new Date();
+  if (!S.days[dayKey(d)]?.routine) d.setDate(d.getDate() - 1); // today not done yet doesn't break the streak
+  while (S.days[dayKey(d)]?.routine) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+// ---------- Navigation ----------
+function show(v) {
+  document.querySelectorAll('.view').forEach((el) => el.classList.toggle('on', el.id === 'v-' + v));
+  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  window.scrollTo(0, 0);
+  if (v === 'today') renderToday();
+  if (v === 'progress') renderProgress();
+}
+document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => show(b.dataset.v)));
+
+// ---------- Today ----------
+const dayNum = Math.floor(Date.now() / 864e5);
+function renderToday() {
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  $('hello').textContent = `${greet}${S.name ? ', ' + S.name : ''} · ${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`;
+  const [q, by] = QUOTES[dayNum % QUOTES.length];
+  $('quote').textContent = `"${q}"`;
+  $('quoteBy').textContent = '— ' + by;
+  $('startBtn').textContent = today().routine ? '✓ Done today. Go again?' : '▶ Start today\'s 10 minutes';
+  $('sStreak').textContent = streak();
+  $('sTotal').textContent = S.total;
+  $('sHabits').textContent = `${Object.values(today().habits).filter(Boolean).length}/${HABITS.length}`;
+  const art = LIBRARY[dayNum % LIBRARY.length];
+  $('tip').innerHTML = `<b>${art.e} ${esc(art.title)}.</b> ${esc(art.tldr)}`;
+  $('tipMore').onclick = () => openArticle(art.id);
+}
+$('startBtn').onclick = () => {
+  pickRoutine(new Date().getHours() >= 17 ? 'evening' : 'morning');
+  show('routine');
+};
+
+// ---------- Routine ----------
+let rName = 'morning', idx = 0, left = 0, timer = null, paused = false;
+const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+function pickRoutine(name) {
+  rName = name;
+  document.querySelectorAll('#timeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.r === name));
+  $('stepList').innerHTML = ROUTINES[name].map((s) => `<li><span>${s.e}</span><span>${esc(s.t)}</span><span class="t">${fmt(s.s)}</span></li>`).join('');
+  $('routineList').style.display = '';
+  $('player').style.display = 'none';
+  $('done').style.display = 'none';
+}
+document.querySelectorAll('#timeSeg button').forEach((b) => (b.onclick = () => pickRoutine(b.dataset.r)));
+
+function beep(freq = 880, ms = 160) {
+  try {
+    const ctx = beep.ctx ||= new AudioContext();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = freq; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + ms / 1000);
+    o.start(); o.stop(ctx.currentTime + ms / 1000);
+  } catch {}
+  try { navigator.vibrate && navigator.vibrate(120); } catch {}
+}
+
+function startStep(i) {
+  const steps = ROUTINES[rName];
+  if (i >= steps.length) return finish();
+  idx = Math.max(0, i);
+  const s = steps[idx];
+  left = s.s;
+  $('pCount').textContent = `Step ${idx + 1} of ${steps.length}`;
+  $('pTitle').textContent = s.t;
+  $('pEmoji').textContent = s.e;
+  $('pHow').textContent = s.how;
+  $('pWhy').textContent = s.why;
+  $('pBar').style.width = (idx / steps.length) * 100 + '%';
+  tickUI();
+}
+function tickUI() {
+  const s = ROUTINES[rName][idx];
+  $('pTime').textContent = fmt(left);
+  $('arc').style.strokeDashoffset = 326.7 * (1 - left / s.s);
+}
+function run() {
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if (paused) return;
+    left--;
+    if (left === 3) beep(660, 90);
+    if (left <= 0) { beep(); startStep(idx + 1); return; }
+    tickUI();
+  }, 1000);
+}
+$('go').onclick = () => {
+  $('routineList').style.display = 'none';
+  $('player').style.display = '';
+  paused = false; $('pPause').textContent = 'Pause';
+  startStep(0); run(); beep();
+};
+$('pPause').onclick = () => { paused = !paused; $('pPause').textContent = paused ? 'Resume' : 'Pause'; };
+$('pNext').onclick = () => startStep(idx + 1);
+$('pBack').onclick = () => startStep(idx - 1);
+$('pQuit').onclick = () => { clearInterval(timer); pickRoutine(rName); };
+
+const DONE_MSGS = [
+  'You just did more for how you look than most people do all week.',
+  'That\'s another day of keeping a promise to yourself.',
+  'Future you says thanks. Same time tomorrow?',
+  'Small steps, every day. That\'s how real change happens.',
+];
+function finish() {
+  clearInterval(timer);
+  beep(1046, 300);
+  const t = today();
+  if (!t.routine) S.total++;
+  t.routine = true;
+  save();
+  $('player').style.display = 'none';
+  $('done').style.display = '';
+  $('doneMsg').textContent = `${streak()}-day streak 🔥 ${DONE_MSGS[S.total % DONE_MSGS.length]}`;
+  $('moods').innerHTML = ['😟', '😕', '🙂', '😊', '😎'].map((m, i) => `<button data-m="${i + 1}">${m}</button>`).join('');
+  $('moods').querySelectorAll('button').forEach((b) => (b.onclick = () => {
+    $('moods').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    S.moods = S.moods.filter((m) => m.d !== dayKey()).concat({ d: dayKey(), v: Number(b.dataset.m) }).slice(-60);
+    save();
+  }));
+}
+$('doneBtn').onclick = () => { pickRoutine(rName); show('today'); };
+
+// ---------- Research library ----------
+let cat = 'All';
+function renderLibrary(openId) {
+  const cats = ['All', ...new Set(LIBRARY.map((a) => a.cat))];
+  $('chips').innerHTML = cats.map((c) => `<button class="${c === cat ? 'on' : ''}" data-c="${c}">${c}</button>`).join('');
+  $('chips').querySelectorAll('button').forEach((b) => (b.onclick = () => { cat = b.dataset.c; renderLibrary(); }));
+  $('articles').innerHTML = LIBRARY.filter((a) => cat === 'All' || a.cat === cat).map((a) => `
+    <details class="card art" id="a-${a.id}" ${a.id === openId ? 'open' : ''}>
+      <summary>
+        <div class="row"><h3 class="grow" style="margin:0">${a.e} ${esc(a.title)}</h3><span class="badge lvl-${a.level}">${a.level === 'Harmful' ? 'Avoid' : a.level + ' evidence'}</span></div>
+        <p class="muted small" style="margin:6px 0 0">${esc(a.tldr)}</p>
+      </summary>
+      <b>${a.level === 'Harmful' ? 'Don\'t do these' : 'What to do'}</b>
+      <ul>${a.points.map((p) => `<li>${p}</li>`).join('')}</ul>
+      ${a.cites.length ? '<b>The research</b>' + a.cites.map(([c, f]) => `<div class="cite">${esc(f)}<br><em>${esc(c)}</em></div>`).join('') : ''}
+    </details>`).join('');
+}
+function openArticle(id) {
+  cat = 'All';
+  show('learn');
+  renderLibrary(id);
+  setTimeout(() => $('a-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+}
+
+// ---------- Progress ----------
+function renderProgress() {
+  const t = today();
+  $('habits').innerHTML = HABITS.map(([k, e, label]) => `<div class="habit ${t.habits[k] ? 'done' : ''}" data-k="${k}"><span class="check">${t.habits[k] ? '✓' : ''}</span><span>${e} ${label}</span></div>`).join('');
+  $('habits').querySelectorAll('.habit').forEach((el) => (el.onclick = () => { t.habits[el.dataset.k] = !t.habits[el.dataset.k]; save(); renderProgress(); }));
+
+  const cells = [];
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const rec = S.days[dayKey(d)];
+    const lvl = rec?.routine ? 'l2' : rec && Object.values(rec.habits).some(Boolean) ? 'l1' : '';
+    cells.push(`<div class="${lvl}">${d.getDate()}</div>`);
+  }
+  $('cal').innerHTML = cells.join('');
+
+  const m = S.moods.slice(-14);
+  $('moodChart').innerHTML = m.length
+    ? `<div style="display:flex;gap:6px;align-items:flex-end;height:90px">${m.map((x) => `<div style="flex:1;text-align:center"><div style="height:${x.v * 15}px;background:linear-gradient(var(--accent2),var(--accent));border-radius:6px 6px 0 0"></div>${x.d.slice(8)}</div>`).join('')}</div>`
+    : 'Finish a routine to log how confident you feel.';
+  $('name').value = S.name;
+}
+$('saveName').onclick = () => { S.name = $('name').value.trim(); save(); $('saveName').textContent = 'Saved ✓'; setTimeout(() => ($('saveName').textContent = 'Save'), 1500); };
+
+// Android back button support (called by the app wrapper).
+window.onAndroidBack = () => {
+  if ($('player').style.display !== 'none') { $('pQuit').click(); return true; }
+  if (!$('v-today').classList.contains('on')) { show('today'); return true; }
+  return false;
+};
+
+pickRoutine(new Date().getHours() >= 17 ? 'evening' : 'morning');
+renderLibrary();
+renderToday();
+</script>
+</body>
+</html>
