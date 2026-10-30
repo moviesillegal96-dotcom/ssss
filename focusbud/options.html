@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FocusBud Settings</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
+    header { display: flex; gap: 14px; align-items: center; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+    .site-row { display: grid; grid-template-columns: 1fr 90px auto; gap: 8px; align-items: center; margin-top: 8px; }
+    .site-row button { padding: 8px 12px; }
+    .hint { font-size: 13px; margin: 2px 0 0; }
+    #saved { color: var(--green); font-weight: 600; opacity: 0; transition: opacity .3s; }
+    #saved.show { opacity: 1; }
+    .history { display: flex; gap: 6px; align-items: flex-end; height: 120px; margin-top: 12px; }
+    .history div { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
+    .history i { display: block; background: var(--green); border-radius: 4px 4px 0 0; margin-bottom: 4px; min-height: 2px; }
+    .history i.over { background: var(--red); }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div id="bud"></div>
+    <div>
+      <h1>FocusBud</h1>
+      <p class="muted" style="margin:0">Set your screen time. Break it, and your plant will make you feel bad about it.</p>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>You and your bud</h2>
+    <div class="grid2">
+      <div>
+        <label for="budName">Your plant's name</label>
+        <input id="budName" maxlength="20">
+      </div>
+      <div>
+        <label for="intensity">Guilt level</label>
+        <select id="intensity">
+          <option value="gentle">Gentle: a disappointed friend</option>
+          <option value="medium">Medium: a disappointed parent</option>
+          <option value="savage">Savage: no mercy</option>
+        </select>
+      </div>
+    </div>
+    <label for="goal">What should you be doing instead?</label>
+    <input id="goal" maxlength="80" placeholder="finish the school project">
+    <p class="hint muted">Your bud will remind you of this every time you try to scroll. Write it like "I want to ___".</p>
+  </section>
+
+  <section class="card">
+    <h2>Screen time</h2>
+    <div class="grid2">
+      <div>
+        <label for="totalLimit">Daily total (minutes)</label>
+        <input id="totalLimit" type="number" min="0" max="1440">
+        <p class="hint muted" id="totalHint">All the sites below added together.</p>
+      </div>
+      <div>
+        <label for="passMinutes">"Continue anyway" unlocks for (minutes)</label>
+        <input id="passMinutes" type="number" min="1" max="30">
+      </div>
+    </div>
+
+    <label id="sitesLabel">Blocked sites and their daily limits (minutes)</label>
+    <div id="sites"></div>
+    <div class="site-row">
+      <input id="newDomain" placeholder="e.g. twitch.tv">
+      <input id="newLimit" type="number" min="0" value="15">
+      <button id="add">Add</button>
+    </div>
+  </section>
+
+  <div class="row">
+    <button id="save">Save</button>
+    <span id="saved">Saved. Bud is watching.</span>
+  </div>
+
+  <section class="card">
+    <h2>Last 14 days</h2>
+    <p class="muted" id="statsLine" style="margin:0"></p>
+    <div class="history" id="history"></div>
+  </section>
+</main>
+<script src="common.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

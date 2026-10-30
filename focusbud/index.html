@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FocusBud</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    main { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+    .hero { text-align: center; }
+    .hero h1 { font-size: 40px; }
+    .hero p { font-size: 18px; max-width: 520px; margin: 0 auto 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 24px 0; }
+    .grid h3 { font-size: 17px; }
+    .grid p { margin: 0; font-size: 14px; }
+    .try { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    ol { padding-left: 20px; }
+    code { background: var(--line); padding: 1px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div id="bud"></div>
+    <h1>FocusBud</h1>
+    <p class="muted">A browser extension that blocks social media once you hit the screen time <b>you</b> chose. The only thing enforcing it is guilt: your plant, Bud.</p>
+    <div class="try">
+      <a class="btn" href="popup.html">Try the popup</a>
+      <a class="btn" href="blocked.html?site=tiktok.com&reason=site">See the block screen</a>
+      <a class="btn" href="options.html">Settings</a>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="card"><h3>⏱️ Your own limits</h3><p class="muted">A daily total plus a limit for each site. Only time with the tab in front of you counts.</p></div>
+    <div class="card"><h3>🥀 A plant with feelings</h3><p class="muted">Bud starts every day healthy. Going over your limit or using a guilt pass makes it wilt and cry.</p></div>
+    <div class="card"><h3>😔 Guilt, not walls</h3><p class="muted">You can always get through, but only after three "are you sure?" questions, a wait that gets longer each time, and typing out a confession.</p></div>
+    <div class="card"><h3>🎯 Focus sessions</h3><p class="muted">Block every listed site for 25, 50 or 90 minutes with one click.</p></div>
+    <div class="card"><h3>🔥 Streaks</h3><p class="muted">Days under every limit with zero guilt passes build a streak. Raising your own limits gets guilt-tripped too.</p></div>
+    <div class="card"><h3>🔒 Private</h3><p class="muted">Everything stays in your browser. No accounts, no servers, no tracking.</p></div>
+  </div>
+
+  <section class="card">
+    <h2>Install it (Chrome, Edge, Brave)</h2>
+    <ol>
+      <li>Download this <code>focusbud</code> folder.</li>
+      <li>Open <code>chrome://extensions</code> and switch on <b>Developer mode</b>.</li>
+      <li>Click <b>Load unpacked</b> and choose the <code>focusbud</code> folder.</li>
+      <li>Pin FocusBud from the puzzle-piece menu. The settings page opens on its own the first time.</li>
+    </ol>
+    <p class="muted" style="margin:0">On this demo page nothing is really blocked; your settings are saved in this browser only.</p>
+  </section>
+</main>
+<script src="common.js"></script>
+<script>document.getElementById('bud').innerHTML = FB.budSVG('happy', 140);</script>
+</body>
+</html>

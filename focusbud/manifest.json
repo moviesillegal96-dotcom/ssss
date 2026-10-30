@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "FocusBud",
+  "version": "1.0.0",
+  "description": "Set your own daily screen time for social media. Go over it and your plant, Bud, will guilt-trip you.",
+  "permissions": ["storage", "tabs", "alarms", "idle"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FocusBud",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "options_page": "options.html",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+}

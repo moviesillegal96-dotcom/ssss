@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FocusBud</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { width: 340px; padding: 14px; margin: 0 auto; }
+    body.app { width: auto; max-width: 480px; padding: 16px; }
+    .setup { border-color: var(--orange); }
+    .setup p { font-size: 13px; margin: 4px 0 10px; }
+    .setup button { width: 100%; margin-top: 6px; }
+    .hidden { display: none; }
+    .bud { text-align: center; }
+    .bud p { margin: 4px 0 0; }
+    .health { font-size: 13px; }
+    .sites { display: grid; gap: 10px; margin-top: 4px; }
+    .site .row { font-size: 13px; margin-bottom: 3px; }
+    .focus { display: flex; gap: 8px; }
+    .focus button { flex: 1; padding: 8px; }
+    section { margin-top: 12px; }
+    footer { display: flex; justify-content: space-between; margin-top: 14px; font-size: 13px; }
+    footer a { color: var(--green); }
+  </style>
+</head>
+<body>
+  <div class="bud">
+    <div id="bud"></div>
+    <h2 id="mood"></h2>
+    <p class="muted" id="line"></p>
+    <p class="health muted" id="health"></p>
+  </div>
+
+  <section class="card setup hidden" id="setup">
+    <strong>Turn on blocking</strong>
+    <p>FocusBud needs <b>Accessibility</b> access to see when you open a blocked app. It only checks which app is open. It never reads what's on your screen.</p>
+    <p class="muted">If the switch is greyed out ("restricted setting"): tap <b>App info</b>, then the ⋮ menu, then <b>Allow restricted settings</b>, and try again.</p>
+    <button id="openGuard">Open Accessibility settings</button>
+    <button class="ghost" id="openInfo">App info</button>
+  </section>
+
+  <section class="card">
+    <div class="row"><strong class="grow">Today's screen time</strong><span id="total" class="pill"></span></div>
+    <div class="bar" style="margin-top:8px"><i id="totalBar"></i></div>
+  </section>
+
+  <section class="card">
+    <strong>Focus session</strong>
+    <p class="muted" id="focusText" style="margin:2px 0 8px;font-size:13px">Block every site on your list for a while.</p>
+    <div class="focus" id="focusBtns">
+      <button data-min="25">25 min</button>
+      <button data-min="50">50 min</button>
+      <button data-min="90">90 min</button>
+    </div>
+  </section>
+
+  <section>
+    <strong id="perLabel">Per site</strong>
+    <div class="sites" id="sites"></div>
+  </section>
+
+  <footer>
+    <span class="muted" id="streak"></span>
+    <a href="options.html" target="_blank" id="settingsLink">Settings</a>
+  </footer>
+
+  <script src="common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

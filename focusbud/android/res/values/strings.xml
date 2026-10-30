@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FocusBud</string>
+    <string name="guard_description">FocusBud uses this to notice when you open an app on your block list, so it can count your screen time and show Bud\'s reminder when your time is up. It only checks which app is open and never reads what is on your screen.</string>
+</resources>

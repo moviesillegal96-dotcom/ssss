@@ -1,0 +1,54 @@
+:root {
+  --bg: #f6f8f2;
+  --card: #ffffff;
+  --text: #22301f;
+  --muted: #6b7a66;
+  --line: #e1e7da;
+  --green: #4caf50;
+  --green-dark: #2e7d32;
+  --orange: #ff9800;
+  --red: #e53935;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141a13;
+    --card: #1e261c;
+    --text: #e6eee2;
+    --muted: #93a38d;
+    --line: #2f3a2c;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+h1, h2, h3 { margin: 0 0 8px; line-height: 1.2; }
+.muted { color: var(--muted); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.row { display: flex; gap: 10px; align-items: center; }
+.grow { flex: 1; }
+button, .btn {
+  font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 10px;
+  padding: 10px 16px; background: var(--green); color: #fff; text-decoration: none; display: inline-block; text-align: center;
+}
+button:hover, .btn:hover { background: var(--green-dark); }
+button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+button.ghost:hover { color: var(--text); background: var(--line); }
+button.danger { background: var(--red); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+input, select {
+  font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--text); width: 100%;
+}
+label { display: block; font-weight: 600; margin: 12px 0 4px; }
+.bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--green); border-radius: 4px; transition: width .3s; }
+.bar > i.warn { background: var(--orange); }
+.bar > i.over { background: var(--red); }
+.pill { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--line); color: var(--muted); white-space: nowrap; }
+.tear { animation: drip 1.6s infinite ease-in; }
+.tear.t2 { animation-delay: .8s; }
+@keyframes drip { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(26px); opacity: 0; } }

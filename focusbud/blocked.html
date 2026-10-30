@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FocusBud: Time's Up</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    main { max-width: 560px; margin: 0 auto; padding: 32px 16px 48px; text-align: center; }
+    #bud { margin: 0 auto; }
+    h1 { font-size: 28px; margin-top: 8px; }
+    .guilt { font-size: 18px; margin: 10px auto 20px; max-width: 460px; min-height: 52px; transition: opacity .4s; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 16px; }
+    .stats .card { padding: 12px 8px; }
+    .stats b { display: block; font-size: 22px; }
+    .stats span { font-size: 12px; color: var(--muted); }
+    .could { text-align: left; margin-bottom: 20px; }
+    .could ul { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; }
+    .goal { font-style: italic; }
+    .actions { display: grid; gap: 10px; justify-items: center; }
+    .actions .big { font-size: 18px; padding: 14px 28px; width: 100%; max-width: 360px; }
+    .tiny { background: none; color: var(--muted); font-weight: 400; font-size: 13px; padding: 4px; text-decoration: underline; }
+    .tiny:hover { background: none; color: var(--text); }
+    .countdown { font-size: 48px; font-weight: 700; margin: 8px 0; font-variant-numeric: tabular-nums; }
+    .phrase { user-select: none; background: var(--card); border: 1px dashed var(--muted); border-radius: 8px; padding: 10px; margin: 8px 0; }
+    #typed { text-align: center; }
+    .hidden { display: none !important; }
+    .shake { animation: shake .4s; }
+    @keyframes shake { 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
+  </style>
+</head>
+<body>
+<main>
+  <div id="bud"></div>
+  <h1 id="title"></h1>
+  <p class="guilt" id="guilt"></p>
+
+  <!-- Stage: the main guilt trip -->
+  <section id="stage-main">
+    <div class="stats">
+      <div class="card"><b id="siteTime"></b><span id="siteLabel"></span></div>
+      <div class="card"><b id="totalTime"></b><span>on social media today</span></div>
+      <div class="card"><b id="health"></b><span id="budLabel"></span></div>
+    </div>
+    <div class="card could" id="could">
+      <strong>With that time you could have:</strong>
+      <ul id="couldList"></ul>
+    </div>
+    <p>You said you wanted to <span class="goal" id="goal"></span>.</p>
+    <div class="actions">
+      <button class="big" id="leave"></button>
+      <button class="tiny" id="startPass">No, I need to go on this site anyway…</button>
+    </div>
+  </section>
+
+  <!-- Stage: "are you sure" questions -->
+  <section id="stage-ask" class="hidden">
+    <p id="question" style="font-size:18px"></p>
+    <div class="actions">
+      <button class="big" id="askNo"></button>
+      <button class="tiny" id="askYes"></button>
+    </div>
+  </section>
+
+  <!-- Stage: forced wait -->
+  <section id="stage-wait" class="hidden">
+    <p class="muted">Sit with that decision for a moment. Look at {bud}.</p>
+    <div class="countdown" id="countdown"></div>
+    <div class="actions"><button class="big" id="waitLeave">Okay, fine. Take me away.</button></div>
+  </section>
+
+  <!-- Stage: type the confession -->
+  <section id="stage-type" class="hidden">
+    <p>Type this exactly to unlock <b id="unlockSite"></b> for <b id="unlockMin"></b> minutes:</p>
+    <p class="phrase" id="phrase"></p>
+    <input id="typed" autocomplete="off" spellcheck="false" placeholder="Type it out. No pasting.">
+    <div class="actions" style="margin-top:12px">
+      <button id="confirm" class="danger" disabled>Unlock and hurt my bud</button>
+      <button class="tiny" id="typeLeave">Never mind, I'll go do something useful</button>
+    </div>
+  </section>
+
+  <!-- Stage: left (the good ending) -->
+  <section id="stage-proud" class="hidden">
+    <p style="font-size:18px">Proud of you. <span id="proudBud"></span> just grew a little. 🌱</p>
+  </section>
+</main>
+<script src="common.js"></script>
+<script src="blocked.js"></script>
+</body>
+</html>
