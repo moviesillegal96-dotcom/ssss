@@ -53,7 +53,7 @@ block screen. Nothing is really blocked in this mode.
 | `options.html/js` | Settings: limits, blocked sites/apps, goal, guilt level, 14-day history |
 | `blocked.html/js` | The guilt-trip block screen and the guilt-pass steps |
 | `background.js`, `manifest.json` | Extension only: counts time on each site and redirects when a limit is reached |
-| `android/` | Android app: `GuardService` watches which app is open and counts time, `BlockActivity` shows the block screen, `Store` keeps the data |
+| `android/` | Android app: `GuardService` watches which app is open and counts time, `BlockActivity` shows the block screen, `Store` keeps the data, `make_icons.py` draws the battle-droid launcher icon |
 
 ## Building the APK
 On Debian/Ubuntu:
