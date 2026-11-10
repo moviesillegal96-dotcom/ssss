@@ -59,3 +59,20 @@ an APK signed with a different key can't be installed over the old app without u
 
 The app serves its files from `https://appassets.androidplatform.net/`, which is intercepted and never touches the
 network, so Web Workers, WebAssembly and the camera work inside the WebView.
+
+---
+
+# Planner
+
+A schedule and to-do list in one file: [`planner.html`](planner.html). Open it in any browser (phone or computer);
+it works offline and saves everything in that browser.
+
+- **Add:** type what you need to do, pick **for when** (a day with an optional time, a whole week, or a whole month), tap **Add**.
+  Shortcuts: Today, Tomorrow, This week, Next week, This month.
+- **Smart text:** "Dentist tomorrow at 3pm", "Call mom on friday", "Finish report this week", "Pay rent next month"
+  set the date and time for you (tap *ignore* to keep the words as plain text).
+- **Day / Week / Month** views, sorted automatically: timed items by clock (Schedule), then starred, then the rest (To-do).
+  Unfinished items from the past show up under **Overdue** with *Move all to today*.
+- **Calendar:** a month grid with a dot for each item; tap a day to see it and add to it.
+- **All:** everything you added, with search and Open / Done / All filters, plus backup export and import.
+- Tap an item to edit it, ☆ to mark it important, ✕ to delete (with Undo).
