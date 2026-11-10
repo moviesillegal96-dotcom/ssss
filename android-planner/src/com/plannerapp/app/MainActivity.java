@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
         boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
         setTheme(night ? android.R.style.Theme_Material_NoActionBar : android.R.style.Theme_Material_Light_NoActionBar);
         super.onCreate(savedInstanceState);
-        int bg = Color.parseColor(night ? "#12131a" : "#f4f5fa");
+        int bg = Color.parseColor(night ? "#191919" : "#ffffff");
         if (night || Build.VERSION.SDK_INT >= 23) {
             getWindow().setStatusBarColor(bg);
             if (!night) getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);

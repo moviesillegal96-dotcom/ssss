@@ -82,7 +82,12 @@ host this folder on any https site (for example GitHub Pages), open `planner.htm
   Unfinished items from the past show up under **Overdue** with *Move all to today*.
 - **Calendar:** a month grid with a dot for each item; tap a day to see it and add to it.
 - **All:** everything you added, with search and Open / Done / All filters, plus backup export and import.
-- Tap an item to edit it, ☆ to mark it important, ✕ to delete (with Undo).
+- **Tags:** type `#work` or `#health` in the text. Tags show as colored labels, and the tag row at the top filters every view.
+- **Repeating items:** pick *Every day / week / month*, or type "Gym every day 6pm", "Standup every monday 9am", "Pay rent monthly".
+  Ticking one off creates the next one automatically.
+- **Notes:** tap an item to open it as a page: title, when, repeat, tags and free notes. Search looks in notes and tags too.
+- **Week board:** on a wide screen the Week view is a board with one column per day; the Calendar shows item titles in each day.
+- ☆ marks an item important, ✕ deletes it (with Undo). Press `/` or `n` on a keyboard to jump to the new-item box.
 
 `android-planner/build-apk.sh` rebuilds `Planner.apk` from `planner.html` (same tools as the Chess Helper build). It creates a
 signing key (`android-planner/planner.keystore`, not committed) on first run; an APK signed with a different key can't be
