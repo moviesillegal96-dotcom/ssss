@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f1e7">
+<title>Daily Spark</title>
+<style>
+:root {
+  --bg: #f6f1e7;
+  --surface: #fffdf8;
+  --ink: #1d1a16;
+  --muted: #6f675c;
+  --line: #e2d9c8;
+  --accent: #e2552b;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbe3d8;
+  --ok: #2f7d4f;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15130f;
+    --surface: #1f1c17;
+    --ink: #f3ede1;
+    --muted: #a39a8b;
+    --line: #353028;
+    --accent: #ff7a4d;
+    --accent-ink: #1d1a16;
+    --accent-soft: #3a2118;
+    --ok: #6fcf97;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15130f;
+  --surface: #1f1c17;
+  --ink: #f3ede1;
+  --muted: #a39a8b;
+  --line: #353028;
+  --accent: #ff7a4d;
+  --accent-ink: #1d1a16;
+  --accent-soft: #3a2118;
+  --ok: #6fcf97;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 64px;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0 20px;
+}
+.brand { font-weight: 700; letter-spacing: .02em; }
+.brand span { color: var(--accent); }
+.date { color: var(--muted); font-size: .875rem; }
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 9px 16px;
+  min-height: 40px;
+}
+button:hover { border-color: var(--muted); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.icon { padding: 0; width: 40px; }
+button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+.hero { padding: 12px 0 28px; }
+.hero .label, h2 {
+  font-size: .75rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+blockquote {
+  margin: 0 0 20px;
+  font-family: var(--serif);
+  font-size: clamp(1.7rem, 6.5vw, 2.6rem);
+  line-height: 1.2;
+  text-wrap: balance;
+  transition: opacity .2s;
+}
+blockquote.fade { opacity: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  margin-bottom: 28px;
+}
+.stat { padding: 14px 8px; text-align: center; }
+.stat + .stat { border-left: 1px solid var(--line); }
+.stat b { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat small { color: var(--muted); font-size: .75rem; }
+
+section { margin-bottom: 32px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+}
+form { display: flex; gap: 8px; }
+input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 16px;
+  min-height: 40px;
+}
+ul { list-style: none; margin: 0; padding: 0; }
+.goals li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.goals li:last-child { border-bottom: 0; }
+.goals input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); flex: none; margin: 0; }
+.goals label { flex: 1; overflow-wrap: anywhere; }
+.goals li.done label { text-decoration: line-through; color: var(--muted); }
+.x { border: 0; background: none; color: var(--muted); width: 40px; padding: 0; font-size: 1.2rem; }
+.empty { color: var(--muted); font-size: .9rem; margin: 12px 0 0; }
+.cheer { color: var(--ok); font-weight: 600; margin: 12px 0 0; min-height: 1.5em; }
+
+.timer { text-align: center; }
+.clock {
+  font-size: clamp(3rem, 16vw, 4.5rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin: 8px 0 16px;
+}
+.timer .row { justify-content: center; }
+.timer .lengths { margin-bottom: 4px; }
+.timer p { color: var(--muted); font-size: .9rem; margin: 12px 0 0; min-height: 1.5em; }
+
+.favs li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--serif);
+  font-size: 1.05rem;
+}
+.favs li:last-child { border-bottom: 0; }
+.favs li span { flex: 1; padding-top: 6px; }
+@media (prefers-reduced-motion: reduce) { blockquote { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <div class="brand">Daily <span>Spark</span></div>
+      <div class="date" id="date"></div>
+    </div>
+    <button class="icon" id="theme" aria-label="Switch light or dark theme" title="Theme">◐</button>
+  </header>
+
+  <div class="hero">
+    <p class="label" id="quoteLabel">Today's spark</p>
+    <blockquote id="quote" aria-live="polite"></blockquote>
+    <div class="row">
+      <button class="primary" id="next">Another one</button>
+      <button id="fav" aria-pressed="false">♡ Save</button>
+      <button id="copy">Copy</button>
+    </div>
+  </div>
+
+  <div class="stats" aria-label="Your progress">
+    <div class="stat"><b id="streak">0</b><small>day streak</small></div>
+    <div class="stat"><b id="doneCount">0/0</b><small>wins today</small></div>
+    <div class="stat"><b id="focusCount">0</b><small>focus sessions</small></div>
+  </div>
+
+  <section>
+    <h2>Three wins for today</h2>
+    <div class="card">
+      <form id="goalForm">
+        <input type="text" id="goalInput" maxlength="80" placeholder="One small thing you'll do today" aria-label="New goal">
+        <button class="primary" type="submit">Add</button>
+      </form>
+      <ul class="goals" id="goals"></ul>
+      <p class="empty" id="goalsEmpty">Pick up to three. Small counts.</p>
+      <p class="cheer" id="cheer" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Focus timer</h2>
+    <div class="card timer">
+      <div class="row lengths" role="group" aria-label="Session length">
+        <button data-min="5">5 min</button>
+        <button data-min="15">15 min</button>
+        <button data-min="25" aria-pressed="true">25 min</button>
+      </div>
+      <div class="clock" id="clock" role="timer">25:00</div>
+      <div class="row">
+        <button class="primary" id="start">Start</button>
+        <button id="reset">Reset</button>
+      </div>
+      <p id="timerMsg" aria-live="polite">One block of full attention. Phone face down.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Saved sparks</h2>
+    <div class="card">
+      <ul class="favs" id="favs"></ul>
+      <p class="empty" id="favsEmpty">Quotes you save show up here.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const QUOTES = [
+  "You don't have to feel ready. You just have to start.",
+  "Small steps still move you forward.",
+  "Do it badly first. Better comes later.",
+  "Ten focused minutes beat an hour of dread.",
+  "The version of you a year from now is built today.",
+  "Progress is quiet. Keep going anyway.",
+  "You have survived every hard day so far.",
+  "Discipline is just remembering what you want.",
+  "Finish one thing. Momentum does the rest.",
+  "Rest is part of the work, not a break from it.",
+  "Nobody is coming to do it for you — and that's freedom.",
+  "Start where you are. Use what you have.",
+  "A hard start is still a start.",
+  "Showing up tired counts double.",
+  "Trade perfect for done.",
+  "Your pace is yours. Keep it.",
+  "Courage is being unsure and moving anyway.",
+  "Today's effort is tomorrow's ease.",
+  "You are allowed to be a beginner.",
+  "Make it easy to begin and hard to quit.",
+  "One good choice is enough to turn a day around.",
+  "Doubt grows in waiting and shrinks in doing.",
+  "What you repeat, you become.",
+  "Be stubborn about the goal and flexible about the route.",
+  "The work you avoid is usually the work that matters.",
+  "Slow is fine. Stopped is the only problem.",
+  "Ask for less motivation and more first steps.",
+  "You've done harder things than this.",
+  "Keep the promise you made to yourself this morning.",
+  "Somewhere in today is a win. Go find it."
+];
+const CHEERS = ["Nice. That's one down.", "Look at you go.", "Momentum is building.", "That's how it's done."];
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const dayKey = (d = new Date()) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+const today = dayKey();
+const yesterday = dayKey(new Date(Date.now() - 864e5));
+
+let state = { day: today, goals: [], focus: 0, streak: 0, lastWin: "", favs: [], theme: "" };
+try { Object.assign(state, JSON.parse(localStorage.getItem("dailySpark") || "{}")); } catch (e) {}
+if (state.day !== today) {
+  // New day: carry unfinished goals over, clear the finished ones.
+  state.goals = state.goals.filter(g => !g.done);
+  state.focus = 0;
+  state.day = today;
+}
+const save = () => { try { localStorage.setItem("dailySpark", JSON.stringify(state)); } catch (e) {} };
+save();
+
+/* Theme */
+const applyTheme = () => {
+  if (state.theme) document.documentElement.dataset.theme = state.theme;
+  const dark = state.theme ? state.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.querySelector('meta[name="theme-color"]').content = dark ? "#15130f" : "#f6f1e7";
+  return dark;
+};
+applyTheme();
+$("theme").onclick = () => { state.theme = applyTheme() ? "light" : "dark"; applyTheme(); save(); };
+
+$("date").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
+/* Quotes */
+const dailyIndex = Math.floor(new Date(today).getTime() / 864e5) % QUOTES.length;
+let qi = dailyIndex;
+function showQuote(animate) {
+  const q = $("quote");
+  const set = () => {
+    q.textContent = QUOTES[qi];
+    q.classList.remove("fade");
+    $("quoteLabel").textContent = qi === dailyIndex ? "Today's spark" : "Another spark";
+    const saved = state.favs.includes(QUOTES[qi]);
+    $("fav").setAttribute("aria-pressed", saved);
+    $("fav").textContent = saved ? "♥ Saved" : "♡ Save";
+  };
+  if (!animate) return set();
+  q.classList.add("fade");
+  setTimeout(set, 200);
+}
+$("next").onclick = () => {
+  let n;
+  do { n = Math.floor(Math.random() * QUOTES.length); } while (n === qi);
+  qi = n;
+  showQuote(true);
+};
+$("fav").onclick = () => {
+  const q = QUOTES[qi], i = state.favs.indexOf(q);
+  if (i >= 0) state.favs.splice(i, 1); else state.favs.unshift(q);
+  save(); showQuote(); renderFavs();
+};
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(QUOTES[qi]); $("copy").textContent = "Copied"; }
+  catch (e) { $("copy").textContent = "Couldn't copy"; }
+  setTimeout(() => $("copy").textContent = "Copy", 1500);
+};
+
+function renderFavs() {
+  const ul = $("favs");
+  ul.textContent = "";
+  state.favs.forEach((q, i) => {
+    const li = document.createElement("li");
+    const s = document.createElement("span");
+    s.textContent = q;
+    const b = document.createElement("button");
+    b.className = "x"; b.textContent = "×"; b.setAttribute("aria-label", "Remove saved quote");
+    b.onclick = () => { state.favs.splice(i, 1); save(); renderFavs(); showQuote(); };
+    li.append(s, b);
+    ul.append(li);
+  });
+  $("favsEmpty").hidden = state.favs.length > 0;
+}
+
+/* Goals + streak */
+function renderStats() {
+  const done = state.goals.filter(g => g.done).length;
+  $("doneCount").textContent = done + "/" + state.goals.length;
+  $("focusCount").textContent = state.focus;
+  const alive = state.lastWin === today || state.lastWin === yesterday;
+  $("streak").textContent = alive ? state.streak : 0;
+}
+function recordWin() {
+  if (state.lastWin === today) return;
+  state.streak = state.lastWin === yesterday ? state.streak + 1 : 1;
+  state.lastWin = today;
+}
+function renderGoals() {
+  const ul = $("goals");
+  ul.textContent = "";
+  state.goals.forEach((g, i) => {
+    const li = document.createElement("li");
+    if (g.done) li.className = "done";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = g.done; cb.id = "g" + i;
+    cb.onchange = () => {
+      g.done = cb.checked;
+      if (g.done) {
+        recordWin();
+        const all = state.goals.every(x => x.done);
+        $("cheer").textContent = all ? "All done. Today is a win." : CHEERS[Math.floor(Math.random() * CHEERS.length)];
+      } else $("cheer").textContent = "";
+      save(); renderGoals();
+    };
+    const lb = document.createElement("label");
+    lb.htmlFor = cb.id; lb.textContent = g.text;
+    const b = document.createElement("button");
+    b.className = "x"; b.textContent = "×"; b.setAttribute("aria-label", "Remove goal");
+    b.onclick = () => { state.goals.splice(i, 1); save(); renderGoals(); };
+    li.append(cb, lb, b);
+    ul.append(li);
+  });
+  const full = state.goals.length >= 3;
+  $("goalInput").disabled = full;
+  $("goalInput").placeholder = full ? "Three is plenty. Go do them." : "One small thing you'll do today";
+  $("goalsEmpty").hidden = state.goals.length > 0;
+  renderStats();
+}
+$("goalForm").onsubmit = e => {
+  e.preventDefault();
+  const text = $("goalInput").value.trim();
+  if (!text || state.goals.length >= 3) return;
+  state.goals.push({ text, done: false });
+  $("goalInput").value = "";
+  save(); renderGoals();
+};
+
+/* Focus timer */
+let minutes = 25, left = minutes * 60, endAt = 0, tick = null;
+const drawClock = () => {
+  const t = pad(Math.floor(left / 60)) + ":" + pad(left % 60);
+  $("clock").textContent = t;
+  document.title = tick ? t + " · Daily Spark" : "Daily Spark";
+};
+function stop() { clearInterval(tick); tick = null; $("start").textContent = left < minutes * 60 && left > 0 ? "Resume" : "Start"; drawClock(); }
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, .25, .5].forEach(at => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(.15, ctx.currentTime + at);
+      g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + at + .2);
+      o.start(ctx.currentTime + at); o.stop(ctx.currentTime + at + .2);
+    });
+  } catch (e) {}
+}
+$("start").onclick = () => {
+  if (tick) { stop(); $("timerMsg").textContent = "Paused. Pick it back up when you're ready."; return; }
+  if (left <= 0) left = minutes * 60;
+  endAt = Date.now() + left * 1000;
+  $("start").textContent = "Pause";
+  $("timerMsg").textContent = "You're in it. Stay with the one thing.";
+  tick = setInterval(() => {
+    left = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    if (left === 0) {
+      stop();
+      left = minutes * 60;
+      $("start").textContent = "Start";
+      drawClock();
+      state.focus++; save(); renderStats();
+      $("timerMsg").textContent = "Session done. Stand up, breathe, then go again.";
+      beep();
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    } else drawClock();
+  }, 250);
+  drawClock();
+};
+$("reset").onclick = () => { left = minutes * 60; stop(); $("timerMsg").textContent = "One block of full attention. Phone face down."; };
+document.querySelectorAll("[data-min]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-min]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  minutes = +b.dataset.min; left = minutes * 60; stop();
+});
+
+showQuote(); renderFavs(); renderGoals(); drawClock();
+</script>
+</body>
+</html>
