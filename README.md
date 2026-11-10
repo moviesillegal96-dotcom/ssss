@@ -67,6 +67,13 @@ network, so Web Workers, WebAssembly and the camera work inside the WebView.
 A schedule and to-do list in one file: [`planner.html`](planner.html). Open it in any browser (phone or computer);
 it works offline and saves everything in that browser.
 
+**Android app:** download [`Planner.apk`](Planner.apk) to your phone and open it; allow installing from your browser or
+file manager once, then tap **Install**. It works offline and follows the phone's light or dark mode.
+
+**iPhone / iPad:** there is no installable file for iOS (that needs a Mac and a paid Apple developer account). Instead,
+host this folder on any https site (for example GitHub Pages), open `planner.html` in Safari, tap **Share**, then
+**Add to Home Screen**. It then opens full screen from its own icon and works offline.
+
 - **Add:** type what you need to do, pick **for when** (a day with an optional time, a whole week, or a whole month), tap **Add**.
   Shortcuts: Today, Tomorrow, This week, Next week, This month.
 - **Smart text:** "Dentist tomorrow at 3pm", "Call mom on friday", "Finish report this week", "Pay rent next month"
@@ -76,3 +83,7 @@ it works offline and saves everything in that browser.
 - **Calendar:** a month grid with a dot for each item; tap a day to see it and add to it.
 - **All:** everything you added, with search and Open / Done / All filters, plus backup export and import.
 - Tap an item to edit it, ☆ to mark it important, ✕ to delete (with Undo).
+
+`android-planner/build-apk.sh` rebuilds `Planner.apk` from `planner.html` (same tools as the Chess Helper build). It creates a
+signing key (`android-planner/planner.keystore`, not committed) on first run; an APK signed with a different key can't be
+installed over the old app, so use **Export backup** before reinstalling.

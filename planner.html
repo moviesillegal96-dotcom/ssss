@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<link rel="apple-touch-icon" href="planner-icon-180.png">
+<link rel="icon" href="planner-icon-180.png">
+<link rel="manifest" href="planner.webmanifest">
 <title>Planner</title>
 <style>
 :root{
@@ -441,6 +447,7 @@ $('editForm').addEventListener('submit', () => {
 });
 
 function exportData() {
+  if (window.AndroidBridge) return AndroidBridge.saveBackup('planner-backup-' + today() + '.json', JSON.stringify(items, null, 1));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(items, null, 1)], { type: 'application/json' }));
   a.download = 'planner-backup-' + today() + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -466,6 +473,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) rend
 
 drawWhen($('addWhen'), addState);
 render();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('planner-sw.js').catch(() => {});
 </script>
 </body>
 </html>
