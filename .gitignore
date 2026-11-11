@@ -1,0 +1,5 @@
+private/
+all-in-one/android/build/
+all-in-one/android/assets/
+*.keystore
+__pycache__/

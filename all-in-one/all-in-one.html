@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3b5bdb">
+<title>All-in-One</title>
+<style>
+:root {
+  --bg: #f4f5f8; --card: #ffffff; --text: #1b1e24; --muted: #687080; --line: #e3e6ec;
+  --accent: #3b5bdb; --accent-soft: #e7ecff; --on-accent: #ffffff;
+  --good: #2b8a3e; --good-soft: #e3f6e7; --warn: #b7791f; --warn-soft: #fdf2d8;
+  --danger: #c92a2a; --note: #fff7d6; --shadow: 0 1px 2px rgba(20, 25, 40, .08);
+}
+:root[data-theme="dark"] {
+  --bg: #101318; --card: #1a1f27; --text: #e7e9ee; --muted: #98a1b2; --line: #2b323d;
+  --accent: #8ea4ff; --accent-soft: #232c4d; --on-accent: #10142a;
+  --good: #69db7c; --good-soft: #1c3323; --warn: #ffd43b; --warn-soft: #3a3115;
+  --danger: #ff8787; --note: #33301c; --shadow: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101318; --card: #1a1f27; --text: #e7e9ee; --muted: #98a1b2; --line: #2b323d;
+    --accent: #8ea4ff; --accent-soft: #232c4d; --on-accent: #10142a;
+    --good: #69db7c; --good-soft: #1c3323; --warn: #ffd43b; --warn-soft: #3a3115;
+    --danger: #ff8787; --note: #33301c; --shadow: none;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-wrap: anywhere;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+a { color: var(--accent); }
+.wrap { max-width: 820px; margin: 0 auto; padding: 0 16px; }
+
+/* Top bar */
+.bar { position: sticky; top: 0; z-index: 20; background: var(--bg); padding-top: env(safe-area-inset-top); }
+.bar-row { display: flex; align-items: center; gap: 4px; min-height: 56px; }
+.bar h1 { flex: 1; min-width: 0; margin: 0; font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.icon-btn:active { background: var(--line); }
+.icon-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Home */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 4px 0 32px; }
+.page-card {
+  background: var(--card); border-radius: 16px; padding: 14px; text-align: left; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 6px; min-height: 124px; border: 1px solid var(--line);
+}
+.page-card:active { transform: scale(.98); }
+.page-card .emoji { font-size: 1.8rem; line-height: 1; }
+.page-card .name { font-weight: 650; line-height: 1.25; }
+.page-card .meta { color: var(--muted); font-size: .82rem; margin-top: auto; }
+.page-card.new { border-style: dashed; background: none; box-shadow: none; align-items: center; justify-content: center; color: var(--muted); }
+.meter { height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--good); }
+
+/* Section tabs */
+.tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 10px; margin: 0 -16px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  flex: none; padding: 8px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line);
+  font-size: .9rem; white-space: nowrap; max-width: 70vw; overflow: hidden; text-overflow: ellipsis;
+}
+.tab.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.tab.add { border-style: dashed; color: var(--muted); }
+
+/* Items */
+.items { padding: 4px 0 110px; }
+.progress { display: flex; align-items: center; gap: 12px; margin: 2px 0 12px; font-size: .88rem; color: var(--muted); }
+.progress .meter { flex: 1; }
+.link-btn { color: var(--accent); font-weight: 600; font-size: .88rem; padding: 8px 4px; }
+.item { border-radius: 10px; }
+.item.flash, .flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0%, 40% { background: var(--accent-soft); } 100% { background: transparent; } }
+.head { margin: 22px 0 6px; padding: 4px 0; font-size: 1.08rem; font-weight: 700; line-height: 1.3; }
+.items > .head:first-child { margin-top: 4px; }
+.note { padding: 7px 0; white-space: pre-wrap; }
+.note.bullet { padding-left: 20px; position: relative; }
+.note.bullet::before { content: "•"; position: absolute; left: 6px; color: var(--muted); }
+.note.sub { padding-left: 40px; }
+.note.sub::before { content: "◦"; left: 26px; }
+.note.strong { background: var(--note); border-radius: 10px; padding: 10px 12px; margin: 6px 0; font-weight: 550; }
+.todo { display: flex; gap: 12px; align-items: flex-start; padding: 5px 0; }
+.todo .txt { flex: 1; padding: 6px 0; white-space: pre-wrap; }
+.todo.done .txt { color: var(--muted); text-decoration: line-through; }
+.chk {
+  width: 32px; height: 32px; flex: none; border-radius: 9px; border: 2px solid var(--muted);
+  display: grid; place-items: center; color: transparent; font-weight: 800; font-size: 1.05rem; line-height: 1;
+}
+.chk::after { content: "✓"; }
+.chk.on { background: var(--good); border-color: var(--good); color: var(--card); }
+.empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+
+/* Tables */
+.tbl { margin: 10px 0 18px; }
+.tbar { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.tbar .count { flex: 1; color: var(--muted); font-size: .82rem; }
+.chip-btn { padding: 7px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: .85rem; }
+.chip-btn.primary { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+.scroll { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--card); }
+table { border-collapse: collapse; min-width: 100%; font-size: .9rem; }
+th, td { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); white-space: pre-wrap; min-width: 8.5rem; max-width: 20rem; }
+th { background: var(--accent-soft); font-weight: 650; }
+tr:last-child td { border-bottom: 0; }
+td.tight, th.tight { min-width: 0; width: 2.6rem; padding: 6px 4px; text-align: center; }
+td.num, th.num { min-width: 0; width: 2.8rem; }
+th.today, td.today { background: var(--warn-soft); }
+td:first-child, th:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; box-shadow: 1px 0 0 var(--line); }
+th:first-child { background: var(--accent-soft); z-index: 2; }
+td .chk { width: 28px; height: 28px; border-radius: 8px; margin: 0 auto; }
+.row-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; box-shadow: var(--shadow); }
+.row-card .title { font-weight: 600; white-space: pre-wrap; }
+.row-card .title .n { color: var(--muted); font-weight: 500; }
+.kv { display: flex; gap: 8px; margin-top: 5px; font-size: .9rem; align-items: flex-start; }
+.kv .k { color: var(--muted); flex: none; width: 32%; max-width: 9rem; font-size: .8rem; padding-top: 2px; white-space: pre-wrap; }
+.kv .v { flex: 1; min-width: 0; white-space: pre-wrap; }
+.pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; background: var(--line); color: var(--muted); }
+.pill.mid { background: var(--warn-soft); color: var(--warn); }
+.pill.end { background: var(--good-soft); color: var(--good); }
+.grades { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 8px; font-size: .9rem; }
+.grades .line { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+.grades .low { color: var(--danger); font-weight: 600; }
+
+/* Floating add button */
+.fab {
+  position: fixed; right: max(18px, calc(50vw - 392px)); bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 30;
+  width: 58px; height: 58px; border-radius: 50%; background: var(--accent); color: var(--on-accent);
+  display: grid; place-items: center; box-shadow: 0 6px 16px rgba(30, 40, 90, .3);
+}
+.fab svg { width: 26px; height: 26px; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; }
+
+/* Search */
+.search-box { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); outline: none; }
+.search-box:focus { border-color: var(--accent); }
+.result { display: block; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.result .where { color: var(--muted); font-size: .78rem; }
+.result .snip { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+mark { background: var(--warn-soft); color: inherit; border-radius: 3px; }
+
+/* Bottom sheet */
+.backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(10, 14, 22, .45); display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  background: var(--card); width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto;
+  border-radius: 20px 20px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+.sheet h2 { margin: 0 0 12px; font-size: 1.05rem; }
+.sheet label { display: block; font-size: .8rem; color: var(--muted); margin: 10px 0 4px; white-space: pre-wrap; }
+.sheet textarea, .sheet input[type=text], .sheet select {
+  width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); outline: none; resize: vertical;
+}
+.sheet textarea:focus, .sheet input[type=text]:focus { border-color: var(--accent); }
+.types { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.types button { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: .88rem; }
+.types button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.btn { padding: 11px 16px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); font-weight: 600; font-size: .92rem; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); flex: 1; }
+.btn.danger { color: var(--danger); }
+.menu button { display: block; width: 100%; text-align: left; padding: 14px 4px; border-bottom: 1px solid var(--line); }
+.menu button:last-child { border-bottom: 0; }
+.menu button.danger { color: var(--danger); }
+.menu .hint { color: var(--muted); font-size: .8rem; display: block; }
+.col-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.check-line { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(90px + env(safe-area-inset-bottom)); z-index: 50;
+  background: #23272f; color: #fff; padding: 10px 16px; border-radius: 12px; display: flex; gap: 14px; align-items: center;
+  max-width: 92vw; font-size: .9rem; box-shadow: 0 6px 20px rgba(0, 0, 0, .3);
+}
+.toast button { color: #9db1ff; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<!-- The lists the app starts with. build.py replaces this block with a converted workbook. -->
+<script id="seed" type="application/json">{"version":1,"title":"All-in-One","pages":[{"id":"p1","name":"My lists","icon":"📌","sections":[{"id":"s1","name":"To do","items":[{"id":"i1","type":"head","text":"Welcome"},{"id":"i2","type":"note","text":"Tap + to add notes, checklist items, headings and tables. Tap anything to edit it."},{"id":"i3","type":"todo","text":"Add my first item","done":false}]}]}]}</script>
+
+<script>
+"use strict";
+const STORE_KEY = "allinone.data.v1";
+const THEME_KEY = "allinone.theme";
+const SVG = {
+  back: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  more: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>',
+  gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.2-1.3L14 3h-4l-.4 2.4a7 7 0 0 0-2.2 1.3l-2.3-.9-2 3.4 2 1.5a7 7 0 0 0 0 2.6l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2.2 1.3L10 21h4l.4-2.4a7 7 0 0 0 2.2-1.3l2.3.9 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+};
+// Cell values that cycle when tapped, from "not done" to "done".
+const CYCLES = [
+  ["Belum", "Sudah"],
+  ["Belum Dikerjakan", "Sedang Dikerjakan", "Sudah Dikerjakan"],
+  ["To do", "Doing", "Done"],
+  ["Not started", "In progress", "Finished"],
+];
+const ITEM_TYPES = [["note", "Note"], ["bullet", "Bullet"], ["todo", "Checklist"], ["head", "Heading"]];
+
+const $ = (sel, root) => (root || document).querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const today = () => { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); };
+
+let db;                 // { version, title, pages: [{ id, name, icon, sections: [{ id, name, daily, items }] }] }
+let undoState = null;   // JSON of db before the last delete, for the Undo toast
+let memoryOnly = false; // true when the browser refuses storage
+
+/* ---------- Storage ---------- */
+function seed() { return JSON.parse($("#seed").textContent); }
+function validData(d) { return d && typeof d === "object" && Array.isArray(d.pages) && d.pages.every((p) => p && Array.isArray(p.sections)); }
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) { const d = JSON.parse(raw); if (validData(d)) return d; }
+  } catch (e) { memoryOnly = true; }
+  return seed();
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); }
+  catch (e) { if (!memoryOnly) { memoryOnly = true; toast("Could not save on this device. Export a backup from Settings."); } }
+}
+function remember() { undoState = JSON.stringify(db); }
+function undo() {
+  if (!undoState) return;
+  db = JSON.parse(undoState); undoState = null; save(); render();
+}
+/** Unticks the checklists of sections set to reset every day, once the date has changed. */
+function dailyReset() {
+  const day = today();
+  if (db.lastDay === day) return;
+  if (db.lastDay) {
+    for (const p of db.pages) for (const s of p.sections) if (s.daily) for (const it of s.items) if (it.type === "todo") it.done = false;
+  }
+  db.lastDay = day; save();
+}
+
+/* ---------- Lookups ---------- */
+function route() {
+  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  if (parts[0] === "search") return { search: true };
+  const page = db.pages.find((p) => p.id === parts[0]);
+  if (!page) return {};
+  const section = page.sections.find((s) => s.id === parts[1]) || page.sections[0] || null;
+  return { page, section };
+}
+function go(pageId, sectionId, replace) {
+  const hash = pageId ? "#/" + pageId + (sectionId ? "/" + sectionId : "") : "";
+  if (replace) { history.replaceState(null, "", hash || location.pathname); render(); }
+  else if (location.hash === hash) render();
+  else location.hash = hash;
+}
+function itemOf(el) {
+  const node = el.closest("[data-id]");
+  const { section } = route();
+  return section && node ? section.items.find((it) => it.id === node.dataset.id) : null;
+}
+function countTodos(sections) {
+  let done = 0, total = 0;
+  for (const s of sections) for (const it of s.items) if (it.type === "todo") { total++; if (it.done) done++; }
+  return { done, total };
+}
+
+/* ---------- Text ---------- */
+function linkify(text) {
+  return esc(text).replace(/https?:\/\/[^\s<]+/g, (url) => {
+    const shown = url.replace(/^https?:\/\/(www\.)?/, "");
+    return '<a href="' + url + '" target="_blank" rel="noopener">' + (shown.length > 42 ? shown.slice(0, 40) + "…" : shown) + "</a>";
+  });
+}
+function cycleOf(value) {
+  const v = String(value).trim().toLowerCase();
+  for (const c of CYCLES) { const i = c.findIndex((x) => x.toLowerCase() === v); if (i >= 0) return { list: c, index: i }; }
+  return null;
+}
+/** "check" for o/v and ☐/☑ cells, "status" for cycling words, "" for plain text. */
+function cellKind(value) {
+  if (value === "o" || value === "v" || value === "☐" || value === "☑") return "check";
+  return cycleOf(value) ? "status" : "";
+}
+const isOn = (v) => v === "v" || v === "☑";
+function nextValue(value) {
+  if (value === "o") return "v"; if (value === "v") return "o";
+  if (value === "☐") return "☑"; if (value === "☑") return "☐";
+  const c = cycleOf(value);
+  return c ? c.list[(c.index + 1) % c.list.length] : value;
+}
+function cellHtml(value, r, c) {
+  const kind = cellKind(value);
+  if (kind === "check") return '<button class="chk' + (isOn(value) ? " on" : "") + '" data-act="cell" data-r="' + r + '" data-c="' + c + '" aria-label="Done" aria-pressed="' + isOn(value) + '"></button>';
+  if (kind === "status") {
+    const cy = cycleOf(value);
+    const cls = cy.index === cy.list.length - 1 ? " end" : cy.index > 0 ? " mid" : "";
+    return '<button class="pill' + cls + '" data-act="cell" data-r="' + r + '" data-c="' + c + '">' + esc(value) + "</button>";
+  }
+  return linkify(value);
+}
+
+/* ---------- Rendering ---------- */
+function render() {
+  const r = route();
+  if (r.search) renderSearch();
+  else if (r.page) renderPage(r.page, r.section);
+  else renderHome();
+}
+
+function renderHome() {
+  document.title = db.title || "All-in-One";
+  const cards = db.pages.map((p) => {
+    const t = countTodos(p.sections);
+    const items = p.sections.reduce((n, s) => n + s.items.length, 0);
+    return '<button class="page-card" data-act="open-page" data-page="' + p.id + '">' +
+      '<span class="emoji">' + esc(p.icon || "📄") + "</span>" +
+      '<span class="name">' + esc(p.name) + "</span>" +
+      '<span class="meta">' + (t.total ? t.done + " / " + t.total + " done" : items + " item" + (items === 1 ? "" : "s")) + "</span>" +
+      (t.total ? '<span class="meter"><i style="width:' + Math.round(100 * t.done / t.total) + '%"></i></span>' : "") +
+      "</button>";
+  }).join("");
+  $("#app").innerHTML =
+    '<header class="bar"><div class="wrap bar-row"><h1>' + esc(db.title || "All-in-One") + "</h1>" +
+    '<button class="icon-btn" data-act="search" aria-label="Search">' + SVG.search + "</button>" +
+    '<button class="icon-btn" data-act="settings" aria-label="Settings">' + SVG.gear + "</button></div></header>" +
+    '<main class="wrap"><div class="grid">' + cards +
+    '<button class="page-card new" data-act="new-page">' + SVG.plus.replace("<svg", '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"') + "<span>New page</span></button>" +
+    "</div></main>";
+}
+
+function renderPage(page, section) {
+  document.title = page.name;
+  const tabs = page.sections.map((s) =>
+    '<button class="tab' + (s === section ? " on" : "") + '" data-act="open-section" data-section="' + s.id + '">' + esc(s.name) + "</button>").join("");
+  $("#app").innerHTML =
+    '<header class="bar"><div class="wrap"><div class="bar-row">' +
+    '<button class="icon-btn" data-act="home" aria-label="Back">' + SVG.back + "</button>" +
+    "<h1>" + esc((page.icon ? page.icon + " " : "") + page.name) + "</h1>" +
+    '<button class="icon-btn" data-act="search" aria-label="Search">' + SVG.search + "</button>" +
+    '<button class="icon-btn" data-act="page-menu" aria-label="More">' + SVG.more + "</button></div>" +
+    '<nav class="tabs">' + tabs + '<button class="tab add" data-act="new-section">+ Section</button></nav></div></header>' +
+    '<main class="wrap"><div class="items" id="items">' + (section ? sectionHtml(section) : '<p class="empty">This page has no sections yet.<br>Tap “+ Section” to add one.</p>') + "</div></main>" +
+    (section ? '<button class="fab" data-act="add-item" aria-label="Add">' + SVG.plus + "</button>" : "");
+  const on = $(".tab.on");
+  if (on) on.scrollIntoView({ block: "nearest", inline: "center" });
+}
+
+function progressHtml(section) {
+  const t = countTodos([section]);
+  if (!t.total) return "";
+  return '<div class="progress" id="progress"><span>' + t.done + " / " + t.total + ' done</span><span class="meter"><i style="width:' +
+    Math.round(100 * t.done / t.total) + '%"></i></span><button class="link-btn" data-act="reset-todos">Reset</button></div>';
+}
+function sectionHtml(section) {
+  if (!section.items.length) return '<p class="empty">Nothing here yet.<br>Tap + to add something.</p>';
+  return progressHtml(section) + section.items.map(itemHtml).join("");
+}
+function itemHtml(it) {
+  const id = ' data-id="' + it.id + '"';
+  if (it.type === "head") return '<h3 class="item head" data-act="edit"' + id + ">" + linkify(it.text) + "</h3>";
+  if (it.type === "todo") {
+    return '<div class="item todo' + (it.done ? " done" : "") + '"' + id + '><button class="chk' + (it.done ? " on" : "") +
+      '" data-act="toggle" aria-label="Done" aria-pressed="' + !!it.done + '"></button><div class="txt" data-act="edit">' + linkify(it.text) + "</div></div>";
+  }
+  if (it.type === "table") return tableHtml(it);
+  const cls = (it.bullet ? " bullet" + (it.bullet === 2 ? " sub" : "") : "") + (it.strong ? " strong" : "");
+  return '<div class="item note' + cls + '" data-act="edit"' + id + ">" + linkify(it.text) + "</div>";
+}
+
+const DAY_NAMES = /^(senin|selasa|rabu|kamis|jumat|sabtu|minggu|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i;
+/** Wide or column-per-day tables read best as a grid; the rest as one card per row. */
+function tableView(t) {
+  if (t.view) return t.view;
+  const n = t.cols.length;
+  if (n >= 8) return "grid";
+  if (t.cols.filter((c) => DAY_NAMES.test(c.trim())).length >= 3) return "grid";
+  if (n >= 3 && new Set(t.cols.filter(Boolean)).size === 1) return "grid";
+  if (n >= 4) {
+    let chars = 0, cells = 0;
+    for (const row of t.rows) for (const v of row) if (v) { chars += v.length; cells++; }
+    if (cells && chars / cells <= 14) return "grid";
+  }
+  return "cards";
+}
+function tableHtml(t) {
+  const view = tableView(t);
+  const n = t.rows.length;
+  let body;
+  if (view === "grid") {
+    const dayCols = t.cols.filter((c) => /^\d{1,2}$/.test(c)).length >= 28;
+    const todayNum = String(new Date().getDate());
+    const tight = t.cols.map((c, i) => t.rows.length > 0 && t.rows.every((r) => !r[i] || cellKind(r[i]) === "check"));
+    const cls = (i) => (tight[i] ? " tight" : "") + (dayCols && t.cols[i] === todayNum ? " today" : "");
+    const hasHead = t.cols.some(Boolean);
+    body = '<div class="scroll"><table>' +
+      (hasHead ? "<thead><tr>" + t.cols.map((c, i) => '<th class="' + cls(i) + '">' + esc(c) + "</th>").join("") + "</tr></thead>" : "") +
+      "<tbody>" + t.rows.map((row, r) => '<tr data-r="' + r + '">' + t.cols.map((_, c) =>
+        '<td class="' + cls(c) + '" data-act="row" data-r="' + r + '">' + cellHtml(row[c] || "", r, c) + "</td>").join("") + "</tr>").join("") +
+      "</tbody></table></div>";
+  } else {
+    body = t.rows.map((row, r) => rowCardHtml(t, row, r)).join("");
+  }
+  return '<div class="item tbl" data-id="' + t.id + '"><div class="tbar"><span class="count">' + n + " row" + (n === 1 ? "" : "s") + "</span>" +
+    '<button class="chip-btn primary" data-act="add-row">+ Row</button>' +
+    '<button class="icon-btn" data-act="table-menu" aria-label="Table options">' + SVG.more + "</button></div>" +
+    (n ? body : '<div class="row-card" data-act="add-row" style="color:var(--muted)">' + esc(t.cols.filter(Boolean).join(" · ") || "Empty table") + "<br>Tap “+ Row” to add the first one.</div>") +
+    gradesHtml(t) + "</div>";
+}
+function rowCardHtml(t, row, r) {
+  // The title is the first text cell; a leading number column becomes its prefix.
+  let titleCol = row.findIndex((v) => v && !cellKind(v));
+  let prefix = "";
+  if (titleCol >= 0 && /^\d+$/.test(row[titleCol]) && row.some((v, i) => i > titleCol && v && !cellKind(v))) {
+    prefix = '<span class="n">' + esc(row[titleCol]) + ". </span>";
+    const numCol = titleCol;
+    titleCol = row.findIndex((v, i) => i > numCol && v && !cellKind(v));
+  }
+  let html = '<div class="row-card" data-act="row" data-r="' + r + '">';
+  if (titleCol >= 0) html += '<div class="title">' + prefix + linkify(row[titleCol]) + "</div>";
+  row.forEach((v, c) => {
+    if (!v || c === titleCol || (prefix && c < titleCol)) return;
+    html += '<div class="kv">' + (t.cols[c] ? '<span class="k">' + esc(t.cols[c]) + "</span>" : "") + '<span class="v">' + cellHtml(v, r, c) + "</span></div>";
+  });
+  return html + "</div>";
+}
+/** For a table with a subject column and a score column: averages per subject against a target. */
+function gradeColumns(t) {
+  const score = t.cols.findIndex((c) => /^(nilai|score|grade|skor)$/i.test(c.trim()));
+  const subject = t.cols.findIndex((c) => /mata pelajaran|mapel|subject/i.test(c));
+  return score >= 0 && subject >= 0 ? { score, subject } : null;
+}
+function gradesHtml(t) {
+  const g = gradeColumns(t);
+  if (!g) return "";
+  const target = t.target || 85, sums = new Map();
+  let all = 0, count = 0;
+  for (const row of t.rows) {
+    const n = parseFloat(String(row[g.score] || "").replace(",", "."));
+    const name = (row[g.subject] || "").trim();
+    if (!name || isNaN(n)) continue;
+    const s = sums.get(name) || { sum: 0, n: 0 };
+    s.sum += n; s.n++; sums.set(name, s); all += n; count++;
+  }
+  let html = '<div class="grades"><div class="line"><b>Average per subject</b><span>target ' + target + "</span></div>";
+  if (!count) html += '<div class="line" style="color:var(--muted)">Add a row with a subject and a score to see averages.</div>';
+  for (const [name, s] of sums) {
+    const avg = Math.round(10 * s.sum / s.n) / 10;
+    html += '<div class="line' + (avg < target ? " low" : "") + '"><span>' + esc(name) + "</span><span>" + avg + (avg < target ? " ⚠" : " ✓") + "</span></div>";
+  }
+  if (count) html += '<div class="line"><b>Overall</b><b>' + Math.round(10 * all / count) / 10 + "</b></div>";
+  return html + "</div>";
+}
+
+/* ---------- Search ---------- */
+function renderSearch() {
+  $("#app").innerHTML =
+    '<header class="bar"><div class="wrap"><div class="bar-row"><button class="icon-btn" data-act="back" aria-label="Back">' + SVG.back +
+    '</button><h1>Search</h1></div><input class="search-box" id="q" type="search" placeholder="Search everything" autocomplete="off"></div></header>' +
+    '<main class="wrap"><div id="results" style="padding:8px 0 40px"></div></main>';
+  const q = $("#q");
+  q.value = sessionQuery;
+  q.addEventListener("input", () => { sessionQuery = q.value; showResults(); });
+  q.focus();
+  showResults();
+}
+let sessionQuery = "";
+function showResults() {
+  const q = sessionQuery.trim().toLowerCase();
+  const box = $("#results");
+  if (q.length < 2) { box.innerHTML = '<p class="empty">Type at least 2 letters.</p>'; return; }
+  const out = [];
+  const add = (p, s, it, text, r) => {
+    const at = text.toLowerCase().indexOf(q);
+    if (at < 0 || out.length >= 200) return;
+    const from = Math.max(0, at - 40);
+    const snip = (from ? "…" : "") + text.slice(from, at + q.length + 120);
+    const i = snip.toLowerCase().indexOf(q);
+    out.push('<button class="result" data-act="open-result" data-page="' + p.id + '" data-section="' + s.id + '" data-item="' + it.id + '"' +
+      (r == null ? "" : ' data-r="' + r + '"') + '><span class="where">' + esc(p.name + " › " + s.name) + '</span><span class="snip">' +
+      esc(snip.slice(0, i)) + "<mark>" + esc(snip.slice(i, i + q.length)) + "</mark>" + esc(snip.slice(i + q.length)) + "</span></button>");
+  };
+  for (const p of db.pages) for (const s of p.sections) for (const it of s.items) {
+    if (it.type === "table") it.rows.forEach((row, r) => add(p, s, it, row.filter(Boolean).join(" · "), r));
+    else add(p, s, it, it.text || "");
+  }
+  box.innerHTML = out.length ? out.join("") + (out.length >= 200 ? '<p class="empty">Showing the first 200 matches.</p>' : "") : '<p class="empty">No matches.</p>';
+}
+function flash(itemId, r) {
+  let el = document.querySelector('[data-id="' + itemId + '"]');
+  if (el && r != null) el = el.querySelector('[data-r="' + r + '"]') || el;
+  if (!el) return;
+  el.scrollIntoView({ block: "center" });
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+
+/* ---------- Sheets (dialogs) ---------- */
+let sheetButtons = [];
+function openSheet(html) {
+  $("#sheet-root").innerHTML = '<div class="backdrop" data-act="close-sheet"><div class="sheet" role="dialog">' + html + "</div></div>";
+}
+function closeSheet() { $("#sheet-root").innerHTML = ""; sheetButtons = []; }
+const sheetOpen = () => !!$("#sheet-root").firstChild;
+function buttonsHtml(list) {
+  return '<div class="btns">' + list.map((b) => '<button class="btn ' + (b.cls || "") + '" data-sbtn="' + sheetButtons.push(b.fn) + '">' + esc(b.label) + "</button>").join("") + "</div>";
+}
+function openMenu(title, options) {
+  sheetButtons = [];
+  const html = "<h2>" + esc(title) + '</h2><div class="menu">' + options.filter(Boolean).map((o) =>
+    '<button class="' + (o.danger ? "danger" : "") + '" data-sbtn="' + sheetButtons.push(o.fn) + '">' + esc(o.label) +
+    (o.hint ? '<span class="hint">' + esc(o.hint) + "</span>" : "") + "</button>").join("") + "</div>";
+  openSheet(html);
+}
+function confirmDelete(what, fn) {
+  openMenu("Delete " + what + "?", [{ label: "Delete", danger: true, fn: () => { closeSheet(); fn(); } }, { label: "Cancel", fn: closeSheet }]);
+}
+function askText(title, value, onSave, opts) {
+  opts = opts || {};
+  sheetButtons = [];
+  const field = opts.multiline ? '<textarea id="ask" rows="4">' + esc(value) + "</textarea>" : '<input id="ask" type="text" value="' + esc(value) + '">';
+  const html = "<h2>" + esc(title) + "</h2>" + (opts.hint ? '<label for="ask">' + esc(opts.hint) + "</label>" : "") + field +
+    buttonsHtml([{ label: "Cancel", fn: closeSheet }, { label: opts.action || "Save", cls: "primary", fn: () => {
+      const v = $("#ask").value.trim();
+      if (!v && !opts.allowEmpty) return;
+      closeSheet(); onSave(v);
+    } }]);
+  openSheet(html);
+  const el = $("#ask"); el.focus(); el.setSelectionRange(el.value.length, el.value.length);
+}
+let toastTimer;
+function toast(text, action, fn) {
+  clearTimeout(toastTimer);
+  $("#toast-root").innerHTML = '<div class="toast"><span>' + esc(text) + "</span>" + (action ? "<button>" + esc(action) + "</button>" : "") + "</div>";
+  if (action) $("#toast-root button").onclick = () => { $("#toast-root").innerHTML = ""; fn(); };
+  toastTimer = setTimeout(() => { $("#toast-root").innerHTML = ""; }, action ? 6000 : 3000);
+}
+function deleted(what) { save(); render(); toast(what + " deleted", "Undo", undo); }
+
+/* ---------- Editing items ---------- */
+function typeOf(it) { return it.type === "note" && it.bullet ? "bullet" : it.type; }
+function applyType(it, type) {
+  delete it.bullet;
+  if (type === "bullet") { it.type = "note"; it.bullet = 1; }
+  else it.type = type;
+  if (type === "todo") it.done = !!it.done; else delete it.done;
+  if (type !== "note") delete it.strong;
+}
+/** Editor for a heading, note or checklist item. `it` is null when adding; `afterId` places the new item. */
+function editItem(it, afterId, startType) {
+  const { section } = route();
+  let type = startType || (it ? typeOf(it) : "note");
+  const draw = (text) => {
+    sheetButtons = [];
+    const types = ITEM_TYPES.concat(it ? [] : [["table", "Table"]]);
+    let html = "<h2>" + (it ? "Edit" : "Add to " + esc(section.name)) + '</h2><div class="types">' +
+      types.map(([k, label]) => '<button class="' + (k === type ? "on" : "") + '" data-sbtn="' + sheetButtons.push(() => { type = k; draw($("#text").value); }) + '">' + label + "</button>").join("") + "</div>";
+    if (type === "table") {
+      html += '<label for="text">Column names, separated by commas</label><input id="text" type="text" value="' + esc(text) + '" placeholder="Name, Status, Notes">';
+    } else {
+      html += '<textarea id="text" rows="' + (it ? 5 : 3) + '" placeholder="' + (type === "head" ? "Heading" : type === "todo" ? "Something to do" : "Write a note or paste a link") + '">' + esc(text) + "</textarea>";
+    }
+    const commit = (again) => {
+      const value = $("#text").value.trim();
+      if (!value) { $("#text").focus(); return; }
+      let target = it;
+      if (!target) {
+        target = type === "table"
+          ? { id: uid(), type: "table", cols: value.split(",").map((c) => c.trim()).filter(Boolean), rows: [] }
+          : { id: uid(), type: "note", text: value };
+        const at = afterId ? section.items.findIndex((x) => x.id === afterId) + 1 : section.items.length;
+        section.items.splice(at || section.items.length, 0, target);
+      }
+      if (type !== "table") { target.text = value; applyType(target, type); }
+      save();
+      if (again) { render(); editItem(null, target.id, type); flash(target.id); }
+      else { closeSheet(); render(); flash(target.id); }
+    };
+    const list = [{ label: it ? "Save" : "Add", cls: "primary", fn: () => commit(false) }];
+    if (!it && type !== "table") list.push({ label: "Add & next", fn: () => commit(true) });
+    if (it) {
+      list.push({ label: "+ Below", fn: () => { const id = it.id; closeSheet(); editItem(null, id, typeOf(it) === "head" ? "note" : typeOf(it)); } });
+      list.push({ label: "↑", fn: () => moveItem(it, -1) }, { label: "↓", fn: () => moveItem(it, 1) });
+      list.push({ label: "Delete", cls: "danger", fn: () => { remember(); section.items.splice(section.items.indexOf(it), 1); closeSheet(); deleted("Item"); } });
+    }
+    html += buttonsHtml(list);
+    openSheet(html);
+    const el = $("#text");
+    if (!it || window.innerWidth > 700) el.focus();
+  };
+  draw(it ? it.text : "");
+}
+function moveItem(it, by) {
+  const { section } = route();
+  const i = section.items.indexOf(it), j = i + by;
+  if (j < 0 || j >= section.items.length) return;
+  section.items.splice(i, 1); section.items.splice(j, 0, it);
+  save(); render(); flash(it.id);
+}
+
+/* ---------- Editing tables ---------- */
+function blankRow(t) {
+  const last = t.rows[t.rows.length - 1];
+  return t.cols.map((_, c) => {
+    const v = last ? last[c] || "" : "";
+    if (v === "o" || v === "v") return "o";
+    if (v === "☐" || v === "☑") return "☐";
+    const cy = cycleOf(v);
+    if (cy) return cy.list[0];
+    return /^\d+$/.test(v) && c === 0 ? String(+v + 1) : "";
+  });
+}
+function editRow(t, r) {
+  const isNew = r == null;
+  const row = isNew ? blankRow(t) : t.rows[r].slice();
+  while (row.length < t.cols.length) row.push("");
+  sheetButtons = [];
+  let html = "<h2>" + (isNew ? "New row" : "Edit row") + "</h2>";
+  t.cols.forEach((name, c) => {
+    const v = row[c] || "", kind = cellKind(v), label = name || "Column " + (c + 1);
+    if (kind === "check") {
+      html += '<div class="check-line"><input type="checkbox" id="f' + c + '" data-kind="' + (v === "o" || v === "v" ? "ov" : "box") + '"' + (isOn(v) ? " checked" : "") +
+        ' style="width:22px;height:22px"><label for="f' + c + '" style="margin:0;font-size:1rem;color:inherit">' + esc(label) + "</label></div>";
+    } else if (kind === "status") {
+      html += '<label for="f' + c + '">' + esc(label) + '</label><select id="f' + c + '">' +
+        cycleOf(v).list.map((o) => "<option" + (o.toLowerCase() === v.trim().toLowerCase() ? " selected" : "") + ">" + esc(o) + "</option>").join("") + "</select>";
+    } else {
+      html += '<label for="f' + c + '">' + esc(label) + '</label><textarea id="f' + c + '" rows="' + (v.length > 60 || v.includes("\n") ? 3 : 1) + '">' + esc(v) + "</textarea>";
+    }
+  });
+  const read = () => t.cols.map((_, c) => {
+    const el = $("#f" + c);
+    if (el.type === "checkbox") return el.dataset.kind === "ov" ? (el.checked ? "v" : "o") : (el.checked ? "☑" : "☐");
+    return el.value.trim();
+  });
+  const done = (index) => { save(); closeSheet(); render(); flash(t.id, index); };
+  const list = [{ label: isNew ? "Add" : "Save", cls: "primary", fn: () => {
+    const values = read();
+    if (isNew && !values.some((v) => v && !cellKind(v))) { $("#sheet-root textarea, #sheet-root select").focus(); return; }
+    if (isNew) { t.rows.push(values); done(t.rows.length - 1); } else { t.rows[r] = values; done(r); }
+  } }];
+  if (!isNew) {
+    list.push({ label: "↑", fn: () => { if (r > 0) { t.rows.splice(r - 1, 0, t.rows.splice(r, 1)[0]); done(r - 1); } } });
+    list.push({ label: "↓", fn: () => { if (r < t.rows.length - 1) { t.rows.splice(r + 1, 0, t.rows.splice(r, 1)[0]); done(r + 1); } } });
+    list.push({ label: "Copy", fn: () => { t.rows.splice(r + 1, 0, read()); done(r + 1); } });
+    list.push({ label: "Delete", cls: "danger", fn: () => { remember(); t.rows.splice(r, 1); closeSheet(); deleted("Row"); } });
+  }
+  html += buttonsHtml(list);
+  openSheet(html);
+  if (isNew) { const first = $("#sheet-root textarea"); if (first) first.focus(); }
+}
+function editColumns(t) {
+  // Each entry keeps the index of the column it came from, so rows can be rebuilt after edits.
+  let cols = t.cols.map((name, from) => ({ name, from }));
+  const draw = () => {
+    sheetButtons = [];
+    let html = "<h2>Columns</h2>";
+    cols.forEach((col, i) => {
+      html += '<div class="col-row"><input type="text" data-col="' + i + '" value="' + esc(col.name) + '" placeholder="Column ' + (i + 1) + '">' +
+        '<button class="btn danger" data-sbtn="' + sheetButtons.push(() => { keepNames(); cols.splice(i, 1); draw(); }) + '">✕</button></div>';
+    });
+    html += buttonsHtml([
+      { label: "+ Column", fn: () => { keepNames(); cols.push({ name: "", from: -1 }); draw(); const all = document.querySelectorAll("[data-col]"); all[all.length - 1].focus(); } },
+      { label: "Save", cls: "primary", fn: () => {
+        keepNames();
+        if (!cols.length) return;
+        remember();
+        t.rows = t.rows.map((row) => cols.map((col) => (col.from >= 0 ? row[col.from] || "" : "")));
+        t.cols = cols.map((col) => col.name.trim());
+        save(); closeSheet(); render(); flash(t.id);
+      } },
+    ]);
+    openSheet(html);
+  };
+  const keepNames = () => document.querySelectorAll("[data-col]").forEach((el) => { cols[+el.dataset.col].name = el.value; });
+  draw();
+}
+function tableMenu(t) {
+  const { section } = route();
+  const view = tableView(t);
+  const hasChecks = t.rows.some((row) => row.some((v) => isOn(v)));
+  openMenu("Table", [
+    { label: view === "grid" ? "Show as cards" : "Show as grid", fn: () => { t.view = view === "grid" ? "cards" : "grid"; save(); closeSheet(); render(); } },
+    { label: "Edit columns", hint: "Rename, add or remove columns", fn: () => editColumns(t) },
+    hasChecks && { label: "Untick all checkboxes", fn: () => { remember(); t.rows = t.rows.map((row) => row.map((v) => (isOn(v) ? nextValue(v) : v))); save(); closeSheet(); render(); toast("Checkboxes cleared", "Undo", undo); } },
+    gradeColumns(t) && { label: "Set target score", hint: "Now " + (t.target || 85), fn: () => askText("Target score", String(t.target || 85), (v) => { const n = parseFloat(v); if (!isNaN(n)) { t.target = n; save(); render(); } }) },
+    { label: "Add a note below", fn: () => { closeSheet(); editItem(null, t.id); } },
+    { label: "Move up", fn: () => { closeSheet(); moveItem(t, -1); } },
+    { label: "Move down", fn: () => { closeSheet(); moveItem(t, 1); } },
+    { label: "Delete table", danger: true, fn: () => confirmDelete("this table", () => { remember(); section.items.splice(section.items.indexOf(t), 1); deleted("Table"); }) },
+  ]);
+}
+
+/* ---------- Pages, sections, settings ---------- */
+function pageMenu() {
+  const { page, section } = route();
+  const pi = db.pages.indexOf(page);
+  const si = section ? page.sections.indexOf(section) : -1;
+  const moveSection = (by) => { page.sections.splice(si, 1); page.sections.splice(si + by, 0, section); save(); closeSheet(); render(); };
+  const movePage = (by) => { db.pages.splice(pi, 1); db.pages.splice(pi + by, 0, page); save(); closeSheet(); toast("Page moved"); };
+  openMenu(section ? "Section: " + section.name : page.name, [
+    section && { label: "Rename section", fn: () => askText("Section name", section.name, (v) => { section.name = v; save(); render(); }) },
+    section && { label: section.daily ? "Stop resetting every day" : "Reset checklist every day", hint: "Unticks this section's checklist each new day", fn: () => { section.daily = !section.daily; save(); closeSheet(); toast(section.daily ? "This checklist now resets daily" : "Daily reset turned off"); } },
+    section && si > 0 && { label: "Move section left", fn: () => moveSection(-1) },
+    section && si < page.sections.length - 1 && { label: "Move section right", fn: () => moveSection(1) },
+    section && { label: "Delete section", danger: true, fn: () => confirmDelete("“" + section.name + "” and its " + section.items.length + " items", () => { remember(); page.sections.splice(si, 1); go(page.id, null, true); deleted("Section"); }) },
+    { label: "Rename page", fn: () => askText("Page name", page.name, (v) => { page.name = v; save(); render(); }) },
+    { label: "Change page icon", fn: () => askText("Page icon", page.icon || "", (v) => { page.icon = v; save(); render(); }, { hint: "Type or paste one emoji", allowEmpty: true }) },
+    pi > 0 && { label: "Move page earlier", fn: () => movePage(-1) },
+    pi < db.pages.length - 1 && { label: "Move page later", fn: () => movePage(1) },
+    { label: "Delete page", danger: true, fn: () => confirmDelete("the page “" + page.name + "”", () => { remember(); db.pages.splice(pi, 1); go(null, null, true); deleted("Page"); }) },
+  ]);
+}
+function settings() {
+  let theme = "system";
+  try { theme = localStorage.getItem(THEME_KEY) || "system"; } catch (e) {}
+  const next = { system: "light", light: "dark", dark: "system" }[theme];
+  openMenu("Settings", [
+    { label: "Export backup", hint: "Saves everything to a file you can keep or move to another phone", fn: exportBackup },
+    { label: "Import backup", hint: "Replaces what is in the app with a backup file", fn: importBackup },
+    { label: "Theme: " + theme, hint: "Tap to switch to " + next, fn: () => { setTheme(next); settings(); } },
+    { label: "Rename app title", fn: () => askText("Title", db.title || "All-in-One", (v) => { db.title = v; save(); render(); }) },
+    { label: "Start over", danger: true, hint: "Throws away your changes and restores the lists this app came with", fn: () => confirmDelete("all your changes", () => { remember(); db = seed(); db.lastDay = today(); go(null, null, true); deleted("Changes"); }) },
+  ]);
+}
+function setTheme(theme) {
+  try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+  if (theme === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", theme);
+}
+function exportBackup() {
+  closeSheet();
+  const text = JSON.stringify(db);
+  const d = new Date();
+  const name = "all-in-one-backup-" + d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + ".json";
+  if (window.AndroidBridge && AndroidBridge.saveFile) { AndroidBridge.saveFile(name, text); return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast("Backup saved as " + name);
+}
+function importBackup() {
+  closeSheet();
+  if (window.AndroidBridge && AndroidBridge.openFile) { AndroidBridge.openFile(); return; }
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = ".json,application/json";
+  input.onchange = () => { const f = input.files[0]; if (f) f.text().then(window.receiveBackup); };
+  input.click();
+}
+/** Called with the text of a backup file (by the file picker above, or by the Android app). */
+window.receiveBackup = function (text) {
+  let data;
+  try { data = JSON.parse(text); } catch (e) { data = null; }
+  if (!validData(data)) { toast("That file is not an All-in-One backup."); return; }
+  openMenu("Replace everything with this backup?", [
+    { label: "Replace (" + data.pages.length + " pages)", danger: true, fn: () => { remember(); db = data; closeSheet(); go(null, null, true); save(); toast("Backup imported", "Undo", undo); } },
+    { label: "Cancel", fn: closeSheet },
+  ]);
+};
+window.backupSaved = function (ok) { toast(ok ? "Backup saved" : "Could not save the backup"); };
+/** The Android back button: returns true when the app handled it. */
+window.handleBack = function () {
+  if (sheetOpen()) { closeSheet(); return true; }
+  if (location.hash.length > 1) { goUp(); return true; }
+  return false;
+};
+function goUp() {
+  if (route().search && history.length > 1) history.back();
+  else go(null);
+}
+
+/* ---------- Events ---------- */
+const actions = {
+  "home": () => go(null),
+  "back": goUp,
+  "search": () => { location.hash = "#/search"; },
+  "settings": settings,
+  "open-page": (el) => go(el.dataset.page),
+  "open-section": (el) => { go(route().page.id, el.dataset.section, true); window.scrollTo(0, 0); },
+  "open-result": (el) => { go(el.dataset.page, el.dataset.section); setTimeout(() => flash(el.dataset.item, el.dataset.r), 60); },
+  "new-page": () => askText("New page", "", (name) => {
+    const page = { id: uid(), name, icon: "📄", sections: [{ id: uid(), name: "General", items: [] }] };
+    db.pages.push(page); save(); go(page.id);
+  }, { hint: "Page name", action: "Create" }),
+  "new-section": () => askText("New section", "", (name) => {
+    const { page } = route();
+    const section = { id: uid(), name, items: [] };
+    page.sections.push(section); save(); go(page.id, section.id, true);
+  }, { hint: "Section name", action: "Create" }),
+  "page-menu": pageMenu,
+  "add-item": () => editItem(null),
+  "edit": (el) => { const it = itemOf(el); if (it) editItem(it); },
+  "toggle": (el) => {
+    const it = itemOf(el); if (!it) return;
+    it.done = !it.done; save();
+    const row = el.closest(".todo");
+    row.classList.toggle("done", it.done); el.classList.toggle("on", it.done); el.setAttribute("aria-pressed", it.done);
+    const p = $("#progress");
+    if (p) p.outerHTML = progressHtml(route().section);
+  },
+  "reset-todos": () => {
+    const { section } = route();
+    remember();
+    for (const it of section.items) if (it.type === "todo") it.done = false;
+    save(); render(); toast("Checklist reset", "Undo", undo);
+  },
+  "cell": (el) => {
+    const t = itemOf(el); if (!t) return;
+    const r = +el.dataset.r, c = +el.dataset.c;
+    t.rows[r][c] = nextValue(t.rows[r][c] || ""); save();
+    el.outerHTML = cellHtml(t.rows[r][c], r, c);  // in place, so a wide grid keeps its scroll position
+  },
+  "row": (el) => { const t = itemOf(el); if (t) editRow(t, +el.dataset.r); },
+  "add-row": (el) => { const t = itemOf(el); if (t) editRow(t, null); },
+  "table-menu": (el) => { const t = itemOf(el); if (t) tableMenu(t); },
+  "close-sheet": (el, ev) => { if (ev.target === el) closeSheet(); },
+};
+document.addEventListener("click", (ev) => {
+  if (ev.target.closest("a")) return;  // links open normally
+  const sbtn = ev.target.closest("[data-sbtn]");
+  if (sbtn) { const fn = sheetButtons[+sbtn.dataset.sbtn - 1]; if (fn) fn(); return; }
+  const el = ev.target.closest("[data-act]");
+  if (el && actions[el.dataset.act]) actions[el.dataset.act](el, ev);
+});
+window.addEventListener("hashchange", () => { closeSheet(); render(); if (!route().search) window.scrollTo(0, 0); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { const before = db.lastDay; dailyReset(); if (before !== db.lastDay && !sheetOpen()) render(); } });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && sheetOpen()) closeSheet(); });
+
+try { setTheme(localStorage.getItem(THEME_KEY) || "system"); } catch (e) {}
+db = load();
+dailyReset();
+render();
+</script>
+</body>
+</html>

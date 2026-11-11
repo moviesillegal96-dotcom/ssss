@@ -59,3 +59,7 @@ an APK signed with a different key can't be installed over the old app without u
 
 The app serves its files from `https://appassets.androidplatform.net/`, which is intercepted and never touches the
 network, so Web Workers, WebAssembly and the camera work inside the WebView.
+
+---
+
+This repository also holds **All-in-One**, a lists app built from a spreadsheet: see [`all-in-one/`](all-in-one/README.md).
