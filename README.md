@@ -59,3 +59,21 @@ an APK signed with a different key can't be installed over the old app without u
 
 The app serves its files from `https://appassets.androidplatform.net/`, which is intercepted and never touches the
 network, so Web Workers, WebAssembly and the camera work inside the WebView.
+
+---
+
+# Dompet Planner
+
+A monthly money planner in one file, `money-planner.html`. Open it in any browser; it saves in that browser on
+that device, and works offline once loaded (only the web fonts need a connection).
+
+- **Budget:** income plus Needs / Wants / Future lines, each with a planned amount, an optional due day
+  (monthly, yearly or one time) and planned vs. actual. A 50/30/20 goal split you can change.
+- **Calendar:** each day shows money in and out, plus dots for what is due, paid or late. Tap a day for the details.
+- **Safe to spend today:** balance minus unpaid bills, must-do costs and savings still to set aside, divided by the days left.
+- **Lists:** Must do, Need to buy and Side quest, each with an optional cost and date. Dated items appear on the calendar.
+- **Log:** every transaction, searchable, filtered by group.
+- **Charts:** projected balance through the month, spending by line, and the last six months.
+- **Backup:** Settings → *Copy my data* / *Restore from text*.
+
+Amounts are whole numbers. With the `Rp` currency they use Indonesian formatting (`Rp 53.280`, `145rb`, `1,2jt`).
