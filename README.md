@@ -59,3 +59,9 @@ an APK signed with a different key can't be installed over the old app without u
 
 The app serves its files from `https://appassets.androidplatform.net/`, which is intercepted and never touches the
 network, so Web Workers, WebAssembly and the camera work inside the WebView.
+
+# Deadline Notes
+
+`notes.html` is a separate single-file notes app: type a note, pick a date, and the list sorts itself by how
+close each deadline is (Overdue, Urgent, Soon, Later, No date). Ticking "Needs to be done fast" moves a note up
+one level. Open the file in any browser; notes are saved in that browser.
