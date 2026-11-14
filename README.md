@@ -64,8 +64,18 @@ network, so Web Workers, WebAssembly and the camera work inside the WebView.
 
 # Dompet Planner
 
-A monthly money planner in one file, `money-planner.html`. Open it in any browser; it saves in that browser on
-that device, and works offline once loaded (only the web fonts need a connection).
+A monthly money planner in one file, `money-planner.html`.
+
+## How to run
+**Android app:** download [`DompetPlanner.apk`](DompetPlanner.apk) to your phone and open it. Android will ask you to allow
+installing apps from your browser or file manager; allow it once, then tap **Install**. The app works fully offline
+(its fonts are bundled, so it makes no network requests), follows the phone's light or dark mode, and keeps its data
+in the app's private storage.
+
+**Any browser:** open `money-planner.html`. It saves in that browser on that device, and works offline once loaded
+(only the web fonts need a connection).
+
+## Features
 
 - **Budget:** income plus Needs / Wants / Future lines, each with a planned amount, an optional due day
   (monthly, yearly or one time) and planned vs. actual. A 50/30/20 goal split you can change.
@@ -77,3 +87,18 @@ that device, and works offline once loaded (only the web fonts need a connection
 - **Backup:** Settings → *Copy my data* / *Restore from text*.
 
 Amounts are whole numbers. With the `Rp` currency they use Indonesian formatting (`Rp 53.280`, `145rb`, `1,2jt`).
+
+## Notes
+- The data lives only on the device. In the Android app, Settings → *Copy my data* opens the share sheet so you can
+  send a backup to Drive, your notes or a chat; *Restore from text* brings it back, or moves it to another device.
+- The Android back button closes an open dialog, then returns to Home, then leaves the app.
+
+## Credits and licenses
+- Bricolage Grotesque and IBM Plex Sans typefaces, SIL Open Font License 1.1; Latin subsets in `android-planner/fonts/`.
+
+## Rebuilding the APK
+`android-planner/build-apk.sh` builds `DompetPlanner.apk` from `money-planner.html` and `android-planner/fonts/`, the same
+way as the chess app (no Gradle). On Ubuntu: `apt install android-sdk android-sdk-platform-23 dalvik-exchange python3-pil`.
+The script creates a signing key (`android-planner/dompet-planner.keystore`, not committed) on first run. Keep that file:
+an APK signed with a different key can't be installed over the old app without uninstalling it first, and uninstalling
+deletes the saved data, so copy a backup before you do.

@@ -814,7 +814,7 @@ function openSettings(){
   <div class="hr"></div>`:''}
   <div class="field"><label for="backup">Backup</label><textarea id="backup" name="backup" placeholder="Paste a backup here, then choose Restore" spellcheck="false"></textarea></div>
   <div class="dlg-foot" style="justify-content:flex-start">${has?`<button type="button" class="btn small" data-act="export">Copy my data</button>`:''}<button type="button" class="btn small" data-act="import">Restore from text</button>${has?`<button type="button" class="btn small danger" data-act="erase">Erase everything</button>`:''}</div>
-  <p class="muted" style="font-size:12px">${store.mode==='db'?'Your planner is saved to your Claude account and is private to you.':'Your planner is saved in this browser on this device. Copy a backup before clearing browser data.'}</p>
+  <p class="muted" style="font-size:12px">${store.mode==='db'?'Your planner is saved to your Claude account and is private to you.':'Your planner is saved on this device only. Copy a backup before clearing the app or browser data.'}</p>
   <p class="err" id="ferr" hidden></p><div class="dlg-foot"><button type="button" class="btn" data-act="close">${has?'Cancel':'Close'}</button>${has?`<button class="btn primary">Save</button>`:''}</div>`,fd=>{
     if(!S.cfg)return;
     const g={};SPEND.forEach(k=>g[k]=parseAmt(fd.get('g_'+k)));
@@ -884,6 +884,7 @@ const acts={
   filter:b=>{logFilter=b.dataset.f;render()},
   export:async()=>{
     const ta=$('#backup',dlg);ta.value=JSON.stringify(S);ta.select();
+    if(window.AndroidBridge&&window.AndroidBridge.share){window.AndroidBridge.share(ta.value,'Dompet Planner backup');return}
     try{await navigator.clipboard.writeText(ta.value);toast('Backup copied')}catch(e){toast('Backup is selected. Copy it from the box')}
   },
   import:()=>{
@@ -913,6 +914,7 @@ let rz=0;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(dr
 function fromHash(){const h=location.hash.slice(1);if(['home','calendar','budget','lists','log'].includes(h)&&h!==view){view=h;render()}}
 window.addEventListener('hashchange',fromHash);
 {const h=location.hash.slice(1);if(['home','calendar','budget','lists','log'].includes(h))view=h}
+window.onAndroidBack=()=>{if(dlg.open){closeDlg();return true}if(S.cfg&&view!=='home'){view='home';render();return true}return false};
 boot();
 })();
 </script>
