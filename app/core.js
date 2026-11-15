@@ -288,13 +288,39 @@ function togglePick(block, i) {
   save({ sync: false });
 }
 
-/* ---------- money log ---------- */
-function ledgerState(block) {
-  if (!S.ledger) S.ledger = { accounts: JSON.parse(JSON.stringify(block.accounts || [])), tx: [] };
-  if (!S.ledger.accounts.length) S.ledger.accounts.push({ name: 'Dompet', start: 0 });
-  return S.ledger;
+/* ---------- money manager ---------- */
+/** { accounts: [{ name, start }], cats: [{ name, kind: 'out' | 'in', limit }], tx: [{ id, date, kind: 'out' | 'in' | 'tf', amt, acc, to, cat, x }] } */
+function ledgerState() {
+  const L = S.ledger || (S.ledger = { accounts: [], tx: [], cats: null });
+  if (!L.accounts.length) {
+    const block = Object.values(BLOCKS).find((b) => b.t === 'ledger');
+    L.accounts = block && block.accounts.length ? JSON.parse(JSON.stringify(block.accounts)) : [{ name: 'Dompet', start: 0 }];
+  }
+  if (!L.cats) {
+    const seeds = DATA.seeds || {};
+    const out = seeds.budget && seeds.budget.length ? seeds.budget : [{ name: 'Makan & jajan', limit: 0 }, { name: 'Transport', limit: 0 }, { name: 'Belanja', limit: 0 }, { name: 'Lainnya', limit: 0 }];
+    const inc = seeds.income && seeds.income.length ? seeds.income : ['Uang jajan', 'Lainnya'];
+    L.cats = out.map((c) => ({ name: c.name, kind: 'out', limit: c.limit || 0 })).concat(inc.map((name) => ({ name, kind: 'in', limit: 0 })));
+  }
+  return L;
 }
-const balanceOf = (L, name) => (L.accounts.find((a) => a.name === name) || { start: 0 }).start + L.tx.filter((t) => t.acc === name).reduce((sum, t) => sum + t.amt, 0);
+/** What a transaction does to one account's balance. */
+function txEffect(t, name) {
+  if (t.kind === 'tf') return (t.to === name ? t.amt : 0) - (t.acc === name ? t.amt : 0);
+  return t.acc !== name ? 0 : t.kind === 'in' ? t.amt : -t.amt;
+}
+const balanceOf = (L, name) => (L.accounts.find((a) => a.name === name) || { start: 0 }).start + L.tx.reduce((sum, t) => sum + txEffect(t, name), 0);
+function monthMoney(L, ym) {
+  const res = { inc: 0, out: 0, byCat: {}, tx: [] };
+  for (const t of L.tx) {
+    if (!t.date.startsWith(ym)) continue;
+    res.tx.push(t);
+    if (t.kind === 'in') res.inc += t.amt;
+    else if (t.kind === 'out') { res.out += t.amt; res.byCat[t.cat || 'Lainnya'] = (res.byCat[t.cat || 'Lainnya'] || 0) + t.amt; }
+  }
+  res.tx.sort((a, b) => b.date.localeCompare(a.date));
+  return res;
+}
 
 /* ---------- notifications ---------- */
 function reminderFor(date) {

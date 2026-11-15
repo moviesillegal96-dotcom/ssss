@@ -23,9 +23,12 @@ separate times for weekdays and weekends. To-dos for tonight are announced in th
 
 **To-Do** – tonight / tomorrow lists, anything left over from yesterday, and shortcuts to every checklist in the workbook.
 
+**Uang** – a small money manager: income, expenses and transfers between accounts, categories with a monthly budget and
+progress bars, a month-by-month summary, and running account balances. Categories, limits and accounts are seeded from the
+workbook's budget, income and bank tables when it has them.
+
 **All in 1** – the workbook itself, one tile per sheet: checklists can be ticked, edited and extended; day-by-day tables show one
-weekday at a time; grades are entered in the app and averaged per subject; an empty income / expense table becomes a money log
-with account balances; every section takes extra notes; search covers it all.
+weekday at a time; grades are entered in the app and averaged per subject; every section takes extra notes; search covers it all.
 
 **Lainnya** – Chess Helper, routine manager (change time, days or notifications per item or per group), notification and reminder
 settings, theme, backup / restore.

@@ -601,6 +601,24 @@ def collect_seeds(out):
                     seeds['pulsek'] = b['id']
                     b['daily'] = 1
     seeds['grids'] = [g['id'] for g in grids]
+    # Budget and income tables seed the money manager's categories.
+    budget, income = [], []
+    for sheet in out['sheets']:
+        for sec in sheet['sections']:
+            for b in sec['blocks']:
+                if b['t'] != 'table' or b.get('days'):
+                    continue
+                head = [h.lower() for h in b['head']]
+                rows = [r for r in b['rows'] if isinstance(r, list) and r and r[0] and not r[0].lower().startswith('total')]
+                cap = next((i for i, h in enumerate(head) if h.startswith('max')), None)
+                if head and head[0].startswith('kategori') and cap is not None and not budget:
+                    budget = [{'name': re.sub(r'\s*\(.*\)$', '', r[0]), 'limit': int(r[cap]) if r[cap].isdigit() else 0} for r in rows]
+                elif head and head[0].startswith('sumber') and not income:
+                    income = [re.sub(r'\s*\(.*\)$', '', r[0]) for r in rows]
+    if budget:
+        seeds['budget'] = budget
+    if income:
+        seeds['income'] = income
     # The account table ("Saldo Awal") feeds the money log of the same section instead of being shown as text.
     for sheet in out['sheets']:
         for sec in sheet['sections']:

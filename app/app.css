@@ -256,3 +256,18 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding
 .noc { color: var(--no); font-weight: 700; }
 .flash { animation: flash 1.6s; }
 @keyframes flash { 0%, 40% { box-shadow: 0 0 0 3px var(--brand); } }
+
+/* ---------- money ---------- */
+.stat b { font-size: 14px; white-space: nowrap; }
+.bud { padding: 9px 0; border-top: 1px solid var(--line); }
+.bud:first-of-type { border-top: 0; }
+.bud .top { display: flex; gap: 10px; justify-content: space-between; align-items: baseline; }
+.bud .top span { font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.meter { height: 7px; border-radius: 99px; background: var(--soft); margin-top: 6px; overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 99px; background: var(--ok); }
+.meter.over i { background: var(--no); }
+.datehead { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 10px 0 2px; border-top: 1px solid var(--line); }
+.datehead:first-of-type { border-top: 0; padding-top: 2px; }
+.datehead + .rowline { border-top: 0; }
+#tabs button { min-width: 0; }
+#tabs .pill { padding: 3px 13px; }
