@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light theme. Before Android 6 the status bar icons are always white, so the bar stays dark there. -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/page_light</item>
+        <item name="android:statusBarColor">@color/page_dark</item>
+        <item name="android:navigationBarColor">@color/page_dark</item>
+    </style>
+    <color name="page_light">#EDF0F4</color>
+    <color name="page_dark">#10141B</color>
+</resources>

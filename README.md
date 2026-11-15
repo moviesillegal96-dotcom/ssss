@@ -62,6 +62,17 @@ network, so Web Workers, WebAssembly and the camera work inside the WebView.
 
 # Deadline Notes
 
-`notes.html` is a separate single-file notes app: type a note, pick a date, and the list sorts itself by how
-close each deadline is (Overdue, Urgent, Soon, Later, No date). Ticking "Needs to be done fast" moves a note up
-one level. Open the file in any browser; notes are saved in that browser.
+A separate notes app: type a note, pick a date, and the list sorts itself by how close each deadline is
+(Overdue, Urgent, Soon, Later, No date). Ticking "Needs to be done fast" moves a note up one level.
+
+**Android app:** download [`DeadlineNotes.apk`](DeadlineNotes.apk) to your phone and open it, then allow the install
+when Android asks. The app works offline and keeps your notes on the phone.
+
+**Any browser:** open `notes.html`. Notes are saved in that browser.
+
+`notes-android/build-apk.sh` rebuilds the APK from `notes.html` (same tools as the Chess Helper build). It creates
+a signing key (`notes-android/deadline-notes.keystore`, not committed) on first run. Keep that file: an APK signed
+with a different key can't be installed over the old app without uninstalling it first, and uninstalling deletes
+the notes stored in the app.
+
+The app bundles the Bricolage Grotesque and Figtree fonts, both under the SIL Open Font License 1.1.

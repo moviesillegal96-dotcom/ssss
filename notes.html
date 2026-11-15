@@ -760,6 +760,13 @@ button { cursor: pointer; }
     render();
   });
 
+  // In the Android app, Back cancels an edit in progress before it leaves the app.
+  window.onAndroidBack = () => {
+    if (!editingId) return false;
+    resetForm(); render();
+    return true;
+  };
+
   // Re-sort when the calendar day rolls over, without writing anything.
   function dayCheck() {
     const t = iso(new Date());
