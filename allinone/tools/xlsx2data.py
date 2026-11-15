@@ -612,9 +612,11 @@ def collect_seeds(out):
                 rows = [r for r in b['rows'] if isinstance(r, list) and r and r[0] and not r[0].lower().startswith('total')]
                 cap = next((i for i, h in enumerate(head) if h.startswith('max')), None)
                 if head and head[0].startswith('kategori') and cap is not None and not budget:
-                    budget = [{'name': re.sub(r'\s*\(.*\)$', '', r[0]), 'limit': int(r[cap]) if r[cap].isdigit() else 0} for r in rows]
+                    must = next((i for i, h in enumerate(head) if h.startswith('wajib')), None)
+                    budget = [{'name': re.sub(r'\s*\(.*\)$', '', r[0]), 'limit': int(r[cap]) if r[cap].isdigit() else 0,
+                               'must': 1 if must is not None and r[must].lower().startswith('wajib') else 0} for r in rows]
                 elif head and head[0].startswith('sumber') and not income:
-                    income = [re.sub(r'\s*\(.*\)$', '', r[0]) for r in rows]
+                    income = [{'name': re.sub(r'\s*\(.*\)$', '', r[0]), 'amount': int(r[1]) if len(r) > 1 and r[1].isdigit() else 0} for r in rows]
     if budget:
         seeds['budget'] = budget
     if income:

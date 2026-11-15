@@ -31,7 +31,6 @@ const UI = {
   tab: 'today', stack: [], scroll: [],
   cal: { sel: todayStr(), start: todayStr(), mode: 'week', month: todayStr().slice(0, 7) },
   rem: null, open: {}, edit: {}, q: '', dayTab: 0, draft: null, draftId: null,
-  money: { ym: todayStr().slice(0, 7), kind: 'out', edit: false, accounts: false },
   todoSeg: 'todo', undo: null,
   dl: { text: '', due: '', fast: false, editId: null, filter: 'all', doneOpen: false },
 };
@@ -51,6 +50,7 @@ function render() {
   const view = top || { v: UI.tab };
   $('#view').innerHTML = VIEWS[view.v](view);
   $('#tabs').innerHTML = `<div class="in">${TABS.map(([id, label, icon]) => `<button class="${!top && UI.tab === id ? 'on' : ''}" data-act="tab" data-tab="${id}"><span class="pill">${icon}</span>${label}</button>`).join('')}</div>`;
+  if (window.Money) Money.afterRender();
   if (view.focus != null) {
     const el = document.getElementById('b' + view.focus);
     delete view.focus;
@@ -61,6 +61,7 @@ function go(view) { UI.scroll.push(window.scrollY); UI.stack.push(view); render(
 function back() {
   if (!$('#sheet').hidden) { closeSheet(); return true; }
   if (!UI.stack.length && UI.tab === 'todo' && UI.dl.editId) { dlReset(); render(); return true; }
+  if (!UI.stack.length && UI.tab === 'money' && UI.m.view !== 'home') { UI.m.view = 'home'; render(); window.scrollTo(0, 0); return true; }
   if (UI.stack.length) { UI.stack.pop(); render(); window.scrollTo(0, UI.scroll.pop() || 0); return true; }
   if (UI.tab !== 'today') { UI.tab = 'today'; render(); window.scrollTo(0, 0); return true; }
   return false;
@@ -68,13 +69,13 @@ function back() {
 function openSheet(html) { const el = $('#sheet'); el.innerHTML = `<div class="panel"><div class="grab"></div>${html}</div>`; el.hidden = false; }
 function closeSheet() { const el = $('#sheet'); el.hidden = true; el.innerHTML = ''; UI.draft = null; }
 let toastTimer = null;
-function toast(msg, undo) {
+function toast(msg, undo, action) {
   const el = $('#toast');
   UI.undo = undo || null;
-  el.innerHTML = esc(msg) + (undo ? '<button data-act="undo">Urungkan</button>' : '');
+  el.innerHTML = esc(msg) + (undo ? '<button data-act="undo">Urungkan</button>' : action ? `<button data-act="${action.act}">${esc(action.label)}</button>` : '');
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.classList.remove('show'); UI.undo = null; }, undo ? 6500 : 2400);
+  toastTimer = setTimeout(() => { el.classList.remove('show'); UI.undo = null; }, undo || action ? 6500 : 2400);
 }
 
 /* ---------- shared pieces ---------- */
@@ -237,6 +238,7 @@ VIEWS.today = () => {
   const done = items.filter((i) => i.mark === 1).length + todos.filter((t) => t.done).length;
   return `<header class="hero"><div class="grow"><p class="eyebrow">${longDate(now)}</p><h1>${greet}${S.settings.name ? ', ' + esc(S.settings.name) : ''}</h1>${motto ? `<p class="motto">${esc(motto)}</p>` : ''}</div>${ring(done, items.length + todos.length)}</header>
     ${reminderCard()}
+    ${Money.todayCard()}
     ${overdueCard()}
     ${deadlineCard()}
     <div class="duo">${todoCard('malam')}${todoCard('besok')}</div>
@@ -272,6 +274,7 @@ VIEWS.cal = () => {
     ${grid}
     <h2 class="sec"><span class="grow">${longDate(sel)}</span><span class="count${items.length && done === items.length ? ' full' : ''}">${done}/${items.length}</span></h2>
     ${(() => { const due = dlOpen().filter((n) => n.due === c.sel); return due.length ? `<section class="card"><header><h3>⏰ Deadline</h3><span class="count">${due.length}</span></header>${due.map((n) => dlRow(n, { compact: true })).join('')}</section>` : ''; })()}
+    ${Money.dayCard(c.sel)}
     ${todos.length ? `<section class="card"><header><h3>📝 To-do</h3></header>${todos.map((t) => todoRow(t, c.sel === todayStr() ? 'malam' : 'besok')).join('')}</section>` : ''}
     ${timeline(c.sel, items, c.sel === todayStr())}
     <button class="fab" data-act="addTask" data-date="${c.sel}" aria-label="Tambah jadwal">＋</button>`;
@@ -365,7 +368,7 @@ function renderBlock(b) {
     case 'check': return b.daily ? taskBlock(b) : checkBlock(b);
     case 'grid': return taskBlock(b);
     case 'grades': return gradesBlock(b);
-    case 'ledger': return ledgerBlock();
+    case 'ledger': return Money.summaryCard();
     case 'table': return b.days ? dayTable(b) : tableBlock(b);
     default: return '';
   }
@@ -440,71 +443,6 @@ function gradesBlock(b) {
     }).join('')}</table></div>
     ${S.grades.length ? `<div class="card"><header><h3>Riwayat nilai</h3><span class="count">${S.grades.length}</span></header>${S.grades.slice().reverse().map((g) => `<div class="rowline"><div class="grow"><b>${esc(g.subject)} · ${g.score}</b><small>${esc([g.kind, shortDate(parseYmd(g.date)), g.note].filter(Boolean).join(' · '))}</small></div><button class="x" data-act="gradeDel" data-id="${g.id}" aria-label="Hapus">×</button></div>`).join('')}</div>` : ''}`;
 }
-
-const rupiah = (n) => (n < 0 ? '−' : '') + 'Rp' + Math.abs(Math.round(n)).toLocaleString('id-ID');
-const NUM_STYLE = 'width:118px;border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:6px 8px;text-align:right';
-/** In the library the money log is a pointer to the Uang tab. */
-function ledgerBlock() {
-  const L = ledgerState(), m = monthMoney(L, todayStr().slice(0, 7));
-  const total = L.accounts.reduce((sum, a) => sum + balanceOf(L, a.name), 0);
-  return `<div class="card"><div class="stat"><div><b>${rupiah(total)}</b><small>Total saldo</small></div><div><b>${rupiah(m.inc)}</b><small>Masuk bulan ini</small></div><div><b>${rupiah(m.out)}</b><small>Keluar bulan ini</small></div></div>
-    <button class="btn wide" data-act="tab" data-tab="money">Buka Uang — catat transaksi</button></div>`;
-}
-
-/* ---------- Uang (money manager) ---------- */
-VIEWS.money = () => {
-  const L = ledgerState(), M = UI.money, m = monthMoney(L, M.ym);
-  const first = parseYmd(M.ym + '-01');
-  const total = L.accounts.reduce((sum, a) => sum + balanceOf(L, a.name), 0);
-  const outCats = L.cats.filter((c) => c.kind === 'out'), inCats = L.cats.filter((c) => c.kind === 'in');
-  const opt = (list, sel) => list.map((x) => `<option${x === sel ? ' selected' : ''}>${esc(x)}</option>`).join('');
-  const accNames = L.accounts.map((a) => a.name);
-  const kinds = [['out', 'Keluar'], ['in', 'Masuk']].concat(accNames.length > 1 ? [['tf', 'Transfer']] : []);
-  if (M.kind === 'tf' && accNames.length < 2) M.kind = 'out';
-  const defaultDate = M.ym === todayStr().slice(0, 7) ? todayStr() : M.ym + '-01';
-
-  const form = `<section class="card"><header><h3>Catat</h3><div class="seg">${kinds.map(([k, l]) => `<button class="${M.kind === k ? 'on' : ''}" data-act="moneyKind" data-k="${k}">${l}</button>`).join('')}</div></header>
-    <form data-form="money">
-      <div class="field"><div class="row"><div><label>Jumlah (Rp)</label><input name="amt" type="number" min="0" inputmode="numeric" placeholder="0" required></div><div><label>Tanggal</label><input name="date" type="date" value="${defaultDate}"></div></div></div>
-      <div class="field"><div class="row"><div><label>${M.kind === 'tf' ? 'Dari akun' : 'Akun'}</label><select name="acc">${opt(accNames)}</select></div>
-        <div>${M.kind === 'tf' ? `<label>Ke akun</label><select name="to">${opt(accNames, accNames[1])}</select>` : `<label>Kategori</label><select name="cat">${opt((M.kind === 'in' ? inCats : outCats).map((c) => c.name))}</select>`}</div></div></div>
-      <div class="field"><label>Keterangan (opsional)</label><input name="x" autocomplete="off" placeholder="${M.kind === 'in' ? 'Dari mana' : M.kind === 'tf' ? 'Catatan' : 'Beli apa'}"></div>
-      <button class="btn wide">Simpan</button>
-    </form></section>`;
-
-  const spentRow = (c) => {
-    const spent = m.byCat[c.name] || 0, over = c.limit > 0 && spent > c.limit;
-    const pct = c.limit > 0 ? Math.min(100, Math.round((spent / c.limit) * 100)) : 0;
-    return `<div class="bud"><div class="top"><b>${esc(c.name)}</b><span class="${over ? 'noc' : 'muted'}">${rupiah(spent)}${c.limit > 0 ? ' / ' + rupiah(c.limit) : ''}</span></div>${c.limit > 0 ? `<div class="meter${over ? ' over' : ''}"><i style="width:${pct}%"></i></div>` : ''}</div>`;
-  };
-  const known = L.cats.map((c) => c.name);
-  const extra = Object.keys(m.byCat).filter((n) => !known.includes(n)).map((name) => ({ name, limit: 0 }));
-  const limitSum = outCats.reduce((sum, c) => sum + (c.limit || 0), 0);
-  const budget = M.edit
-    ? `<section class="card"><header><h3>Atur kategori & budget</h3><button class="link" data-act="moneyEdit">Selesai</button></header>
-        <p class="muted small" style="margin-bottom:6px">Angka = batas per bulan (0 = tanpa batas).</p>
-        ${L.cats.map((c, i) => `<div class="rowline"><div class="grow"><b>${esc(c.name)}</b><small>${c.kind === 'in' ? 'Pemasukan' : 'Pengeluaran'}</small></div>${c.kind === 'out' ? `<input type="number" min="0" inputmode="numeric" value="${c.limit || 0}" data-change="catLimit" data-i="${i}" style="${NUM_STYLE}" aria-label="Batas">` : ''}<button class="x" data-act="catDel" data-i="${i}" aria-label="Hapus">×</button></div>`).join('')}
-        <form class="add" data-form="catAdd"><input name="x" placeholder="Kategori baru…" autocomplete="off"><select name="kind" style="border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:0 8px"><option value="out">Keluar</option><option value="in">Masuk</option></select><button aria-label="Tambah">＋</button></form></section>`
-    : `<section class="card"><header><h3>Budget bulan ini</h3>${limitSum ? `<span class="count${m.out > limitSum ? '' : ' full'}">${rupiah(m.out)} / ${rupiah(limitSum)}</span>` : ''}<button class="link" data-act="moneyEdit">Atur</button></header>${outCats.concat(extra).map(spentRow).join('')}</section>`;
-
-  let lastDate = '';
-  const list = m.tx.length ? `<section class="card"><header><h3>Transaksi</h3><span class="count">${m.tx.length}</span></header>${m.tx.map((t) => {
-    const head = t.date !== lastDate ? `<div class="datehead">${longDate(parseYmd(t.date))}</div>` : '';
-    lastDate = t.date;
-    const title = t.kind === 'tf' ? `Transfer → ${t.to}` : t.cat || (t.kind === 'in' ? 'Masuk' : 'Keluar');
-    const amount = t.kind === 'in' ? `<span class="okc">+${rupiah(t.amt)}</span>` : t.kind === 'out' ? `<span class="noc">−${rupiah(t.amt)}</span>` : `<span class="muted">${rupiah(t.amt)}</span>`;
-    return `${head}<div class="rowline"><div class="grow"><b>${esc(title)}</b><small>${esc([t.x, t.acc].filter(Boolean).join(' · '))}</small></div>${amount}<button class="x" data-act="txDel" data-id="${t.id}" aria-label="Hapus">×</button></div>`;
-  }).join('')}</section>` : '<div class="card empty">Belum ada transaksi di bulan ini.</div>';
-
-  const accounts = `<section class="card"><header><h3>Akun</h3><span class="count">${rupiah(total)}</span><button class="link" data-act="moneyAccounts">${M.accounts ? 'Selesai' : 'Atur'}</button></header>
-    ${L.accounts.map((a, i) => `<div class="rowline"><div class="grow"><b>${esc(a.name)}</b>${M.accounts ? '<small>Saldo awal →</small>' : ''}</div>${M.accounts ? `<input type="number" inputmode="numeric" value="${a.start}" data-change="accStart" data-i="${i}" style="${NUM_STYLE}" aria-label="Saldo awal"><button class="x" data-act="accDel" data-i="${i}" aria-label="Hapus">×</button>` : `<b>${rupiah(balanceOf(L, a.name))}</b>`}</div>`).join('')}
-    ${M.accounts ? '<form class="add" data-form="accAdd"><input name="x" placeholder="Tambah akun / bank / dompet…" autocomplete="off"><button aria-label="Tambah">＋</button></form>' : ''}</section>`;
-
-  return `<div class="title"><h1>Uang</h1></div>
-    <div class="calnav"><b>${MONTHS[first.getMonth()]} ${first.getFullYear()}</b><button class="iconbtn" data-act="moneyNav" data-d="-1" aria-label="Bulan sebelumnya">${ICON.back}</button><button class="link" data-act="moneyNav" data-d="0">Bulan ini</button><button class="iconbtn" data-act="moneyNav" data-d="1" aria-label="Bulan berikutnya" style="transform:scaleX(-1)">${ICON.back}</button></div>
-    <div class="card"><div class="stat" style="margin:0"><div><b class="okc">${rupiah(m.inc)}</b><small>Masuk</small></div><div><b class="noc">${rupiah(m.out)}</b><small>Keluar</small></div><div><b>${rupiah(m.inc - m.out)}</b><small>Sisa</small></div></div></div>
-    ${form}${budget}${list}${accounts}`;
-};
 
 const cellText = (v) => (/^\d{5,}$/.test(v) ? Number(v).toLocaleString('id-ID') : v);
 function tableBlock(b) {
@@ -801,36 +739,6 @@ FORMS.grade = (f) => {
 ACT.gradeDel = (el) => { S.grades = S.grades.filter((g) => g.id !== el.dataset.id); save({ sync: false }); render(); };
 CHANGE.gradeTarget = (el) => { S.settings.gradeTarget = Math.max(0, Math.min(100, Number(el.value) || 0)); save({ sync: false }); render(); };
 
-ACT.moneyKind = (el) => { UI.money.kind = el.dataset.k; render(); };
-ACT.moneyEdit = () => { UI.money.edit = !UI.money.edit; render(); };
-ACT.moneyAccounts = () => { UI.money.accounts = !UI.money.accounts; render(); };
-ACT.moneyNav = (el) => {
-  const d = Number(el.dataset.d), cur = parseYmd(UI.money.ym + '-01');
-  UI.money.ym = d ? ymd(new Date(cur.getFullYear(), cur.getMonth() + d, 1)).slice(0, 7) : todayStr().slice(0, 7);
-  render();
-};
-FORMS.money = (f) => {
-  const L = ledgerState(), kind = UI.money.kind, amt = Math.abs(Number(f.elements.amt.value));
-  if (!amt) return toast('Jumlahnya diisi dulu');
-  const t = { id: uid(), kind, amt, acc: f.elements.acc.value, date: f.elements.date.value || todayStr(), x: f.elements.x.value.trim() };
-  if (kind === 'tf') { t.to = f.elements.to.value; if (t.to === t.acc) return toast('Akun asal dan tujuan harus beda'); } else t.cat = f.elements.cat ? f.elements.cat.value : '';
-  L.tx.push(t);
-  UI.money.ym = t.date.slice(0, 7);
-  save({ sync: false }); render(); toast('Tersimpan');
-};
-ACT.txDel = (el) => { const L = ledgerState(); L.tx = L.tx.filter((t) => t.id !== el.dataset.id); save({ sync: false }); render(); };
-FORMS.accAdd = (f) => { const L = ledgerState(), x = f.elements.x.value.trim(); if (!x || L.accounts.some((a) => a.name === x)) return; L.accounts.push({ name: x, start: 0 }); save({ sync: false }); render(); };
-ACT.accDel = (el) => {
-  const L = ledgerState(), a = L.accounts[Number(el.dataset.i)];
-  if (L.tx.some((t) => t.acc === a.name || t.to === a.name)) return toast('Akun ini masih punya transaksi');
-  if (L.accounts.length < 2) return toast('Minimal ada satu akun');
-  L.accounts.splice(Number(el.dataset.i), 1); save({ sync: false }); render();
-};
-CHANGE.accStart = (el) => { ledgerState().accounts[Number(el.dataset.i)].start = Number(el.value) || 0; save({ sync: false }); };
-FORMS.catAdd = (f) => { const L = ledgerState(), x = f.elements.x.value.trim(); if (!x || L.cats.some((c) => c.name === x)) return; L.cats.push({ name: x, kind: f.elements.kind.value, limit: 0 }); save({ sync: false }); render(); };
-ACT.catDel = (el) => { ledgerState().cats.splice(Number(el.dataset.i), 1); save({ sync: false }); render(); };
-CHANGE.catLimit = (el) => { ledgerState().cats[Number(el.dataset.i)].limit = Math.max(0, Number(el.value) || 0); save({ sync: false }); };
-
 ACT.setFlag = (el) => { S.settings[el.dataset.k] = S.settings[el.dataset.k] === false; save(); render(); };
 CHANGE.setting = (el) => { S.settings[el.dataset.k] = el.dataset.k === 'snooze' ? Number(el.value) : el.value; save(); };
 ACT.theme = (el) => { S.settings.theme = el.dataset.t; save({ sync: false }); applyTheme(); render(); };
@@ -902,20 +810,3 @@ window.onNotifPermission = () => { syncNotifications(); refresh(); };
 window.onFilePicked = (text) => doImport(text);
 window.onFileSaved = (ok) => toast(ok ? 'Backup tersimpan' : 'Backup batal disimpan');
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { takeNativeResults(); refresh(); syncNotifications(); } });
-
-/* ---------- start ---------- */
-loadState();
-applyTheme();
-takeNativeResults();
-render();
-syncNotifications();
-let lastMinute = nowHM();
-setInterval(() => { const m = nowHM(); if (m !== lastMinute) { lastMinute = m; if (!UI.stack.length && (UI.tab === 'today' || UI.tab === 'cal')) refresh(); } }, 20000);
-if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); });
-if (!S.settings.onboarded) {
-  openSheet(`<h2>Halo${S.settings.name ? ', ' + esc(S.settings.name) : ''} 👋</h2>
-    <p style="margin-bottom:10px">Semua isi All-in-One sekarang ada di sini: jadwal harian, to-do malam ini & besok, checklist mingguan/bulanan, dan catatanmu.</p>
-    <ul class="blist" style="margin-bottom:14px"><li>Kalender udah keisi otomatis dari jadwalmu, seminggu ke depan dan seterusnya.</li><li>Tiap jadwal muncul sebagai notifikasi — jawab <b>Sudah</b> atau <b>Belum</b> langsung dari notifnya.</li><li>Pengingat pagi, siang, sore bisa diubah di tab Lainnya.</li></ul>
-    <div class="btnrow">${BRIDGE ? '<button class="btn wide" data-act="askNotif">Aktifkan notifikasi</button>' : ''}<button class="btn ghost wide" data-act="onboardDone">${BRIDGE ? 'Nanti aja' : 'Mulai'}</button></div>`);
-  S.settings.onboarded = true; save({ sync: false });
-}

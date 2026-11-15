@@ -64,7 +64,7 @@ function defaultState() {
     notes: {},        // section id -> notes the user added
     grades: [],       // { id, date, subject, kind, score, note }
     deadlines: [],    // { id, text, due: 'YYYY-MM-DD' | null, fast, done, created, doneAt }
-    ledger: null,     // { accounts: [{ name, start }], tx: [{ id, x, acc, date, amt }] } — amt > 0 is money in
+    money: null,      // the Uang tab: { cfg, months } (see money.js)
     reminders: defaultReminders(),
     settings: { name: DATA.owner || '', theme: 'auto', snooze: 30, todoTime: '19:00', notif: true, gradeTarget: 0, onboarded: false },
   };
@@ -332,40 +332,6 @@ function dlPhrase(days) {
   return days + ' hari lagi';
 }
 
-/* ---------- money manager ---------- */
-/** { accounts: [{ name, start }], cats: [{ name, kind: 'out' | 'in', limit }], tx: [{ id, date, kind: 'out' | 'in' | 'tf', amt, acc, to, cat, x }] } */
-function ledgerState() {
-  const L = S.ledger || (S.ledger = { accounts: [], tx: [], cats: null });
-  if (!L.accounts.length) {
-    const block = Object.values(BLOCKS).find((b) => b.t === 'ledger');
-    L.accounts = block && block.accounts.length ? JSON.parse(JSON.stringify(block.accounts)) : [{ name: 'Dompet', start: 0 }];
-  }
-  if (!L.cats) {
-    const seeds = DATA.seeds || {};
-    const out = seeds.budget && seeds.budget.length ? seeds.budget : [{ name: 'Makan & jajan', limit: 0 }, { name: 'Transport', limit: 0 }, { name: 'Belanja', limit: 0 }, { name: 'Lainnya', limit: 0 }];
-    const inc = seeds.income && seeds.income.length ? seeds.income : ['Uang jajan', 'Lainnya'];
-    L.cats = out.map((c) => ({ name: c.name, kind: 'out', limit: c.limit || 0 })).concat(inc.map((name) => ({ name, kind: 'in', limit: 0 })));
-  }
-  return L;
-}
-/** What a transaction does to one account's balance. */
-function txEffect(t, name) {
-  if (t.kind === 'tf') return (t.to === name ? t.amt : 0) - (t.acc === name ? t.amt : 0);
-  return t.acc !== name ? 0 : t.kind === 'in' ? t.amt : -t.amt;
-}
-const balanceOf = (L, name) => (L.accounts.find((a) => a.name === name) || { start: 0 }).start + L.tx.reduce((sum, t) => sum + txEffect(t, name), 0);
-function monthMoney(L, ym) {
-  const res = { inc: 0, out: 0, byCat: {}, tx: [] };
-  for (const t of L.tx) {
-    if (!t.date.startsWith(ym)) continue;
-    res.tx.push(t);
-    if (t.kind === 'in') res.inc += t.amt;
-    else if (t.kind === 'out') { res.out += t.amt; res.byCat[t.cat || 'Lainnya'] = (res.byCat[t.cat || 'Lainnya'] || 0) + t.amt; }
-  }
-  res.tx.sort((a, b) => b.date.localeCompare(a.date));
-  return res;
-}
-
 /* ---------- notifications ---------- */
 function reminderFor(date) {
   const h = date.getHours() + date.getMinutes() / 60;
@@ -416,6 +382,8 @@ function buildQueue() {
       if (at > now) out.push({ id: 'd|' + ds + '|hari', at, ch: 'tasks', title: '⏰ Deadline hari ini', items: dueNow.map((n) => ({ k: 'dl|' + n.id, x: label(n) })) });
     }
 
+    if (window.Money) Money.queue(d, ds, now, out);
+
     const open = todosOn(ds).filter((t) => !t.done);
     const morning = open.filter((t) => t.slot === 'pagi'), evening = open.filter((t) => t.slot !== 'pagi');
     const asItems = (list) => list.map((t) => ({ k: 'todo|' + t.id, x: t.x }));
@@ -440,6 +408,7 @@ function doneKeys() {
   }
   for (const t of S.todos) if (t.done) keys.push('todo|' + t.id);
   for (const n of S.deadlines) if (n.done) keys.push('dl|' + n.id);
+  if (window.Money) keys.push(...Money.doneKeys());
   return keys;
 }
 
@@ -460,7 +429,9 @@ function takeNativeResults() {
   const keys = Object.keys(res);
   for (const key of keys) {
     const v = res[key];
-    if (key.startsWith('dl|')) {
+    if (key.startsWith('pay|') || key.startsWith('ml|')) {
+      if (window.Money) Money.result(key, v);
+    } else if (key.startsWith('dl|')) {
       const n = S.deadlines.find((x) => x.id === key.slice(3));
       if (n && v === 1) { n.done = true; n.doneAt = Date.now(); }
     } else if (key.startsWith('todo|')) {
