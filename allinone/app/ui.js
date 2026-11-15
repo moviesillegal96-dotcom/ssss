@@ -32,6 +32,8 @@ const UI = {
   cal: { sel: todayStr(), start: todayStr(), mode: 'week', month: todayStr().slice(0, 7) },
   rem: null, open: {}, edit: {}, q: '', dayTab: 0, draft: null, draftId: null,
   money: { ym: todayStr().slice(0, 7), kind: 'out', edit: false, accounts: false },
+  todoSeg: 'todo', undo: null,
+  dl: { text: '', due: '', fast: false, editId: null, filter: 'all', doneOpen: false },
 };
 const VIEWS = {}, ACT = {}, FORMS = {}, CHANGE = {};
 
@@ -58,6 +60,7 @@ function render() {
 function go(view) { UI.scroll.push(window.scrollY); UI.stack.push(view); render(); if (view.focus == null) window.scrollTo(0, 0); }
 function back() {
   if (!$('#sheet').hidden) { closeSheet(); return true; }
+  if (!UI.stack.length && UI.tab === 'todo' && UI.dl.editId) { dlReset(); render(); return true; }
   if (UI.stack.length) { UI.stack.pop(); render(); window.scrollTo(0, UI.scroll.pop() || 0); return true; }
   if (UI.tab !== 'today') { UI.tab = 'today'; render(); window.scrollTo(0, 0); return true; }
   return false;
@@ -65,7 +68,14 @@ function back() {
 function openSheet(html) { const el = $('#sheet'); el.innerHTML = `<div class="panel"><div class="grab"></div>${html}</div>`; el.hidden = false; }
 function closeSheet() { const el = $('#sheet'); el.hidden = true; el.innerHTML = ''; UI.draft = null; }
 let toastTimer = null;
-function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2400); }
+function toast(msg, undo) {
+  const el = $('#toast');
+  UI.undo = undo || null;
+  el.innerHTML = esc(msg) + (undo ? '<button data-act="undo">Urungkan</button>' : '');
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.classList.remove('show'); UI.undo = null; }, undo ? 6500 : 2400);
+}
 
 /* ---------- shared pieces ---------- */
 function itemRow(ds, it, opts) {
@@ -157,6 +167,65 @@ function picksCard() {
   }).join('');
 }
 
+/* ---------- Deadline notes ---------- */
+function dlRow(n, opts) {
+  opts = opts || {};
+  const [num, cap] = dlCount(n.days);
+  const date = n.due ? shortDate(parseYmd(n.due)) : '';
+  return `<div class="dl lv-${n.level}${n.id === UI.dl.editId ? ' editing' : ''}">
+    <button class="ck" data-act="dlDone" data-id="${n.id}" aria-label="Selesai"></button>
+    <div class="cnt"><b class="${num.length > 3 ? 'long' : ''}">${num}</b><small>${cap}</small></div>
+    <div class="tx"><span class="t">${rich(n.text)}</span>
+      <span class="meta">${opts.compact ? '' : `<span class="lvpill">${DL_LABEL[n.level]}</span> `}${esc(date)}${n.fast ? ' <span class="tag fast">Cepat</span>' : ''}</span>
+      ${opts.compact ? '' : `<span class="acts"><button data-act="dlEdit" data-id="${n.id}">Ubah</button><button data-act="dlDel" data-id="${n.id}">Hapus</button></span>`}</div>
+  </div>`;
+}
+/** The most pressing open notes, for the Hari ini screen. */
+function deadlineCard() {
+  const open = dlOpen();
+  const hot = open.filter((n) => n.level === 'overdue' || n.level === 'urgent' || n.level === 'soon').slice(0, 4);
+  if (!hot.length) return '';
+  return `<section class="card"><header><h3>⏰ Deadline</h3><span class="count">${open.length}</span><button class="link" data-act="openDeadlines">Semua</button></header>${hot.map((n) => dlRow(n, { compact: true })).join('')}</section>`;
+}
+function deadlineView() {
+  const now = new Date(), D = UI.dl;
+  const all = dlList(now);
+  const open = all.filter((n) => !n.done).sort(dlCompare), done = all.filter((n) => n.done).sort((a, b) => b.doneAt - a.doneAt);
+  const days = dlDays(D.due || null, now), level = dlLevel(days, D.fast);
+  const quick = [['0', 'Hari ini'], ['1', 'Besok'], ['7', 'Seminggu lagi'], ['none', 'Tanpa tanggal']];
+  const isOn = (q) => (q === 'none' ? !D.due : D.due === ymd(addDays(now, Number(q))));
+  const composer = `<form class="card composer" data-form="dl">
+      <textarea name="x" rows="2" placeholder="Tulis catatan atau tugas…" data-input="dlText" maxlength="4000" enterkeyhint="done">${esc(D.text)}</textarea>
+      <div class="chips">${quick.map(([q, label]) => `<button type="button" class="chip${isOn(q) ? ' on' : ''}" data-act="dlQuick" data-q="${q}">${label}</button>`).join('')}<input type="date" class="dateinp" value="${esc(D.due)}" data-change="dlDate" aria-label="Tanggal deadline"></div>
+      <div class="rowline"><div class="grow"><b>Harus cepat</b><small>Naik satu tingkat lebih mendesak</small></div><button type="button" class="switch${D.fast ? ' on' : ''}" data-act="dlFast" aria-label="Harus cepat"></button></div>
+      <div class="foot"><span class="muted small lv-${level}">Masuk ke <span class="lvpill">${DL_LABEL[level]}</span> · ${dlPhrase(days)}</span>
+        <span class="btnrow">${D.editId ? '<button type="button" class="btn ghost" data-act="dlCancel">Batal</button>' : ''}<button class="btn">${D.editId ? 'Simpan' : 'Tambah'}</button></span></div>
+    </form>`;
+  const counts = {};
+  open.forEach((n) => { counts[n.level] = (counts[n.level] || 0) + 1; });
+  const filters = open.length ? `<div class="scroll">${[['all', 'Semua', open.length]].concat(DL_LEVELS.map(([k, l]) => [k, l, counts[k] || 0])).map(([k, l, n]) => `<button class="chip lv-${k}${D.filter === k ? ' on' : ''}${n ? '' : ' zero'}" data-act="dlFilter" data-k="${k}">${k === 'all' ? '' : '<i class="dot"></i>'}${l} <b>${n}</b></button>`).join('')}</div>` : '';
+  let list = '';
+  if (!all.length) list = '<div class="card empty"><b>Belum ada catatan</b><br>Tulis di atas dan pilih tanggalnya. Makin dekat tanggalnya, makin atas posisinya.</div>';
+  else if (!open.length) list = '<div class="card empty"><b>Semua beres</b><br>Nggak ada yang tersisa.</div>';
+  else {
+    for (const [k, label] of DL_LEVELS) {
+      if (D.filter !== 'all' && D.filter !== k) continue;
+      const items = open.filter((n) => n.level === k);
+      if (items.length) list += `<section class="dlgroup lv-${k}"><h3>${label}<small>${items.length} catatan</small></h3><div class="card">${items.map((n) => dlRow(n)).join('')}</div></section>`;
+    }
+    if (!list) list = `<div class="card empty">Nggak ada di ${DL_LABEL[D.filter]}. Pilih Semua buat lihat semuanya.</div>`;
+  }
+  const doneCard = done.length ? `<section class="card"><header><h3>Selesai</h3><span class="count">${done.length}</span><button class="link" data-act="dlDoneOpen">${D.doneOpen ? 'Tutup' : 'Lihat'}</button></header>
+      ${D.doneOpen ? done.map((n) => `<div class="it done"><button class="ck" data-act="dlUndone" data-id="${n.id}" aria-label="Balikin ke daftar"></button><div class="tx"><span class="t">${rich(n.text)}</span><span class="meta">Selesai ${n.doneAt ? shortDate(new Date(n.doneAt)) : ''}</span></div><button class="x" data-act="dlDel" data-id="${n.id}" aria-label="Hapus">×</button></div>`).join('') + '<button class="btn ghost wide" style="margin-top:10px" data-act="dlClearDone">Hapus semua yang selesai</button>' : ''}</section>` : '';
+  const rules = `<h2 class="sec">Cara ngurutin</h2><div class="card rules">
+      <div class="lv-overdue"><span class="lvpill">Telat</span><span>Tanggalnya udah lewat.</span></div>
+      <div class="lv-urgent"><span class="lvpill">Mendesak</span><span>Hari ini atau besok. Juga yang ditandai cepat dan jatuh tempo dalam 7 hari.</span></div>
+      <div class="lv-soon"><span class="lvpill">Segera</span><span>2 sampai 7 hari lagi. Juga yang ditandai cepat tapi masih lama atau tanpa tanggal.</span></div>
+      <div class="lv-later"><span class="lvpill">Nanti</span><span>Lebih dari 7 hari lagi.</span></div>
+      <div class="lv-none"><span class="lvpill">Tanpa tanggal</span><span>Belum dikasih tanggal.</span></div></div>`;
+  return composer + filters + list + doneCard + rules;
+}
+
 /* ---------- Hari ini ---------- */
 VIEWS.today = () => {
   const now = new Date(), ds = todayStr(), items = dayItems(now);
@@ -169,6 +238,7 @@ VIEWS.today = () => {
   return `<header class="hero"><div class="grow"><p class="eyebrow">${longDate(now)}</p><h1>${greet}${S.settings.name ? ', ' + esc(S.settings.name) : ''}</h1>${motto ? `<p class="motto">${esc(motto)}</p>` : ''}</div>${ring(done, items.length + todos.length)}</header>
     ${reminderCard()}
     ${overdueCard()}
+    ${deadlineCard()}
     <div class="duo">${todoCard('malam')}${todoCard('besok')}</div>
     ${picksCard()}
     <h2 class="sec"><span class="grow">Jadwal hari ini</span><button class="link" data-act="addTask" data-date="${ds}">＋ Tambah</button></h2>
@@ -201,6 +271,7 @@ VIEWS.cal = () => {
     <div class="calnav"><b>${label}</b><button class="iconbtn" data-act="calNav" data-d="-1" aria-label="Sebelumnya">${ICON.back}</button><button class="link" data-act="calToday">Hari ini</button><button class="iconbtn" data-act="calNav" data-d="1" aria-label="Berikutnya" style="transform:scaleX(-1)">${ICON.back}</button></div>
     ${grid}
     <h2 class="sec"><span class="grow">${longDate(sel)}</span><span class="count${items.length && done === items.length ? ' full' : ''}">${done}/${items.length}</span></h2>
+    ${(() => { const due = dlOpen().filter((n) => n.due === c.sel); return due.length ? `<section class="card"><header><h3>⏰ Deadline</h3><span class="count">${due.length}</span></header>${due.map((n) => dlRow(n, { compact: true })).join('')}</section>` : ''; })()}
     ${todos.length ? `<section class="card"><header><h3>📝 To-do</h3></header>${todos.map((t) => todoRow(t, c.sel === todayStr() ? 'malam' : 'besok')).join('')}</section>` : ''}
     ${timeline(c.sel, items, c.sel === todayStr())}
     <button class="fab" data-act="addTask" data-date="${c.sel}" aria-label="Tambah jadwal">＋</button>`;
@@ -209,13 +280,19 @@ VIEWS.cal = () => {
 /* ---------- To-Do ---------- */
 const checkLists = () => Object.values(BLOCKS).filter((b) => b.t === 'check' && !b.daily && !b.day);
 VIEWS.todo = () => {
-  const lists = checkLists();
-  return `<div class="title"><h1>To-Do</h1></div>
-    ${overdueCard()}${todoCard('malam')}${todoCard('besok')}
-    ${lists.length ? `<h2 class="sec">List dari All in 1</h2><div class="card">${lists.map((b) => {
+  const lists = checkLists(), seg = UI.todoSeg, nOpen = S.deadlines.filter((n) => !n.done).length;
+  const segs = [['todo', 'To-do'], ['deadline', 'Deadline' + (nOpen ? ' · ' + nOpen : '')], ['list', 'List']];
+  let body;
+  if (seg === 'deadline') body = deadlineView();
+  else if (seg === 'list') {
+    body = lists.length ? `<div class="card">${lists.map((b) => {
       const home = BLOCK_HOME[b.id], items = listItems(b), done = items.filter((i) => i.d).length;
       return `<button class="navrow" data-act="openSection" data-id="${esc(home.section.id)}" data-b="${esc(b.id)}"><span class="ico">${home.sheet.icon}</span><span class="grow"><b>${esc(titleCase(cleanTitle(home.title)))}</b><small>${esc(titleCase(home.sheet.title))}</small></span><span class="count${items.length && done === items.length ? ' full' : ''}">${done}/${items.length}</span></button>`;
-    }).join('')}</div>` : ''}`;
+    }).join('')}</div>` : '<div class="card empty">Belum ada list.</div>';
+  } else body = overdueCard() + todoCard('malam') + todoCard('besok');
+  return `<div class="title"><h1>To-Do</h1></div>
+    <div class="seg wide">${segs.map(([k, l]) => `<button class="${seg === k ? 'on' : ''}" data-act="todoSeg" data-k="${k}">${l}</button>`).join('')}</div>
+    ${body}`;
 };
 
 /* ---------- All in 1 (the workbook) ---------- */
@@ -538,7 +615,6 @@ VIEWS.more = () => {
     : !st || st.notif ? '' : '<p class="note">Notifikasi belum diizinkan. Pencet <b>Izinkan notifikasi</b> di bawah.</p>';
   return `<div class="title"><h1>Lainnya</h1></div>
     <div class="card">
-      <button class="navrow" data-act="chess"><span class="ico">♞</span><span class="grow"><b>Chess Helper</b><small>Bantuan catur: best move, review game, clock</small></span><span class="chev">›</span></button>
       <button class="navrow" data-act="go" data-v="manage"><span class="ico">🗓️</span><span class="grow"><b>Atur jadwal rutin</b><small>${S.tasks.length} kegiatan · jam, hari, notifikasi</small></span><span class="chev">›</span></button>
     </div>
 
@@ -597,6 +673,52 @@ ACT.todoMove = (el) => {
   save(); render();
 };
 FORMS.todo = (f) => { addTodo(f.elements.x.value, f.dataset.when); render(); const again = $(`form[data-form="todo"][data-when="${f.dataset.when}"] input`); if (again) again.focus(); };
+
+ACT.todoSeg = (el) => { UI.todoSeg = el.dataset.k; render(); window.scrollTo(0, 0); };
+ACT.openDeadlines = () => { UI.stack = []; UI.scroll = []; UI.tab = 'todo'; UI.todoSeg = 'deadline'; render(); window.scrollTo(0, 0); };
+ACT.undo = () => { const fn = UI.undo; UI.undo = null; $('#toast').classList.remove('show'); if (fn) { fn(); save(); render(); } };
+const dlKeep = () => { const t = $('textarea[data-input="dlText"]'); if (t) UI.dl.text = t.value; };
+const dlReset = () => { Object.assign(UI.dl, { text: '', due: '', fast: false, editId: null }); };
+ACT.dlQuick = (el) => { dlKeep(); const q = el.dataset.q; UI.dl.due = q === 'none' ? '' : ymd(addDays(new Date(), Number(q))); render(); };
+CHANGE.dlDate = (el) => { dlKeep(); UI.dl.due = el.value; render(); };
+ACT.dlFast = () => { dlKeep(); UI.dl.fast = !UI.dl.fast; render(); };
+ACT.dlCancel = () => { dlReset(); render(); };
+ACT.dlFilter = (el) => { dlKeep(); UI.dl.filter = el.dataset.k; render(); };
+ACT.dlDoneOpen = () => { dlKeep(); UI.dl.doneOpen = !UI.dl.doneOpen; render(); };
+FORMS.dl = (f) => {
+  const text = f.elements.x.value.trim(), D = UI.dl;
+  if (!text) { toast('Tulis catatannya dulu'); f.elements.x.focus(); return; }
+  const old = D.editId ? S.deadlines.find((n) => n.id === D.editId) : null;
+  if (old) Object.assign(old, { text, due: D.due || null, fast: D.fast });
+  else S.deadlines.push({ id: uid(), text, due: D.due || null, fast: D.fast, done: false, created: Date.now(), doneAt: 0 });
+  dlReset(); save(); render();
+  const again = $('textarea[data-input="dlText"]'); if (again) again.focus();
+};
+ACT.dlEdit = (el) => {
+  const n = S.deadlines.find((x) => x.id === el.dataset.id);
+  if (!n) return;
+  Object.assign(UI.dl, { text: n.text, due: n.due || '', fast: !!n.fast, editId: n.id });
+  UI.stack = []; UI.tab = 'todo'; UI.todoSeg = 'deadline'; render(); window.scrollTo(0, 0);
+  const t = $('textarea[data-input="dlText"]'); if (t) t.focus();
+};
+ACT.dlDone = (el) => {
+  const n = S.deadlines.find((x) => x.id === el.dataset.id);
+  if (!n) return;
+  dlKeep(); n.done = true; n.doneAt = Date.now(); save(); render();
+  toast('Ditandai selesai', () => { n.done = false; n.doneAt = 0; });
+};
+ACT.dlUndone = (el) => { const n = S.deadlines.find((x) => x.id === el.dataset.id); if (n) { dlKeep(); n.done = false; n.doneAt = 0; save(); render(); } };
+function dlRemove(list, msg) {
+  if (!list.length) return;
+  dlKeep();
+  const before = S.deadlines.slice();
+  if (list.some((n) => n.id === UI.dl.editId)) dlReset();
+  S.deadlines = S.deadlines.filter((n) => !list.includes(n));
+  save(); render();
+  toast(msg, () => { S.deadlines = before; });
+}
+ACT.dlDel = (el) => dlRemove(S.deadlines.filter((n) => n.id === el.dataset.id), 'Catatan dihapus');
+ACT.dlClearDone = () => { const done = S.deadlines.filter((n) => n.done); dlRemove(done, done.length + ' catatan selesai dihapus'); };
 
 ACT.calSel = (el) => { UI.cal.sel = el.dataset.ds; render(); };
 ACT.calMode = (el) => { const c = UI.cal; c.mode = el.dataset.m; c.month = c.sel.slice(0, 7); if (c.mode === 'week' && (c.sel < c.start || c.sel > ymd(addDays(parseYmd(c.start), 6)))) c.start = c.sel; render(); };
@@ -718,7 +840,6 @@ CHANGE.remLine = (el) => { const x = el.value.trim(); if (x) { S.reminders[Numbe
 ACT.remLineDel = (el) => { S.reminders[Number(el.dataset.r)].lines.splice(Number(el.dataset.i), 1); save(); render(); };
 FORMS.remLine = (f) => { const x = f.elements.x.value.trim(); if (!x) return; S.reminders[Number(f.dataset.r)].lines.push(x); save(); render(); };
 
-ACT.chess = () => { saveNow(); location.href = BRIDGE ? 'chess-helper.html' : '../chess-helper.html'; };
 ACT.askNotif = () => { if (BRIDGE) BRIDGE.aioAskNotifications(); closeSheet(); };
 ACT.appSettings = () => { if (BRIDGE) BRIDGE.aioOpenSettings(); };
 ACT.testNotif = () => {
@@ -764,7 +885,11 @@ document.addEventListener('submit', (ev) => {
   if (FORMS[f.dataset.form]) FORMS[f.dataset.form](f);
 });
 document.addEventListener('change', (ev) => { const el = ev.target; if (el.dataset && el.dataset.change && CHANGE[el.dataset.change]) CHANGE[el.dataset.change](el); });
+document.addEventListener('keydown', (ev) => {
+  if (ev.target.dataset && ev.target.dataset.input === 'dlText' && ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); ev.target.form.requestSubmit(); }
+});
 document.addEventListener('input', (ev) => {
+  if (ev.target.dataset && ev.target.dataset.input === 'dlText') { UI.dl.text = ev.target.value; return; }
   if (ev.target.dataset && ev.target.dataset.input === 'search') { UI.q = ev.target.value; $('#libbody').innerHTML = libBody(); }
 });
 

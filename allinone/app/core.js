@@ -63,6 +63,7 @@ function defaultState() {
     picks: {},        // week (Monday date) -> { block id: { index: 1 } } for the per-weekday study picks
     notes: {},        // section id -> notes the user added
     grades: [],       // { id, date, subject, kind, score, note }
+    deadlines: [],    // { id, text, due: 'YYYY-MM-DD' | null, fast, done, created, doneAt }
     ledger: null,     // { accounts: [{ name, start }], tx: [{ id, x, acc, date, amt }] } — amt > 0 is money in
     reminders: defaultReminders(),
     settings: { name: DATA.owner || '', theme: 'auto', snooze: 30, todoTime: '19:00', notif: true, gradeTarget: 0, onboarded: false },
@@ -94,6 +95,8 @@ function pruneOld() {
   for (const wk of Object.keys(S.picks)) if (wk < weekCut) delete S.picks[wk];
   const todoCut = ymd(addDays(new Date(), -7));
   S.todos = S.todos.filter((t) => !(t.done && t.date < todoCut));
+  const dlCut = Date.now() - 60 * 864e5;
+  S.deadlines = (S.deadlines || []).filter((n) => !(n.done && n.doneAt && n.doneAt < dlCut));
 }
 
 /* ---------- seeding the calendar from the workbook ---------- */
@@ -251,7 +254,9 @@ function setMark(ds, id, v) {
 
 function dayProgress(d) {
   const items = dayItems(d);
-  return { total: items.length, done: items.filter((i) => i.mark === 1).length, events: items.filter((i) => i.t.rep && i.t.rep.k === 'once').length };
+  const ds = ymd(d);
+  const events = items.filter((i) => i.t.rep && i.t.rep.k === 'once').length + S.deadlines.filter((n) => !n.done && n.due === ds).length;
+  return { total: items.length, done: items.filter((i) => i.mark === 1).length, events };
 }
 
 function monthCount(taskId, d) {
@@ -286,6 +291,45 @@ function togglePick(block, i) {
   const p = (wk[block.id] = wk[block.id] || {});
   if (p[i]) delete p[i]; else p[i] = 1;
   save({ sync: false });
+}
+
+/* ---------- deadline notes ---------- */
+const DL_LEVELS = [['overdue', 'Telat'], ['urgent', 'Mendesak'], ['soon', 'Segera'], ['later', 'Nanti'], ['none', 'Tanpa tanggal']];
+const DL_LABEL = Object.fromEntries(DL_LEVELS);
+const DL_RANK = Object.fromEntries(DL_LEVELS.map((l, i) => [l[0], i]));
+const dlDays = (due, now) => (due ? Math.round((parseYmd(due) - startOfDay(now)) / 864e5) : null);
+/** Overdue, then today / tomorrow, then within a week, then later. "Fast" lifts a note one level. */
+function dlLevel(days, fast) {
+  if (days === null) return fast ? 'soon' : 'none';
+  if (days < 0) return 'overdue';
+  if (days <= 1) return 'urgent';
+  if (days <= 7) return fast ? 'urgent' : 'soon';
+  return fast ? 'soon' : 'later';
+}
+function dlList(now) {
+  now = now || new Date();
+  return S.deadlines.map((n) => { const days = dlDays(n.due, now); return Object.assign({}, n, { days, level: dlLevel(days, n.fast) }); });
+}
+function dlCompare(a, b) {
+  if (a.level !== b.level) return DL_RANK[a.level] - DL_RANK[b.level];
+  const da = a.days === null ? Infinity : a.days, db = b.days === null ? Infinity : b.days;
+  if (da !== db) return da - db;
+  if (!!a.fast !== !!b.fast) return a.fast ? -1 : 1;
+  return (a.created || 0) - (b.created || 0);
+}
+const dlOpen = (now) => dlList(now).filter((n) => !n.done).sort(dlCompare);
+function dlCount(days) {
+  if (days === null) return ['–', 'tanpa tgl'];
+  if (days < 0) return [String(-days), 'hari telat'];
+  if (days === 0) return ['0', 'hari ini'];
+  return [String(days), 'hari lagi'];
+}
+function dlPhrase(days) {
+  if (days === null) return 'tanpa tanggal';
+  if (days < 0) return 'telat ' + -days + ' hari';
+  if (days === 0) return 'hari ini';
+  if (days === 1) return 'besok';
+  return days + ' hari lagi';
 }
 
 /* ---------- money manager ---------- */
@@ -358,6 +402,20 @@ function buildQueue() {
       if (at > now) out.push({ id: 't|' + ds + '|' + key, at, ch: 'tasks', title: time + ' · ' + group, items });
     }
 
+    // Deadlines: the evening before, and every morning from the due date until they are done.
+    const dls = S.deadlines.filter((n) => !n.done && n.due);
+    const dueTomorrow = dls.filter((n) => n.due === ymd(addDays(d, 1)));
+    const dueNow = dls.filter((n) => n.due <= ds).sort((a, b) => b.due.localeCompare(a.due));
+    if (dueTomorrow.length) {
+      const at = atTime(d, S.settings.todoTime || '19:00') + 120000;
+      if (at > now) out.push({ id: 'd|' + ds + '|besok', at, ch: 'tasks', title: '⏰ Deadline besok', items: dueTomorrow.map((n) => ({ k: 'dl|' + n.id, x: n.text })) });
+    }
+    if (dueNow.length) {
+      const at = atTime(d, pagi && timeOf(pagi) ? timeOf(pagi) : '06:00') + 120000;
+      const label = (n) => (n.due === ds ? n.text : n.text + ' — telat ' + Math.round((d - parseYmd(n.due)) / 864e5) + ' hari');
+      if (at > now) out.push({ id: 'd|' + ds + '|hari', at, ch: 'tasks', title: '⏰ Deadline hari ini', items: dueNow.map((n) => ({ k: 'dl|' + n.id, x: label(n) })) });
+    }
+
     const open = todosOn(ds).filter((t) => !t.done);
     const morning = open.filter((t) => t.slot === 'pagi'), evening = open.filter((t) => t.slot !== 'pagi');
     const asItems = (list) => list.map((t) => ({ k: 'todo|' + t.id, x: t.x }));
@@ -381,6 +439,7 @@ function doneKeys() {
     for (const id of Object.keys(m)) if (m[id] === 1) keys.push(ds + '|' + id);
   }
   for (const t of S.todos) if (t.done) keys.push('todo|' + t.id);
+  for (const n of S.deadlines) if (n.done) keys.push('dl|' + n.id);
   return keys;
 }
 
@@ -401,7 +460,10 @@ function takeNativeResults() {
   const keys = Object.keys(res);
   for (const key of keys) {
     const v = res[key];
-    if (key.startsWith('todo|')) {
+    if (key.startsWith('dl|')) {
+      const n = S.deadlines.find((x) => x.id === key.slice(3));
+      if (n && v === 1) { n.done = true; n.doneAt = Date.now(); }
+    } else if (key.startsWith('todo|')) {
       const t = S.todos.find((x) => x.id === key.slice(5));
       if (t && v === 1) { t.done = 1; t.doneAt = Date.now(); }
     } else {
