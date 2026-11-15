@@ -1,4 +1,4 @@
-package com.chesshelper.app;
+package com.allinone.app;
 
 import android.Manifest;
 import android.app.Activity;
@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.view.WindowManager;
@@ -24,15 +25,19 @@ import android.webkit.WebViewClient;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Hosts the chess helper page in a full-screen WebView.
+ * Hosts the All in One planner (index.html) and the chess helper (chess-helper.html) in a full-screen WebView.
  *
  * The bundled assets are served from https://appassets.androidplatform.net/ (intercepted, never
  * fetched from the network) so the page runs in a secure context: Web Workers, WebAssembly
@@ -43,7 +48,14 @@ public class MainActivity extends Activity {
     private static final String START_URL = "https://" + HOST + "/index.html";
     private static final int REQ_SPEECH = 2;
     private static final int REQ_CAMERA = 3;
+    private static final int REQ_NOTIFICATIONS = 4;
+    private static final int REQ_SAVE_FILE = 5;
+    private static final int REQ_PICK_FILE = 6;
 
+    /** The activity on screen, so answers given from a notification reach the page right away. */
+    private static MainActivity current;
+
+    private String pendingSave;
     private WebView web;
     private TextToSpeech tts;
     private boolean ttsReady;
@@ -52,8 +64,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Keep the screen awake while the board is open at the table.
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        current = this;
 
         web = new WebView(this);
         WebSettings s = web.getSettings();
@@ -77,10 +88,43 @@ public class MainActivity extends Activity {
         });
 
         web.loadUrl(START_URL);
+        Notifier.fireDue(this);
+    }
+
+    /** A tap on a notification while the app is already running. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent != null && intent.hasExtra("open")) {
+            callJs("window.onNativeOpen && window.onNativeOpen(" + JSONObject.quote(intent.getStringExtra("open")) + ")");
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        current = this;
+        callJs("window.onNativeResults && window.onNativeResults()");
+    }
+
+    /** Called after a notification button was pressed. */
+    static void resultsChanged() {
+        MainActivity a = current;
+        if (a != null) a.callJs("window.onNativeResults && window.onNativeResults()");
     }
 
     /** Serves files from the APK's assets folder for the virtual https host. */
     private class AssetClient extends WebViewClient {
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            // Keep the screen awake only while the chess board is open at the table.
+            if (url != null && url.contains("chess-helper")) {
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            } else {
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            }
+        }
+
         @Override
         public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
             Uri url = request.getUrl();
@@ -154,6 +198,11 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == REQ_NOTIFICATIONS) {
+            Notifier.fireDue(this);
+            callJs("window.onNotifPermission && window.onNotifPermission()");
+            return;
+        }
         if (requestCode != REQ_CAMERA || pendingPermission == null) return;
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             pendingPermission.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
@@ -208,11 +257,145 @@ public class MainActivity extends Activity {
                 }
             });
         }
+
+        // ----- All in One planner -----
+
+        /** Hands over the notification queue: {queue: [...], done: [...], snooze, on}. */
+        @JavascriptInterface
+        public void aioSchedule(String json) {
+            Notifier.setQueue(MainActivity.this, json);
+        }
+
+        /** Answers given from notifications since the last call, as {key: 1 | 2}. */
+        @JavascriptInterface
+        public String aioTakeResults() {
+            return Notifier.takeResults(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public String aioStatus() {
+            try {
+                return new JSONObject()
+                        .put("sdk", Build.VERSION.SDK_INT)
+                        .put("notif", Notifier.notificationsEnabled(MainActivity.this))
+                        .put("exact", Notifier.exactAlarms(MainActivity.this)).toString();
+            } catch (org.json.JSONException e) {
+                return "{}";
+            }
+        }
+
+        @JavascriptInterface
+        public void aioAskNotifications() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (Build.VERSION.SDK_INT >= 33
+                            && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFICATIONS);
+                    } else if (!Notifier.notificationsEnabled(MainActivity.this)) {
+                        openAppSettings();
+                    }
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void aioOpenSettings() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    openAppSettings();
+                }
+            });
+        }
+
+        /** Lets the user choose where to save a text file (the backup). */
+        @JavascriptInterface
+        public void aioSaveFile(final String name, final String text) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    pendingSave = text;
+                    Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                            .setType("application/json").putExtra(Intent.EXTRA_TITLE, name);
+                    try {
+                        startActivityForResult(i, REQ_SAVE_FILE);
+                    } catch (ActivityNotFoundException e) {
+                        pendingSave = null;
+                        callJs("window.onFileSaved && window.onFileSaved(false)");
+                    }
+                }
+            });
+        }
+
+        /** Lets the user choose a backup file; its text goes to window.onFilePicked. */
+        @JavascriptInterface
+        public void aioPickFile() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
+                    try {
+                        startActivityForResult(i, REQ_PICK_FILE);
+                    } catch (ActivityNotFoundException ignored) {
+                    }
+                }
+            });
+        }
+    }
+
+    private void openAppSettings() {
+        Intent i;
+        if (Build.VERSION.SDK_INT >= 26 && !Notifier.notificationsEnabled(this)) {
+            i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+        } else {
+            i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+        }
+        try {
+            startActivity(i);
+        } catch (ActivityNotFoundException ignored) {
+        }
+    }
+
+    private void saveFile(Uri uri) {
+        boolean ok = false;
+        try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+            if (out != null && pendingSave != null) {
+                out.write(pendingSave.getBytes(StandardCharsets.UTF_8));
+                ok = true;
+            }
+        } catch (IOException ignored) {
+        }
+        pendingSave = null;
+        callJs("window.onFileSaved && window.onFileSaved(" + ok + ")");
+    }
+
+    private void readFile(Uri uri) {
+        StringBuilder sb = new StringBuilder();
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) return;
+            BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            char[] buf = new char[8192];
+            for (int n; (n = r.read(buf)) > 0 && sb.length() < 20000000; ) sb.append(buf, 0, n);
+        } catch (IOException e) {
+            return;
+        }
+        callJs("window.onFilePicked && window.onFilePicked(" + JSONObject.quote(sb.toString()) + ")");
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        Uri uri = resultCode == RESULT_OK && data != null ? data.getData() : null;
+        if (requestCode == REQ_SAVE_FILE) {
+            if (uri != null) saveFile(uri);
+            else callJs("window.onFileSaved && window.onFileSaved(false)");
+            return;
+        }
+        if (requestCode == REQ_PICK_FILE) {
+            if (uri != null) readFile(uri);
+            return;
+        }
         if (requestCode != REQ_SPEECH) return;
         ArrayList<String> results = data == null ? null
                 : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
@@ -232,20 +415,23 @@ public class MainActivity extends Activity {
         });
     }
 
-    /** Back closes review / big-board mode inside the page first; otherwise it leaves the app. */
+    /** Back closes what is open inside the page first, then returns from the chess helper, then leaves the app. */
     @Override
     public void onBackPressed() {
         web.evaluateJavascript("(window.onAndroidBack && window.onAndroidBack()) ? 'handled' : 'exit'",
                 new ValueCallback<String>() {
                     @Override
                     public void onReceiveValue(String value) {
-                        if (!"\"handled\"".equals(value)) finish();
+                        if ("\"handled\"".equals(value)) return;
+                        if (web.canGoBack()) web.goBack();
+                        else finish();
                     }
                 });
     }
 
     @Override
     protected void onDestroy() {
+        if (current == this) current = null;
         if (tts != null) tts.shutdown();
         if (web != null) web.destroy();
         super.onDestroy();
