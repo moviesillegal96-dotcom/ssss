@@ -24,7 +24,8 @@ separate times for weekdays and weekends. To-dos for tonight are announced in th
 **To-Do** – tonight / tomorrow lists, anything left over from yesterday, and shortcuts to every checklist in the workbook.
 
 **All in 1** – the workbook itself, one tile per sheet: checklists can be ticked, edited and extended; day-by-day tables show one
-weekday at a time; grades are entered in the app and averaged per subject; every section takes extra notes; search covers it all.
+weekday at a time; grades are entered in the app and averaged per subject; an empty income / expense table becomes a money log
+with account balances; every section takes extra notes; search covers it all.
 
 **Lainnya** – Chess Helper, routine manager (change time, days or notifications per item or per group), notification and reminder
 settings, theme, backup / restore.

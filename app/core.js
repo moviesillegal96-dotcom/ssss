@@ -63,6 +63,7 @@ function defaultState() {
     picks: {},        // week (Monday date) -> { block id: { index: 1 } } for the per-weekday study picks
     notes: {},        // section id -> notes the user added
     grades: [],       // { id, date, subject, kind, score, note }
+    ledger: null,     // { accounts: [{ name, start }], tx: [{ id, x, acc, date, amt }] } — amt > 0 is money in
     reminders: defaultReminders(),
     settings: { name: DATA.owner || '', theme: 'auto', snooze: 30, todoTime: '19:00', notif: true, gradeTarget: 0, onboarded: false },
   };
@@ -286,6 +287,14 @@ function togglePick(block, i) {
   if (p[i]) delete p[i]; else p[i] = 1;
   save({ sync: false });
 }
+
+/* ---------- money log ---------- */
+function ledgerState(block) {
+  if (!S.ledger) S.ledger = { accounts: JSON.parse(JSON.stringify(block.accounts || [])), tx: [] };
+  if (!S.ledger.accounts.length) S.ledger.accounts.push({ name: 'Dompet', start: 0 });
+  return S.ledger;
+}
+const balanceOf = (L, name) => (L.accounts.find((a) => a.name === name) || { start: 0 }).start + L.tx.filter((t) => t.acc === name).reduce((sum, t) => sum + t.amt, 0);
 
 /* ---------- notifications ---------- */
 function reminderFor(date) {

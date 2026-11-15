@@ -223,6 +223,7 @@ function blockLines(b) {
     case 'ul': case 'check': return listItems(b).map((i) => i.x + (i.n ? ' — ' + i.n : ''));
     case 'grid': return b.items.map((i) => i.x);
     case 'grades': return b.subjects;
+    case 'ledger': return ['Saldo', 'History transaksi'];
     case 'table': return b.rows.map((r) => (Array.isArray(r) ? r.filter(Boolean).join(' · ') : r.g));
     default: return [];
   }
@@ -285,6 +286,7 @@ function renderBlock(b) {
     case 'check': return b.daily ? taskBlock(b) : checkBlock(b);
     case 'grid': return taskBlock(b);
     case 'grades': return gradesBlock(b);
+    case 'ledger': return ledgerBlock(b);
     case 'table': return b.days ? dayTable(b) : tableBlock(b);
     default: return '';
   }
@@ -358,6 +360,24 @@ function gradesBlock(b) {
       return `<tr><td>${esc(s)}</td><td><b>${a == null ? '–' : a}</b></td><td>${a == null ? '<span class="muted">Belum ada data</span>' : a >= target ? '<span class="okc">✓ Aman</span>' : '<span class="noc">Perlu perhatian</span>'}</td></tr>`;
     }).join('')}</table></div>
     ${S.grades.length ? `<div class="card"><header><h3>Riwayat nilai</h3><span class="count">${S.grades.length}</span></header>${S.grades.slice().reverse().map((g) => `<div class="rowline"><div class="grow"><b>${esc(g.subject)} · ${g.score}</b><small>${esc([g.kind, shortDate(parseYmd(g.date)), g.note].filter(Boolean).join(' · '))}</small></div><button class="x" data-act="gradeDel" data-id="${g.id}" aria-label="Hapus">×</button></div>`).join('')}</div>` : ''}`;
+}
+
+const rupiah = (n) => (n < 0 ? '−' : '') + 'Rp' + Math.abs(Math.round(n)).toLocaleString('id-ID');
+/** Accounts with running balances and the list of money in / out. */
+function ledgerBlock(b) {
+  const L = ledgerState(b);
+  const total = L.accounts.reduce((sum, a) => sum + balanceOf(L, a.name), 0);
+  const numStyle = 'width:120px;border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:6px 8px;text-align:right';
+  return `<div class="card"><header><h3>Saldo</h3><span class="count">${rupiah(total)}</span></header>
+      ${L.accounts.map((a, i) => `<div class="rowline"><div class="grow"><b>${esc(a.name)}</b><small>Saldo sekarang ${rupiah(balanceOf(L, a.name))}</small></div><input type="number" inputmode="numeric" value="${a.start}" data-change="accStart" data-i="${i}" style="${numStyle}" aria-label="Saldo awal"><button class="x" data-act="accDel" data-i="${i}" aria-label="Hapus">×</button></div>`).join('')}
+      <p class="muted small" style="margin:6px 0 2px">Angka di kanan = saldo awal. Saldo sekarang = saldo awal + masuk − keluar.</p>
+      <form class="add" data-form="accAdd"><input name="x" placeholder="Tambah akun / bank…" autocomplete="off"><button aria-label="Tambah">＋</button></form></div>
+    <div class="card"><header><h3>Catat transaksi</h3></header><form data-form="tx">
+        <div class="field"><label>Keterangan (beli apa / dari mana)</label><input name="x" autocomplete="off" required></div>
+        <div class="field"><div class="row"><div><label>Jenis</label><select name="kind"><option value="out">Keluar</option><option value="in">Masuk</option></select></div><div><label>Jumlah (Rp)</label><input name="amt" type="number" min="0" inputmode="numeric" required></div></div></div>
+        <div class="field"><div class="row"><div><label>Akun</label><select name="acc">${L.accounts.map((a) => `<option>${esc(a.name)}</option>`).join('')}</select></div><div><label>Tanggal</label><input name="date" type="date" value="${todayStr()}"></div></div></div>
+        <button class="btn wide">Simpan transaksi</button></form></div>
+    ${L.tx.length ? `<div class="card"><header><h3>History transaksi</h3><span class="count">${L.tx.length}</span></header>${L.tx.slice().sort((x, y) => y.date.localeCompare(x.date)).map((t) => `<div class="rowline"><div class="grow"><b>${esc(t.x)}</b><small>${esc(shortDate(parseYmd(t.date)) + ' · ' + t.acc)}</small></div><span class="${t.amt >= 0 ? 'okc' : 'noc'}">${t.amt >= 0 ? '+' : ''}${rupiah(t.amt)}</span><button class="x" data-act="txDel" data-id="${t.id}" aria-label="Hapus">×</button></div>`).join('')}</div>` : ''}`;
 }
 
 const cellText = (v) => (/^\d{5,}$/.test(v) ? Number(v).toLocaleString('id-ID') : v);
@@ -609,6 +629,22 @@ FORMS.grade = (f) => {
 };
 ACT.gradeDel = (el) => { S.grades = S.grades.filter((g) => g.id !== el.dataset.id); save({ sync: false }); render(); };
 CHANGE.gradeTarget = (el) => { S.settings.gradeTarget = Math.max(0, Math.min(100, Number(el.value) || 0)); save({ sync: false }); render(); };
+
+FORMS.tx = (f) => {
+  const amt = Math.abs(Number(f.elements.amt.value));
+  const x = f.elements.x.value.trim();
+  if (!x || !amt) return toast('Isi keterangan dan jumlahnya');
+  S.ledger.tx.push({ id: uid(), x, acc: f.elements.acc.value, date: f.elements.date.value || todayStr(), amt: f.elements.kind.value === 'in' ? amt : -amt });
+  save({ sync: false }); render(); toast('Transaksi tersimpan');
+};
+ACT.txDel = (el) => { S.ledger.tx = S.ledger.tx.filter((t) => t.id !== el.dataset.id); save({ sync: false }); render(); };
+FORMS.accAdd = (f) => { const x = f.elements.x.value.trim(); if (!x || S.ledger.accounts.some((a) => a.name === x)) return; S.ledger.accounts.push({ name: x, start: 0 }); save({ sync: false }); render(); };
+ACT.accDel = (el) => {
+  const a = S.ledger.accounts[Number(el.dataset.i)];
+  if (S.ledger.tx.some((t) => t.acc === a.name)) return toast('Akun ini masih punya transaksi');
+  S.ledger.accounts.splice(Number(el.dataset.i), 1); save({ sync: false }); render();
+};
+CHANGE.accStart = (el) => { S.ledger.accounts[Number(el.dataset.i)].start = Number(el.value) || 0; save({ sync: false }); render(); };
 
 ACT.setFlag = (el) => { S.settings[el.dataset.k] = S.settings[el.dataset.k] === false; save(); render(); };
 CHANGE.setting = (el) => { S.settings[el.dataset.k] = el.dataset.k === 'snooze' ? Number(el.value) : el.value; save(); };

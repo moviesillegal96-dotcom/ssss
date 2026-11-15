@@ -21,7 +21,7 @@ from openpyxl.utils import range_boundaries
 
 MARKER = re.compile(r'^═+\s*(.+?)\s*═+$')
 URL = re.compile(r'https?://\S+')
-SKIP = re.compile(r'^(← ?Kembali|Legenda:|Klik sel|Cara pakai:|Sel kuning|Tip: klik|Ganti angka target|Hari ->)', re.I)
+SKIP = re.compile(r'^(← ?Kembali|Legenda:|Klik sel|Cara pakai:|Sel kuning|Tip: klik|Ganti angka target|Hari ->|Kolom Akun pilih)', re.I)
 STATUS_WORDS = {'o', 'v', 'belum', 'sudah', '☐', '☑', '✅', 'belum dikerjakan', 'sudah dikerjakan',
                 'sedang dikerjakan', 'k'}
 DONE_WORDS = {'v', 'sudah', '☑', '✅', 'sudah dikerjakan'}
@@ -189,6 +189,10 @@ class SectionBuilder:
     def close_table(self):
         t, self.table = self.table, None
         if not t or not any(isinstance(r, list) for r in t['rows']):
+            # An empty "Masuk / Keluar" table is a money log the app keeps itself.
+            low = [h.lower() for h in t['head']] if t else []
+            if any(h.startswith('masuk') for h in low) and any(h.startswith('keluar') for h in low):
+                self.blocks.append({'t': 'ledger', 'id': self.block_id('m'), 'accounts': []})
             return
         self.blocks.extend(finish_table(self, t))
 
@@ -301,8 +305,14 @@ def finish_table(sec, t):
             if r[status].strip().lower() in DONE_WORDS:
                 it['d'] = 1
             items.append(it)
+        # Remarks typed next to the table (no entry in the main column) are kept as a list under it.
+        stray = [v for r in rows if main_col is not None and len(r[main_col]) < 2
+                 for i, v in enumerate(r) if i in others and len(v) >= 8]
         if items:
-            return [{'t': 'check', 'id': sec.block_id('c'), 'items': items}]
+            out = [{'t': 'check', 'id': sec.block_id('c'), 'items': items}]
+            if stray:
+                out.append({'t': 'ul', 'id': sec.block_id('l'), 'items': [{'x': v} for v in stray]})
+            return out
 
     return [{'t': 'table', 'head': head if any(head) else [], 'rows': rows}]
 
@@ -591,6 +601,21 @@ def collect_seeds(out):
                     seeds['pulsek'] = b['id']
                     b['daily'] = 1
     seeds['grids'] = [g['id'] for g in grids]
+    # The account table ("Saldo Awal") feeds the money log of the same section instead of being shown as text.
+    for sheet in out['sheets']:
+        for sec in sheet['sections']:
+            ledger = next((b for b in sec['blocks'] if b['t'] == 'ledger'), None)
+            if not ledger:
+                continue
+            for b in sec['blocks']:
+                head = [h.lower() for h in b.get('head', [])] if b['t'] == 'table' else []
+                if 'saldo awal' in head:
+                    at = head.index('saldo awal')
+                    for r in b['rows']:
+                        if isinstance(r, list) and r[0]:
+                            start = r[at] if at < len(r) else ''
+                            ledger['accounts'].append({'name': r[0], 'start': int(start) if start.isdigit() else 0})
+                    b['drop'] = 1
     for sheet in out['sheets']:
         for sec in sheet['sections']:
             sec['blocks'] = [b for b in sec['blocks'] if not b.get('drop')]
