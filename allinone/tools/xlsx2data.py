@@ -8,7 +8,7 @@ The workbook is read as a document, not as a grid: every sheet becomes a list of
 checklists). Parts that describe a routine (the hourly timetable, the after-school checklist, the
 weekly / monthly / for-fun grids) are also returned as "seeds" that the app turns into calendar tasks.
 
-The optional seed file adds things that are not in the workbook: reminder texts and extra tasks.
+The optional seed file adds things that are not in the workbook: reminder texts, extra tasks and extra notes.
 Needs openpyxl.
 """
 import json
@@ -501,7 +501,16 @@ def convert(path, seed_path=None):
         out['owner'] = m.group(1).title()
     if seed_path:
         with open(seed_path, encoding='utf-8') as f:
-            out['seeds'].update(json.load(f))
+            seed = json.load(f)
+        # "additions": notes that are not in the workbook, appended to a section as a heading and a list.
+        sections = {sec['id']: sec for sh in out['sheets'] for sec in sh['sections']}
+        for n, add in enumerate(seed.pop('additions', [])):
+            sec = sections.get(add.get('section'))
+            if not sec:
+                sys.exit('seed addition: no section %r' % add.get('section'))
+            sec['blocks'].append({'t': 'h', 'l': 3, 'x': add['title']})
+            sec['blocks'].append({'t': 'ul', 'id': '%s#add%d' % (sec['id'], n), 'items': [{'x': x} for x in add['items']]})
+        out['seeds'].update(seed)
     return out
 
 

@@ -74,11 +74,13 @@ become lists, tables with a status column become checklists, grids with day colu
 ```json
 {
   "reminders": [{"id": "pagi", "label": "Pagi", "icon": "🌅", "time": "05:30", "timeWE": "08:00", "lines": ["…"]}],
-  "tasks": [{"title": "…", "time": "15:00", "group": "Sosial", "rep": {"k": "nw", "n": 2, "days": [6]}}]
+  "tasks": [{"title": "…", "time": "15:00", "group": "Sosial", "rep": {"k": "nw", "n": 2, "days": [6]}}],
+  "additions": [{"section": "study/study", "title": "…", "items": ["…"]}]
 }
 ```
 
-Reminder ids `pagi`, `siang`, `sore` are the three daily reminders. Task repeats: `{"k":"d"}` daily, `{"k":"w","days":[1-7]}`
+Reminder ids `pagi`, `siang`, `sore` are the three daily reminders. A task with a `"key"` is also added to an app that is
+already installed when it is updated. `additions` append a heading and a list of notes to a section (by section id). Task repeats: `{"k":"d"}` daily, `{"k":"w","days":[1-7]}`
 weekly (1 = Monday), `{"k":"nw","n":2,"days":[…]}` every n weeks, `{"k":"m","dom":15}` monthly, `{"k":"once","date":"YYYY-MM-DD"}`.
 
 Without `app/data.js` the app still runs, with an empty library and default reminders. Open `app/index.html` in a browser to use

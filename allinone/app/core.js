@@ -75,7 +75,13 @@ function loadState() {
   try { raw = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) { raw = null; }
   S = Object.assign(defaultState(), raw && raw.v === 1 ? raw : {});
   S.settings = Object.assign(defaultState().settings, S.settings || {});
-  if (!S.seeded) { S.tasks = seedTasks().concat(S.tasks.filter((t) => t.src === 'user')); S.seeded = true; }
+  const keyed = () => seedTasks().filter((t) => t.id.startsWith('sd:'));
+  if (!S.seeded) { S.tasks = seedTasks().concat(S.tasks.filter((t) => t.src === 'user')); S.seeded = true; S.seedSeen = keyed().map((t) => t.id); }
+  else {
+    // An update can bring new keyed seed tasks (a one-off event, say); add each once, even if it was deleted later.
+    const seen = (S.seedSeen = S.seedSeen || []);
+    for (const t of keyed()) if (!seen.includes(t.id)) { seen.push(t.id); if (!S.tasks.some((x) => x.id === t.id)) S.tasks.push(t); }
+  }
   pruneOld();
 }
 
@@ -185,7 +191,7 @@ function seedTasks() {
   (seeds.tasks || []).forEach((t, i) => {
     const rep = Object.assign({}, t.rep || { k: 'none' });
     if (rep.k === 'nw' && !rep.anchor) rep.anchor = ymd(mondayOf(new Date()));
-    push(Object.assign({}, t, { id: 'sd' + i, src: 'seed', rep, group: t.group || 'Acara', time: t.time || '' }));
+    push(Object.assign({}, t, { id: t.key ? 'sd:' + t.key : 'sd' + i, src: 'seed', rep, group: t.group || 'Acara', time: t.time || '' }));
   });
   return tasks;
 }
