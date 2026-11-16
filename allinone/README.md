@@ -40,6 +40,10 @@ shape, so a backup copied from that app (Settings → Copy my data) can be paste
 **All in 1** – the workbook itself, one tile per sheet: checklists can be ticked, edited and extended; day-by-day tables show one
 weekday at a time; grades are entered in the app and averaged per subject; every section takes extra notes; search covers it all.
 
+**Tempel catatan** (from All in 1 or Lainnya) – paste a pile of notes at once. Lines like `*Judul*` start a group, bullets and
+plain lines become its items, chat prefixes are dropped. Each group is matched to a section by the words it shares with it;
+a preview lets you change the destination, drop items, and send a dated group to the calendar before saving. Works offline.
+
 **Lainnya** – routine manager (change time, days or notifications per item or per group), notification and reminder settings,
 theme, backup / restore.
 

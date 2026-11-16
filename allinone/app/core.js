@@ -63,6 +63,7 @@ function defaultState() {
     picks: {},        // week (Monday date) -> { block id: { index: 1 } } for the per-weekday study picks
     notes: {},        // section id -> notes the user added
     grades: [],       // { id, date, subject, kind, score, note }
+    pasted: [],       // notes filed by "Tempel catatan": { id, sec: section id, title, items, at }
     deadlines: [],    // { id, text, due: 'YYYY-MM-DD' | null, fast, done, created, doneAt }
     money: null,      // the Uang tab: { cfg, months } (see money.js)
     reminders: defaultReminders(),

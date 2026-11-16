@@ -57,7 +57,7 @@ function render() {
     if (el) { el.scrollIntoView({ block: 'center' }); const card = el.firstElementChild || el; card.classList.add('flash'); }
   }
 }
-function go(view) { UI.scroll.push(window.scrollY); UI.stack.push(view); render(); if (view.focus == null) window.scrollTo(0, 0); }
+function go(view) { const jump = view.focus != null; UI.scroll.push(window.scrollY); UI.stack.push(view); if (!jump) window.scrollTo(0, 0); render(); if (!jump) window.scrollTo(0, 0); }
 function back() {
   if (!$('#sheet').hidden) { closeSheet(); return true; }
   if (!UI.stack.length && UI.tab === 'todo' && UI.dl.editId) { dlReset(); render(); return true; }
@@ -333,6 +333,12 @@ function searchResults(q) {
       }
     });
   }
+  for (const l of Paste.lines()) {
+    const at = l.x.toLowerCase().indexOf(needle), home = SECTIONS[l.sec];
+    if (at < 0 || !home || out.length >= 80) continue;
+    const from = Math.max(0, at - 30);
+    out.push(`<button class="navrow" data-act="openSection" data-id="${esc(l.sec)}" data-i="pasted"><span class="ico">${home.sheet.icon}</span><span class="grow"><b>${esc(titleCase(home.section.title))}</b><small>${highlight((from ? '…' : '') + l.x.slice(from, at + needle.length + 70), needle)}</small></span></button>`);
+  }
   return out.length ? `<div class="card">${out.join('')}</div>` : '<div class="card empty">Nggak ketemu.</div>';
 }
 function libBody() {
@@ -341,7 +347,7 @@ function libBody() {
   if (!DATA.sheets.length) return '<div class="card empty">Belum ada isi. Buat <b>data.js</b> dari spreadsheet dengan <code>tools/xlsx2data.py</code>.</div>';
   return `<div class="tiles">${DATA.sheets.map((s) => `<button class="tile" data-act="openSheet" data-id="${esc(s.id)}"><span class="ico">${s.icon}</span><b>${esc(titleCase(s.title))}</b><small>${s.sections.length > 1 ? s.sections.length + ' bagian' : 'Buka'}</small></button>`).join('')}</div>`;
 }
-VIEWS.lib = () => `<div class="title"><h1>All in 1</h1></div>
+VIEWS.lib = () => `<div class="title"><h1>All in 1</h1><button class="link" data-act="openPaste">＋ Tempel catatan</button></div>
   <div class="search">${ICON.search}<input type="search" placeholder="Cari di semua catatan…" value="${esc(UI.q)}" data-input="search" autocomplete="off"></div>
   <div id="libbody">${libBody()}</div>`;
 
@@ -363,6 +369,7 @@ VIEWS.section = (v) => {
   return `<div class="bar"><button class="back" data-act="back" aria-label="Kembali">${ICON.back}</button><h1>${esc(titleCase(section.title))}</h1></div>
     ${heads.length > 2 ? `<div class="scroll">${heads.map((h) => `<button class="chip" data-act="jump" data-i="${h.i}">${esc(h.x.length > 34 ? h.x.slice(0, 33) + '…' : h.x)}</button>`).join('')}</div>` : ''}
     <div class="doc">${section.blocks.map((b, i) => `<div id="b${i}">${renderBlock(b)}</div>`).join('')}
+      ${Paste.sectionHtml(section.id)}
       <h3>Catatan tambahan</h3>
       <div class="card">${notes.length ? `<ul class="blist">${notes.map((n, i) => `<li>${rich(n)} <button class="x" data-act="noteDel" data-id="${esc(section.id)}" data-i="${i}" aria-label="Hapus" style="float:right">×</button></li>`).join('')}</ul>` : ''}
         <form class="add" data-form="note" data-id="${esc(section.id)}"><input name="x" placeholder="Tulis catatan baru di sini…" autocomplete="off"><button aria-label="Tambah">＋</button></form></div>
@@ -565,6 +572,7 @@ VIEWS.more = () => {
     : !st || st.notif ? '' : '<p class="note">Notifikasi belum diizinkan. Pencet <b>Izinkan notifikasi</b> di bawah.</p>';
   return `<div class="title"><h1>Lainnya</h1></div>
     <div class="card">
+      <button class="navrow" data-act="openPaste"><span class="ico">📋</span><span class="grow"><b>Tempel catatan</b><small>Tempel semua catatan sekaligus, otomatis dirapihin ke bagiannya</small></span><span class="chev">›</span></button>
       <button class="navrow" data-act="go" data-v="manage"><span class="ico">🗓️</span><span class="grow"><b>Atur jadwal rutin</b><small>${S.tasks.length} kegiatan · jam, hari, notifikasi</small></span><span class="chev">›</span></button>
     </div>
 
@@ -729,7 +737,8 @@ FORMS.group = (f) => {
 ACT.openSheet = (el) => { const sheet = DATA.sheets.find((s) => s.id === el.dataset.id); if (sheet.sections.length === 1) go({ v: 'section', id: sheet.sections[0].id }); else go({ v: 'sheet', id: sheet.id }); };
 ACT.openSection = (el) => {
   const view = { v: 'section', id: el.dataset.id };
-  if (el.dataset.i != null) view.focus = Number(el.dataset.i);
+  if (el.dataset.i === 'pasted') view.focus = 'pasted';
+  else if (el.dataset.i != null) view.focus = Number(el.dataset.i);
   else if (el.dataset.b) view.focus = SECTIONS[el.dataset.id].section.blocks.findIndex((b) => b.id === el.dataset.b);
   go(view);
 };

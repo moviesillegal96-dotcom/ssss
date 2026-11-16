@@ -26,7 +26,7 @@ fi
 
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/res"
 rm -rf assets && mkdir -p assets
-cp ../app/index.html ../app/app.css ../app/core.js ../app/ui.js ../app/money.js ../app/main.js assets/
+cp ../app/index.html ../app/app.css ../app/core.js ../app/ui.js ../app/money.js ../app/paste.js ../app/main.js assets/
 cp -r ../app/fonts assets/fonts
 if [ -f ../app/data.js ]; then cp ../app/data.js assets/; else echo 'window.AIO_DATA = { sheets: [], seeds: {} };' > assets/data.js; fi
 cp -r res/. "$OUT/res/"
