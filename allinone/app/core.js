@@ -77,13 +77,46 @@ function loadState() {
   S = Object.assign(defaultState(), raw && raw.v === 1 ? raw : {});
   S.settings = Object.assign(defaultState().settings, S.settings || {});
   const keyed = () => seedTasks().filter((t) => t.id.startsWith('sd:'));
-  if (!S.seeded) { S.tasks = seedTasks().concat(S.tasks.filter((t) => t.src === 'user')); S.seeded = true; S.seedSeen = keyed().map((t) => t.id); }
+  if (!S.seeded) {
+    S.tasks = seedTasks().concat(S.tasks.filter((t) => t.src === 'user')); S.seeded = true; S.seedSeen = keyed().map((t) => t.id);
+    if (!raw && DATA.seeds.demo) applyDemo(DATA.seeds.demo);
+  }
   else {
     // An update can bring new keyed seed tasks (a one-off event, say); add each once, even if it was deleted later.
     const seen = (S.seedSeen = S.seedSeen || []);
     for (const t of keyed()) if (!seen.includes(t.id)) { seen.push(t.id); if (!S.tasks.some((x) => x.id === t.id)) S.tasks.push(t); }
   }
   pruneOld();
+}
+
+/** Sample entries for a demo build, with dates relative to the first start. */
+function applyDemo(demo) {
+  const now = new Date(), day = (k) => ymd(addDays(now, k || 0));
+  const monthBack = (m) => new Date(now.getFullYear(), now.getMonth() - m, 1);
+  for (const t of demo.todos || []) S.todos.push({ id: uid(), x: t.x, date: day(t.day), slot: t.day ? 'pagi' : 'malam', done: t.done ? 1 : 0 });
+  for (const n of demo.deadlines || []) S.deadlines.push({ id: uid(), text: n.text, due: n.day == null ? null : day(n.day), fast: !!n.fast, done: false, created: Date.now(), doneAt: 0 });
+  for (const g of demo.grades || []) S.grades.push({ id: uid(), subject: g.s, kind: g.k || 'Ulangan', score: g.v, date: day(g.day), note: '' });
+  // Today's timetable up to now is ticked, so the day looks in progress.
+  const hm = nowHM();
+  for (const it of dayItems(now)) if (it.t.src === 'tt' && it.t.time && it.t.time < hm && !/^tidur/i.test(it.t.title)) (S.marks[day(0)] = S.marks[day(0)] || {})[it.t.id] = 1;
+  const m = demo.money;
+  if (m) {
+    const from = ymd(monthBack(3)).slice(0, 7);
+    const items = m.items.map((i) => Object.assign({ id: uid(), repeat: 'monthly', day: 0, date: '', target: 0, from }, i));
+    const byName = (n) => items.find((i) => i.name === n);
+    const months = {};
+    for (const [back, d, name, a, note] of m.tx) {
+      const first = monthBack(back), last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+      const date = ymd(new Date(first.getFullYear(), first.getMonth(), Math.min(d, last)));
+      if (date > day(0)) continue;
+      const it = byName(name), mk = date.slice(0, 7);
+      const tx = { id: uid(), d: date, t: it.group === 'income' ? 'in' : 'out', a, item: it.id, name, g: it.group, note: note || '' };
+      if (it.day && a >= it.amount) tx.occ = mk;
+      (months[mk] = months[mk] || { tx: [] }).tx.push(tx);
+    }
+    const lists = (m.lists || []).map((l) => ({ id: uid(), list: l.list, title: l.title, amount: l.amount || 0, date: l.day == null ? '' : day(l.day), done: false }));
+    S.money = { cfg: { v: 1, currency: 'Rp', opening: m.opening || 0, goals: { needs: 50, wants: 30, future: 20 }, items, lists }, months };
+  }
 }
 
 let saveTimer = null, syncTimer = null;

@@ -10,6 +10,12 @@ PLATFORM_JAR=$(ls "$SDK"/platforms/android-*/android.jar | sort -V | tail -1)
 DX=$(command -v d8 || command -v dx || command -v dalvik-exchange)
 OUT=build
 KEYSTORE=${KEYSTORE:-allinone.keystore}
+# A second app can be built from the same code, e.g. the demo with made-up data:
+#   DATA_JS=../app/data-demo.js APP_ID=com.allinone.demo APP_LABEL="All in One Demo" OUT_APK=../AllInOne-Demo.apk ./build-apk.sh
+DATA_JS=${DATA_JS:-../app/data.js}
+APP_ID=${APP_ID:-com.allinone.app}
+APP_LABEL=${APP_LABEL:-All in One}
+OUT_APK=${OUT_APK:-../AllInOne.apk}
 
 # The Java code uses notification channels and exact-alarm checks (API 26-34), which the Debian platform jar
 # (API 23) does not have. Robolectric's android-all jar on Maven Central carries the full Android 14 API.
@@ -20,7 +26,7 @@ if [ ! -f "$API_JAR" ]; then
     https://repo1.maven.org/maven2/org/robolectric/android-all/14-robolectric-10818077/android-all-14-robolectric-10818077.jar
 fi
 
-if [ ! -f ../app/data.js ]; then
+if [ ! -f "$DATA_JS" ]; then
   echo "note: app/data.js not found - building an empty planner. Create it with allinone/tools/xlsx2data.py." >&2
 fi
 
@@ -28,16 +34,17 @@ rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/res"
 rm -rf assets && mkdir -p assets
 cp ../app/index.html ../app/app.css ../app/core.js ../app/ui.js ../app/money.js ../app/paste.js ../app/main.js assets/
 cp -r ../app/fonts assets/fonts
-if [ -f ../app/data.js ]; then cp ../app/data.js assets/; else echo 'window.AIO_DATA = { sheets: [], seeds: {} };' > assets/data.js; fi
+if [ -f "$DATA_JS" ]; then cp "$DATA_JS" assets/data.js; else echo 'window.AIO_DATA = { sheets: [], seeds: {} };' > assets/data.js; fi
 cp -r res/. "$OUT/res/"
 python3 make_icons.py "$OUT/res"
+printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="app_name">%s</string>\n</resources>\n' "$APP_LABEL" > "$OUT/res/values/strings.xml"
 
 "$BT/aapt" package -f -m -J "$OUT/gen" -M AndroidManifest.xml -S "$OUT/res" -I "$PLATFORM_JAR"
 javac -nowarn -Xlint:-options --release 8 -classpath "$API_JAR" -d "$OUT/classes" \
   $(find src "$OUT/gen" -name '*.java')
 "$DX" --dex --output="$OUT/classes.dex" "$OUT/classes"
 
-"$BT/aapt" package -f -M AndroidManifest.xml -S "$OUT/res" -A assets -I "$PLATFORM_JAR" \
+"$BT/aapt" package -f -M AndroidManifest.xml --rename-manifest-package "$APP_ID" -S "$OUT/res" -A assets -I "$PLATFORM_JAR" \
   -0 arsc -0 woff2 -F "$OUT/unsigned.apk"
 (cd "$OUT" && "$BT/aapt" add unsigned.apk classes.dex >/dev/null)
 "$BT/zipalign" -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
@@ -47,6 +54,6 @@ if [ ! -f "$KEYSTORE" ]; then
     -storepass allinone -keypass allinone -dname "CN=All in One" 2>/dev/null
 fi
 "$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:allinone --key-pass pass:allinone --v4-signing-enabled false \
-  --out ../AllInOne.apk "$OUT/aligned.apk"
-"$BT/apksigner" verify --verbose ../AllInOne.apk | head -4
-echo "Built $(cd .. && pwd)/AllInOne.apk"
+  --out "$OUT_APK" "$OUT/aligned.apk"
+"$BT/apksigner" verify --verbose "$OUT_APK" | head -4
+echo "Built $(cd "$(dirname "$OUT_APK")" && pwd)/$(basename "$OUT_APK")"

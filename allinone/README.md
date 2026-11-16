@@ -90,6 +90,16 @@ weekly (1 = Monday), `{"k":"nw","n":2,"days":[…]}` every n weeks, `{"k":"m","d
 Without `app/data.js` the app still runs, with an empty library and default reminders. Open `app/index.html` in a browser to use
 it there; notifications with buttons need the Android app.
 
+## Demo build
+`tools/demo_data.py` writes `app/data-demo.js`, a library of made-up content (a fictional student, school, notes, links to
+public sites) plus sample to-dos, deadlines, grades and money that are added on first start with dates relative to that day.
+It holds no personal data and is committed. Build it as a separate app that installs next to the real one:
+
+```bash
+cd allinone/android
+DATA_JS=../app/data-demo.js APP_ID=com.allinone.demo APP_LABEL="All in One Demo" OUT_APK=../AllInOne-Demo.apk ./build-apk.sh
+```
+
 ## Building the APK
 `android/build-apk.sh` builds `allinone/AllInOne.apk` from `app/` using the Android SDK build tools directly (no Gradle).
 On Ubuntu: `apt install android-sdk android-sdk-platform-23 dalvik-exchange python3-pil`. The Java code is compiled against the
