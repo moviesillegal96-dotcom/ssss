@@ -83,7 +83,11 @@ function itemRow(ds, it, opts) {
   opts = opts || {};
   const t = it.t, cls = it.mark === 1 ? ' done' : it.mark === 2 ? ' no' : '';
   const meta = [];
-  if (opts.rep) meta.push(repLabel(t)); else if (t.end) meta.push('sampai ' + t.end);
+  if (opts.rep) {
+    meta.push(repLabel(t));
+    if (t.freq) meta.push(t.freq);                                   // "1x / minggu (wajib)", "Sesuka hati"
+    if (t.fixed && /\(/.test(t.fixed)) meta.push(t.fixed);           // a day note like "Jumat (pulsek) / Sabtu"
+  } else if (t.end) meta.push('sampai ' + t.end);
   if (t.dur) meta.push(t.dur + ' mnt');
   if (t.cat) meta.push(t.cat);
   if (opts.count) { const n = monthCount(t.id, new Date()); if (n) meta.push(n + '× bulan ini'); }

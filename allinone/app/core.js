@@ -174,7 +174,7 @@ function seedTasks() {
     const g = BLOCKS[gid];
     if (!g) continue;
     g.items.forEach((it, i) => {
-      const base = { src: g.kind, ref: gid, title: it.x, cat: it.cat || '', freq: it.freq || '', dur: Number(it.dur) || 0 };
+      const base = { src: g.kind, ref: gid, title: it.x, cat: it.cat || '', freq: it.freq || '', fixed: it.fixed || '', dur: Number(it.dur) || 0 };
       if (g.kind === 'weekly') {
         const days = it.days || [];
         const weekend = days.length && days.every((d) => d >= 6);

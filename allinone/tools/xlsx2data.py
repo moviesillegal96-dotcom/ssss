@@ -445,8 +445,8 @@ def convert(path, seed_path=None):
                     if len(text) > len(prev['x']):
                         prev['x'] = text
                     continue
-                if not sec.blocks and (n in norm(sec.title) or norm(sec.title) in n):
-                    continue
+                if not sec.blocks and n == norm(sec.title):
+                    continue                                    # repeats the section title word for word
                 sec.add({'t': 'h', 'l': level, 'x': text})
                 continue
             # A plain line right under a checklist that has no status mark still belongs to it.
@@ -644,7 +644,6 @@ def collect_seeds(out):
                         if isinstance(r, list) and r[0]:
                             start = r[at] if at < len(r) else ''
                             ledger['accounts'].append({'name': r[0], 'start': int(start) if start.isdigit() else 0})
-                    b['drop'] = 1
     for sheet in out['sheets']:
         for sec in sheet['sections']:
             sec['blocks'] = [b for b in sec['blocks'] if not b.get('drop')]
