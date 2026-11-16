@@ -241,7 +241,9 @@ function dayItems(d) {
     const occ = occursOn(t, d);
     if (occ || marks[t.id]) out.push({ t, mark: marks[t.id] || 0, extra: !occ });
   }
-  out.sort((a, b) => (a.t.time || '99:99').localeCompare(b.t.time || '99:99') || groupRank(a.t.group) - groupRank(b.t.group) || (a.t.ord || 0) - (b.t.ord || 0));
+  // Timed items first, then the day's untimed ones, then anything ticked on a day it was not planned for.
+  const slot = (i) => (i.extra ? '99:99' : i.t.time || '99:98');
+  out.sort((a, b) => slot(a).localeCompare(slot(b)) || groupRank(a.t.group) - groupRank(b.t.group) || (a.t.ord || 0) - (b.t.ord || 0));
   return out;
 }
 
@@ -358,14 +360,13 @@ function buildQueue() {
     for (const it of dayItems(d)) {
       const t = it.t;
       if (it.extra || !t.time || t.notify === false || it.mark === 1) continue;
-      const key = t.time + '|' + (t.group || 'Jadwal');
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({ k: ds + '|' + t.id, x: t.title });
+      const group = t.group || 'Jadwal', key = t.time + '|' + group;
+      if (!groups.has(key)) groups.set(key, { time: t.time, group, items: [] });
+      groups.get(key).items.push({ k: ds + '|' + t.id, x: t.title });
     }
-    for (const [key, items] of groups) {
-      const [time, group] = key.split('|');
-      const at = atTime(d, time);
-      if (at > now) out.push({ id: 't|' + ds + '|' + key, at, ch: 'tasks', title: time + ' · ' + group, items });
+    for (const [key, g] of groups) {
+      const at = atTime(d, g.time);
+      if (at > now) out.push({ id: 't|' + ds + '|' + key, at, ch: 'tasks', title: g.time + ' · ' + g.group, items: g.items });
     }
 
     // Deadlines: the evening before, and every morning from the due date until they are done.
@@ -440,7 +441,9 @@ function takeNativeResults() {
     } else {
       const cut = key.indexOf('|');
       const ds = key.slice(0, cut), id = key.slice(cut + 1);
-      if (S.tasks.some((t) => t.id === id)) { (S.marks[ds] = S.marks[ds] || {})[id] = v; }
+      // "Belum" from a notification never undoes something already ticked in the app.
+      const day = S.marks[ds] || {};
+      if (S.tasks.some((t) => t.id === id) && !(v === 2 && day[id] === 1)) { (S.marks[ds] = day)[id] = v; }
     }
   }
   if (keys.length) save();
@@ -462,6 +465,7 @@ function importData(text) {
   if (!st || st.v !== 1 || !Array.isArray(st.tasks)) throw new Error('Bukan file backup All in One.');
   S = Object.assign(defaultState(), st);
   S.settings = Object.assign(defaultState().settings, st.settings || {});
+  if (window.Money) Money.reset();
   saveNow();
   syncNotifications();
 }

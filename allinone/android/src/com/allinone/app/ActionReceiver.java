@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-/** Receives the "Sudah" / "Belum" / "Sudah semua" buttons of a checklist notification. */
+/** Receives the "Sudah" / "Belum" / "Sudah semua" buttons of a checklist notification, and its dismissal. */
 public class ActionReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {

@@ -173,7 +173,15 @@ public class MainActivity extends Activity {
                 public void run() {
                     if (Build.VERSION.SDK_INT >= 33
                             && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                        requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFICATIONS);
+                        // Android stops showing its dialog after two refusals; from then on only Settings can allow it.
+                        android.content.SharedPreferences sp = getSharedPreferences("aio-ui", MODE_PRIVATE);
+                        if (sp.getBoolean("askedNotifications", false)
+                                && !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                            openAppSettings();
+                        } else {
+                            sp.edit().putBoolean("askedNotifications", true).apply();
+                            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFICATIONS);
+                        }
                     } else if (!Notifier.notificationsEnabled(MainActivity.this)) {
                         openAppSettings();
                     }

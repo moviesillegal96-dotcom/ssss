@@ -94,5 +94,11 @@ The script creates a signing key (`android/allinone.keystore`, not committed) on
 before the next build: an APK signed with a different key can't be installed over the old app without uninstalling it first,
 and uninstalling removes the app's data (restore it from a backup file).
 
+## Checking the notification code
+`android/check/run.sh` compiles `Notifier`, `ActionReceiver` and `AlarmReceiver` against a small stand-in Android
+(`android/check/src/android`) that records notifications and alarms instead of showing them, and runs through the cases:
+what is shown when, what each button records, follow-ups after *Belum*, items ticked in the app meanwhile, dismissal,
+reboot, and phones that do not allow exact alarms. It checks the app's own logic, not Android itself.
+
 ## Fonts
 Bricolage Grotesque and Figtree, bundled in `app/fonts/` so the app needs no network. Both are under the SIL Open Font License 1.1.

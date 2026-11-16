@@ -310,6 +310,16 @@ function blockLines(b) {
     default: return [];
   }
 }
+/** Escapes text and marks every occurrence of the (lower-case) needle. */
+function highlight(text, needle) {
+  const low = text.toLowerCase();
+  let out = '', i = 0;
+  for (let at = low.indexOf(needle); at >= 0; at = low.indexOf(needle, i)) {
+    out += esc(text.slice(i, at)) + '<mark>' + esc(text.slice(at, at + needle.length)) + '</mark>';
+    i = at + needle.length;
+  }
+  return out + esc(text.slice(i));
+}
 function searchResults(q) {
   const needle = q.toLowerCase(), out = [];
   for (const sheet of DATA.sheets) for (const section of sheet.sections) {
@@ -318,7 +328,7 @@ function searchResults(q) {
         const at = line.toLowerCase().indexOf(needle);
         if (at < 0 || out.length >= 80) continue;
         const from = Math.max(0, at - 30), snippet = (from ? '…' : '') + line.slice(from, at + needle.length + 70).replace(/\n/g, ' ');
-        const hit = esc(snippet).replace(new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), (m) => `<mark>${m}</mark>`);
+        const hit = highlight(snippet, needle);
         out.push(`<button class="navrow" data-act="openSection" data-id="${esc(section.id)}" data-i="${i}"><span class="ico">${sheet.icon}</span><span class="grow"><b>${esc(titleCase(section.title))}</b><small>${hit}</small></span></button>`);
       }
     });
@@ -549,6 +559,8 @@ VIEWS.more = () => {
   const st = nativeStatus();
   const s = S.settings;
   const opts = (list, sel) => list.map(([v, label]) => `<option value="${v}"${String(v) === String(sel) ? ' selected' : ''}>${label}</option>`).join('');
+  const queue = BRIDGE && s.notif !== false ? buildQueue() : [];
+  const next = queue[0] ? (() => { const d = new Date(queue[0].at); return `Berikutnya: <b>${ymd(d) === todayStr() ? 'hari ini' : shortDate(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}</b> — ${esc(queue[0].title)} · ${queue.length} terjadwal untuk 30 hari ke depan`; })() : '';
   const status = !BRIDGE ? '<p class="note">Notifikasi dengan tombol Sudah / Belum cuma jalan di aplikasi Android (AllInOne.apk). Di browser, semua list & kalender tetap bisa dipakai.</p>'
     : !st || st.notif ? '' : '<p class="note">Notifikasi belum diizinkan. Pencet <b>Izinkan notifikasi</b> di bawah.</p>';
   return `<div class="title"><h1>Lainnya</h1></div>
@@ -562,6 +574,8 @@ VIEWS.more = () => {
       <div class="rowline"><div class="grow"><b>Notifikasi jadwal & to-do</b><small>Tiap jadwal muncul di jamnya dengan tombol Sudah / Belum</small></div><button class="switch${s.notif !== false ? ' on' : ''}" data-act="setFlag" data-k="notif" aria-label="Notifikasi"></button></div>
       <div class="rowline"><div class="grow"><b>Kalau dijawab “Belum”</b><small>Ingatkan lagi setelah</small></div><select data-change="setting" data-k="snooze">${opts([[0, 'Jangan'], [10, '10 menit'], [15, '15 menit'], [30, '30 menit'], [60, '1 jam']], s.snooze)}</select></div>
       <div class="rowline"><div class="grow"><b>To-do malam ini</b><small>Jam notifikasinya</small></div><input type="time" value="${esc(s.todoTime)}" data-change="setting" data-k="todoTime"></div>
+      ${next ? `<p class="small muted" style="margin-top:8px">${next}</p>` : ''}
+      ${BRIDGE && st && st.exact === false ? '<p class="small noc" style="margin-top:8px">HP ini belum mengizinkan alarm tepat waktu, jadi notifikasi bisa telat beberapa menit. Izinkan “Alarm & pengingat” di pengaturan aplikasi.</p>' : ''}
       ${BRIDGE ? `<div class="btnrow" style="margin-top:10px">${st && !st.notif ? '<button class="btn" data-act="askNotif">Izinkan notifikasi</button>' : ''}<button class="btn ghost" data-act="testNotif">Tes notifikasi</button><button class="btn ghost" data-act="appSettings">Pengaturan aplikasi</button></div>
       <p class="muted small" style="margin-top:10px">Kalau notif suka telat / nggak muncul: di pengaturan aplikasi, izinkan autostart dan matikan penghemat baterai untuk All in One.</p>` : ''}
     </div>
@@ -777,7 +791,7 @@ ACT.importData = () => {
 ACT.reseed = () => openSheet(`<h2>Reset jadwal dari spreadsheet?</h2><p class="muted" style="margin-bottom:14px">Jadwal rutin dikembalikan seperti di spreadsheet. Jadwal yang kamu tambah sendiri dan semua centang tetap ada.</p><div class="btnrow"><button class="btn wide" data-act="reseedYes">Ya, reset</button><button class="btn ghost wide" data-act="closeSheet">Batal</button></div>`);
 ACT.reseedYes = () => { reseedTasks(); closeSheet(); render(); toast('Jadwal direset'); };
 ACT.wipe = () => openSheet(`<h2>Hapus semua data?</h2><p class="muted" style="margin-bottom:14px">Semua centang, to-do, nilai, catatan tambahan, dan pengaturan di HP ini dihapus. Nggak bisa dibatalin — simpan backup dulu kalau ragu.</p><div class="btnrow"><button class="btn danger wide" data-act="wipeYes">Hapus semuanya</button><button class="btn ghost wide" data-act="closeSheet">Batal</button></div>`);
-ACT.wipeYes = () => { localStorage.removeItem(LS_KEY); loadState(); saveNow(); syncNotifications(); applyTheme(); closeSheet(); UI.stack = []; UI.tab = 'today'; render(); toast('Data dihapus'); };
+ACT.wipeYes = () => { localStorage.removeItem(LS_KEY); loadState(); Money.reset(); saveNow(); syncNotifications(); applyTheme(); closeSheet(); UI.stack = []; UI.tab = 'today'; render(); toast('Data dihapus'); };
 
 /* ---------- events ---------- */
 document.addEventListener('click', (ev) => {

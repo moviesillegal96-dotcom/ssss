@@ -52,7 +52,7 @@
     return { cfg: c, months };
   }
   function M() {
-    if (!S.money || !S.money.cfg) { S.money = seed(); delete S.ledger; }
+    if (!S.money || !S.money.cfg) { S.money = seed(); delete S.ledger; memo = null; save({ sync: false }); }
     const c = S.money.cfg, b = blankCfg();
     for (const k in b) if (c[k] === undefined) c[k] = b[k];
     c.goals = Object.assign({}, b.goals, c.goals);
@@ -414,7 +414,7 @@
       : { type: pre.type || 'out', a: pre.a || 0, cat: pre.cat || '', d: pre.d || (month === mkOf(t) ? t : month + '-01'), note: pre.note || '' };
     UI.m.editId = ex ? ex.id : null;
     openSheet(`<h2>${ex ? 'Ubah transaksi' : 'Catat transaksi'}</h2><form data-form="m-tx">
-      <div class="segr"><label><input type="radio" name="type" value="out"${v.type === 'out' ? ' checked' : ''}>Uang keluar</label><label><input type="radio" name="type" value="in"${v.type === 'in' ? ' checked' : ''}>Uang masuk</label></div>
+      <div class="segr"><label><input type="radio" name="type" value="out"${v.type === 'out' ? ' checked' : ''}><span>Uang keluar</span></label><label><input type="radio" name="type" value="in"${v.type === 'in' ? ' checked' : ''}><span>Uang masuk</span></label></div>
       ${amtField('amount', 'Jumlah (' + esc(cur()) + ')', v.a, true)}
       <div class="field"><label>Baris budget</label><select name="cat" id="mCat">${catOptions(v.type, v.cat)}</select></div>
       <div class="field"><div class="row"><div><label>Tanggal</label><input type="date" name="date" value="${v.d}"></div><div><label>Catatan</label><input name="note" value="${esc(v.note)}" maxlength="80" autocomplete="off"></div></div></div>
@@ -573,6 +573,8 @@
 
   /* ---------- hooks for the rest of the app ---------- */
   window.Money = {
+    /** After the whole state was replaced (backup restored, data wiped). */
+    reset() { memo = null; UI.m.month = mkOf(todayStr()); UI.m.selDay = null; UI.m.view = 'home'; },
     afterRender() { if ($('[data-chart]')) drawCharts(); },
     /** One line on the Hari ini screen. */
     todayCard() {
@@ -599,7 +601,7 @@
     /** Notifications for one day: what is due (answerable with Sudah / Belum) and the evening nudge. */
     queue(d, ds, now, out) {
       if (!S.money || !S.money.cfg) return;
-      memo = null;
+      if (ds === todayStr()) memo = null;          // once per pass; the days after reuse the index
       const c = S.money.cfg, n = Object.assign({}, NOTIFY, c.notify || {});
       if (n.on) {
         const items = [];

@@ -83,10 +83,64 @@ final class Notifier {
             p.edit().putString("queue", new JSONArray(merged).toString())
                     .putInt("snooze", o.optInt("snooze", 30))
                     .putBoolean("on", o.optBoolean("on", true)).apply();
+            syncActive(c, p, done);
         } catch (JSONException e) {
             return;
         }
         fireDue(c);
+    }
+
+    /** Checklists already on screen lose the items that were ticked in the app meanwhile. */
+    private static void syncActive(Context c, SharedPreferences p, List<String> done) throws JSONException {
+        if (done.isEmpty()) return;
+        NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+        JSONObject active = readObject(p, "active");
+        List<String> ids = new ArrayList<>();
+        for (Iterator<String> it = active.keys(); it.hasNext(); ) ids.add(it.next());
+        boolean changed = false;
+        for (String id : ids) {
+            JSONObject a = active.optJSONObject(id);
+            JSONArray items = a == null ? null : a.optJSONArray("items");
+            if (items == null) continue;
+            JSONArray left = new JSONArray();
+            boolean dropped = false;
+            for (int i = a.optInt("pos"); i < items.length(); i++) {
+                JSONObject it = items.optJSONObject(i);
+                if (it == null) continue;
+                if (done.contains(it.optString("k"))) dropped = true;
+                else left.put(it);
+            }
+            if (!dropped) continue;
+            changed = true;
+            int nid;
+            try {
+                nid = Integer.parseInt(id);
+            } catch (NumberFormatException e) {
+                active.remove(id);
+                continue;
+            }
+            if (left.length() == 0) {
+                active.remove(id);
+                if (nm != null) nm.cancel(nid);
+            } else {
+                a.put("items", left);
+                a.put("pos", 0);
+                // Only refresh a notification that is still in the shade; never bring back a dismissed one.
+                if (isShowing(nm, nid)) post(c, nid, step(c, nid, a));
+            }
+        }
+        if (changed) p.edit().putString("active", active.toString()).apply();
+    }
+
+    private static boolean isShowing(NotificationManager nm, int nid) {
+        if (nm == null || Build.VERSION.SDK_INT < 23) return false;
+        try {
+            for (android.service.notification.StatusBarNotification sbn : nm.getActiveNotifications()) {
+                if (sbn.getId() == nid) return true;
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return false;
     }
 
     /** Shows everything that is due and sets the alarm for the next entry. */
@@ -183,6 +237,7 @@ final class Notifier {
                 .setContentText(text)
                 .setStyle(new Notification.BigTextStyle().bigText(big.toString()))
                 .setContentIntent(openApp(c, nid))
+                .setDeleteIntent(answerIntent(c, nid, "dismiss"))
                 .setOnlyAlertOnce(true)
                 .setAutoCancel(false)
                 .addAction(0, "✓ Sudah", answerIntent(c, nid, "done"))
@@ -201,6 +256,11 @@ final class Notifier {
             if (nm != null) nm.cancel(nid);
             return;
         }
+        if ("dismiss".equals(what)) {            // swiped away: forget it, record nothing
+            active.remove(String.valueOf(nid));
+            p.edit().putString("active", active.toString()).apply();
+            return;
+        }
         try {
             JSONArray items = a.optJSONArray("items");
             JSONArray no = a.optJSONArray("no");
@@ -208,7 +268,7 @@ final class Notifier {
             int pos = a.optInt("pos"), n = items.length();
             if ("all".equals(what)) {
                 for (; pos < n; pos++) results.put(items.optJSONObject(pos).optString("k"), 1);
-            } else if (pos < n) {
+            } else if (pos < n && items.optJSONObject(pos) != null) {
                 JSONObject it = items.optJSONObject(pos);
                 boolean done = "done".equals(what);
                 results.put(it.optString("k"), done ? 1 : 2);

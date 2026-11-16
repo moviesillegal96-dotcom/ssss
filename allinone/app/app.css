@@ -348,9 +348,10 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding
 .m-hbars .vl { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 .m-big { font: 700 24px var(--display) !important; }
 .segr { display: flex; background: var(--soft); border-radius: 12px; padding: 3px; margin-bottom: 12px; }
-.segr label { flex: 1; text-align: center; padding: 9px; border-radius: 10px; font-weight: 700; font-size: 14px; color: var(--muted); }
+.segr label { flex: 1; position: relative; }
 .segr input { position: absolute; opacity: 0; pointer-events: none; }
-.segr label:has(input:checked) { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+.segr span { display: block; text-align: center; padding: 9px; border-radius: 10px; font-weight: 700; font-size: 14px; color: var(--muted); }
+.segr input:checked + span { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
 .m-chk { display: flex; gap: 8px; align-items: center; font-size: 14px; padding: 4px 0; text-transform: none !important; letter-spacing: 0 !important; font-weight: 500 !important; color: var(--ink) !important; }
 .m-chk input { width: 18px !important; height: 18px; padding: 0; flex: none; }
 .m-today { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--hero-bg); color: #f4f6fb; }
