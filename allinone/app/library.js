@@ -23,7 +23,7 @@
       case 'check': {
         if (b.daily) return taskLines(S.tasks.filter((t) => t.src === 'pulsek'));
         const pick = b.day ? picksFor(b) : null, id = esc(b.id);
-        return (b.title ? [`<div class="cr nb sh">${rich(b.title)}</div>`] : []).concat(listItems(b).map((it, i) => tickLine(pick ? !!pick[i] : !!it.d, `data-act="itemToggle" data-b="${id}" data-i="${i}"`,
+        return (b.title ? [`<div class="cr cx sh">${rich(b.title)}</div>`] : []).concat(listItems(b).map((it, i) => tickLine(pick ? !!pick[i] : !!it.d, `data-act="itemToggle" data-b="${id}" data-i="${i}"`,
           rich(it.x) + (it.n ? `<small class="cn">${rich(it.n)}</small>` : ''))));
       }
       case 'grid': return taskLines(S.tasks.filter((t) => t.ref === b.id));
@@ -31,7 +31,7 @@
         const all = S.grades.map((g) => g.score);
         const avg = all.length ? Math.round((all.reduce((x, y) => x + y, 0) / all.length) * 10) / 10 : '–';
         return [line(`Rata-rata <b>${avg}</b> · ${all.length} nilai tersimpan · mapel: ${esc(b.subjects.join(', '))}`, 'm'),
-          `<div class="cr nb"><button class="link" data-act="libFull">Isi nilai di tampilan lengkap ›</button></div>`];
+          `<div class="cr cx"><button class="link" data-act="libFull">Isi nilai di tampilan lengkap ›</button></div>`];
       }
       case 'ledger': return [window.Money ? Money.summaryCard() : ''];
       case 'table': return b.days ? [dayTable(b)] : tableLines(b);
@@ -52,7 +52,7 @@
     for (let i = 0; i < width; i++) if (rs.some((r) => r[i])) cols.push(i);
     const numbering = cols.filter((i) => /^(no|#)$/i.test(head[i] || '') || rs.every((r) => !r[i] || /^\d{1,3}$/.test(r[i])));
     if (cols.length - numbering.length >= 1 && numbering.length) cols = cols.filter((i) => !numbering.includes(i));
-    const headLine = cols.some((i) => head[i]) ? [`<div class="cr nb sh">${cols.map((i) => esc((head[i] || '').replace(/\n/g, ' '))).filter(Boolean).join(' · ')}</div>`] : [];
+    const headLine = cols.some((i) => head[i]) ? [`<div class="cr cx sh">${cols.map((i) => esc((head[i] || '').replace(/\n/g, ' '))).filter(Boolean).join(' · ')}</div>`] : [];
     return headLine.concat(rs.map((r) => {
       const filled = cols.filter((i) => r[i] && r[i] !== '-');
       if (!filled.length) return '';
@@ -80,7 +80,7 @@
   /** The lines of a group, cut after SHOW unless the user asked for all of them. */
   function capped(key, html, n) {
     if (n <= SHOW + 3 || UI.open['all|' + key]) return html.join('');
-    return html.slice(0, SHOW).join('') + `<div class="cr nb"><button class="link" data-act="cgMore" data-key="${esc(key)}">Lihat semua (${n})</button></div>`;
+    return html.slice(0, SHOW).join('') + `<div class="cr cx"><button class="link" data-act="cgMore" data-key="${esc(key)}">Lihat semua (${n})</button></div>`;
   }
   function groupHtml(key, title, items, open, id, body) {
     const first = items[0] ? plain(items[0].html).replace(/\s+/g, ' ').trim() : '';
@@ -101,13 +101,13 @@
       // Lines before the first heading are the section's intro: shown as they are when short.
       if (!g.title && gi === 0 && g.items.length <= 4) { html += `<div class="cg open intro"><div class="cgb">${wrap(g.items)}</div></div>`; return; }
       const shown = gi === focusGroup || UI.open['all|' + key] ? g.items : g.items.length <= SHOW + 3 ? g.items : g.items.slice(0, SHOW);
-      const more = shown.length < g.items.length ? `<div class="cr nb"><button class="link" data-act="cgMore" data-key="${esc(key)}">Lihat semua (${g.items.length})</button></div>` : '';
+      const more = shown.length < g.items.length ? `<div class="cr cx"><button class="link" data-act="cgMore" data-key="${esc(key)}">Lihat semua (${g.items.length})</button></div>` : '';
       html += groupHtml(key, g.title || 'Catatan', g.items, isOpen(key, g.items.length, gi === focusGroup || gs.length === 1), '', wrap(shown) + more);
     });
     // Notes filed by "Tempel catatan" / quick add, and the section's own extra notes.
     S.pasted.filter((p) => p.sec === section.id).forEach((p, pi) => {
       const key = 'cgp|' + p.id, items = p.items.map((x) => ({ html: line(rich(x)) }));
-      const tools = `<div class="cr nb ctools"><button data-act="copyPasted" data-id="${p.id}">Salin</button><button data-act="pDel" data-id="${p.id}">Hapus</button></div>`;
+      const tools = `<div class="cr cx ctools"><button data-act="copyPasted" data-id="${p.id}">Salin</button><button data-act="pDel" data-id="${p.id}">Hapus</button></div>`;
       html += groupHtml(key, p.title || 'Catatan', items, isOpen(key, items.length, v.focus === 'pasted' && pi === 0), pi === 0 ? 'bpasted' : '', capped(key, items.map((x) => x.html), items.length) + tools);
     });
     const notes = S.notes[section.id] || [];

@@ -425,7 +425,7 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding
 .cr.sub { margin-left: 16px; font-size: 14px; }
 .cr.sub::before { background: none; border: 1.5px solid var(--muted); }
 .cr.q { font-style: italic; } .cr.w { font-weight: 600; } .cr.m { color: var(--muted); }
-.cr.tk, .cr.nb { padding-left: 0; } .cr.tk::before, .cr.nb::before { display: none; }
+.cr.tk, .cr.cx { padding-left: 0; } .cr.tk::before, .cr.cx::before { display: none; }
 .cr.tk .ck { width: 23px; height: 23px; margin-top: 0; }
 .cr.tk.done .ct { color: var(--muted); text-decoration: line-through; }
 .cr .x { margin-left: auto; }
