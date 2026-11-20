@@ -246,6 +246,7 @@ function reseedTasks() {
 /* ---------- recurring tasks ---------- */
 function occursOn(t, d) {
   const r = t.rep || { k: 'none' };
+  if (r.from || r.until) { const ds = ymd(d); if ((r.from && ds < r.from) || (r.until && ds > r.until)) return false; }
   switch (r.k) {
     case 'd': return true;
     case 'w': return r.days.includes(isoDow(d));
@@ -275,7 +276,9 @@ function repLabel(t) {
     case 'once': s = shortDate(parseYmd(r.date)); break;
     default: s = 'Tanpa jadwal';
   }
-  return s + (t.time ? ' · ' + t.time : '');
+  if (r.k !== 'once' && r.from && r.from > todayStr()) s += ' · mulai ' + shortDate(parseYmd(r.from));
+  if (r.k !== 'once' && r.until) s += ' · s/d ' + shortDate(parseYmd(r.until));
+  return s + (t.time ? ' · ' + t.time + (t.end ? '–' + t.end : '') : '');
 }
 
 const groupRank = (g) => { const i = GROUP_ORDER.indexOf(g); return i < 0 ? GROUP_ORDER.length : i; };
@@ -432,14 +435,18 @@ function buildQueue() {
     const groups = new Map();
     for (const it of dayItems(d)) {
       const t = it.t;
-      if (it.extra || !t.time || t.notify === false || it.mark === 1) continue;
-      const group = t.group || 'Jadwal', key = t.time + '|' + group;
-      if (!groups.has(key)) groups.set(key, { time: t.time, group, items: [] });
+      // Untimed entries can still ask for a notification at a set hour (t.at); timed ones can come early (t.before minutes).
+      const hm = t.time || t.at;
+      if (it.extra || !hm || t.notify === false || it.mark === 1) continue;
+      const before = t.time ? t.before || 0 : 0;
+      const group = t.group || 'Jadwal', key = hm + '|' + group + (before ? '|' + before : '');
+      if (!groups.has(key)) groups.set(key, { time: hm, before, group, items: [] });
       groups.get(key).items.push({ k: ds + '|' + t.id, x: t.title });
     }
     for (const [key, g] of groups) {
-      const at = atTime(d, g.time);
-      if (at > now) out.push({ id: 't|' + ds + '|' + key, at, ch: 'tasks', title: g.time + ' · ' + g.group, items: g.items });
+      const at = atTime(d, g.time) - g.before * 60000;
+      const soon = !g.before ? '' : g.before >= 1440 ? ' (besok)' : g.before >= 60 ? ' (' + g.before / 60 + ' jam lagi)' : ' (' + g.before + ' menit lagi)';
+      if (at > now) out.push({ id: 't|' + ds + '|' + key, at, ch: 'tasks', title: g.time + ' · ' + g.group + soon, items: g.items });
     }
 
     // Deadlines: the evening before, and every morning from the due date until they are done.

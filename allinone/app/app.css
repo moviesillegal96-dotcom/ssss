@@ -439,3 +439,31 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding
 .cgb .add { margin: 8px 0 4px; }
 .cgall { display: flex; justify-content: flex-end; margin: -4px 2px 6px; }
 .cr.sh { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 10px 0 4px; }
+
+/* ---------- Jadwalkan dari All in 1 (schedule.js) ---------- */
+.bar .link.on { background: var(--brand-soft); border-radius: 8px; padding: 4px 8px; }
+.picking .lib .cr[data-sx] { cursor: pointer; -webkit-user-select: none; user-select: none; padding-left: 32px; }
+.picking .lib .cr[data-sx]::before { display: block; left: 4px; top: 10px; width: 20px; height: 20px; background: none; border: 2px solid var(--line); box-sizing: border-box; }
+.picking .lib .cr.tk[data-sx] .ck { display: none; }
+.picking .lib .cr.sel { background: var(--brand-soft); margin: 0 -14px; padding-left: 46px; padding-right: 14px; }
+.picking .lib .cr.sel::before { left: 18px; background: var(--brand); border-color: var(--brand); }
+.picking .lib .cr.sel::after { content: "✓"; position: absolute; left: 18px; top: 10px; width: 20px; line-height: 20px; text-align: center; color: #fff; font-size: 12px; font-weight: 900; }
+.picking #qafab { display: none; }
+.cr.has-sch { flex-wrap: wrap; }
+.cr .sch { flex-basis: 100%; text-align: left; font-size: 12px; font-weight: 700; color: var(--brand); padding: 1px 0 0; }
+.cr.tk .sch { padding-left: 31px; }
+#schbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tab-h) + 12px + env(safe-area-inset-bottom)); z-index: 30;
+  width: min(560px, calc(100vw - 24px)); display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 16px;
+  background: var(--card); border-radius: 16px; box-shadow: 0 10px 30px rgba(0, 0, 0, .22); font-size: 14px; }
+#schbar .grow { flex: 1; min-width: 0; }
+#schbar .btn { padding: 9px 14px; width: auto; }
+#schbar .btn[disabled] { opacity: .45; }
+#schfab { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tab-h) + 90px + env(safe-area-inset-bottom)); z-index: 30;
+  max-width: calc(100vw - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 11px 18px; border-radius: 99px;
+  background: var(--brand); color: #fff; font-size: 14px; font-weight: 700; box-shadow: 0 10px 24px rgba(62, 127, 214, .38); }
+.schhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.schhead h2 { flex: 1; margin: 0; }
+.schtitle { font-size: 19px !important; font-weight: 700; resize: none; }
+.schitems { margin-bottom: 12px; }
+.schitem { display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px; margin-bottom: 6px; background: var(--soft); border-radius: 12px; font-weight: 600; line-height: 1.4; }
+.schitem .grow { flex: 1; min-width: 0; }

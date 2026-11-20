@@ -63,6 +63,13 @@ cd allinone/android && APP_ID=com.allinone.demo APP_LABEL=A1O OUT_APK=../A1O.apk
 first line, lines cut to three until tapped, large groups cut after 12 lines until "Lihat semua". The wording is the
 workbook's own. "Lengkap" switches to the full view.
 
+**Scheduling from All in 1** (`app/schedule.js`), like a Google Calendar event: in a category, "📅 Pilih" makes lines
+tap-to-select (or long-press to highlight a few words), then "Jadwalkan" opens a sheet with title, all-day, date
+(Hari ini / Besok / Lusa), start and end time, repeat (none, daily, weekly on that day, weekdays, every 2 weeks, monthly,
+custom days, optional end date), notification (at the start, 5–60 minutes or a day before; for all-day entries a set
+hour) and group. Each line becomes its own calendar entry with Sudah / Belum notifications; the "To-do" tab of the sheet
+puts them in tonight's or tomorrow's to-do instead. Scheduled lines show a 📅 badge that opens the entry again.
+
 ## Notifications (Android app)
 Each scheduled block appears at its time as a notification with **✓ Sudah / ✗ Belum / Sudah semua** buttons. A block with
 several items steps through them one at a time, so the whole list can be answered from the notification without opening the app;
