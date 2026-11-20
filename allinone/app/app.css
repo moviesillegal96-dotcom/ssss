@@ -406,3 +406,36 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding
 .empty b { display: block; font-family: var(--display); font-size: 18px; color: var(--ink); margin-bottom: 2px; }
 #toast.show { pointer-events: auto; display: flex; gap: 14px; align-items: center; }
 #toast button { color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- All in 1: short list view (library.js) ---------- */
+.lib { margin-bottom: 8px; }
+.cg { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); margin-bottom: 8px; overflow: hidden; }
+.cg.intro { padding-top: 4px; }
+.cgh { display: flex; width: 100%; align-items: center; gap: 10px; padding: 13px 14px; text-align: left; }
+.cgh .grow { flex: 1; min-width: 0; }
+.cgh b { display: block; font-size: 15px; font-weight: 700; line-height: 1.3; }
+.cgh small { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cgh .chev { color: var(--muted); font-size: 20px; line-height: 1; transition: transform .15s; }
+.cg.open .cgh .chev { transform: rotate(90deg); }
+.cgb { padding: 0 14px 8px; }
+.cg.open:not(.intro) .cgb { border-top: 1px solid var(--line); }
+.cr { position: relative; display: flex; align-items: flex-start; gap: 8px; padding: 8px 0 8px 16px; border-top: 1px solid var(--line); font-size: 15px; line-height: 1.45; }
+.cgb > div:first-child > .cr:first-child, .cgb > .cr:first-child { border-top: 0; }
+.cr::before { content: ""; position: absolute; left: 3px; top: 16px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
+.cr.sub { margin-left: 16px; font-size: 14px; }
+.cr.sub::before { background: none; border: 1.5px solid var(--muted); }
+.cr.q { font-style: italic; } .cr.w { font-weight: 600; } .cr.m { color: var(--muted); }
+.cr.tk, .cr.nb { padding-left: 0; } .cr.tk::before, .cr.nb::before { display: none; }
+.cr.tk .ck { width: 23px; height: 23px; margin-top: 0; }
+.cr.tk.done .ct { color: var(--muted); text-decoration: line-through; }
+.cr .x { margin-left: auto; }
+.ct { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.ct.open { display: block; }
+.ct small.cn { display: block; color: var(--muted); font-size: 12.5px; margin-top: 1px; white-space: pre-line; }
+.ct .ch { color: var(--muted); font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.cr.ctools { justify-content: flex-end; gap: 4px; }
+.cr.ctools button { font-size: 12px; font-weight: 700; color: var(--brand); padding: 4px 8px; border-radius: 8px; }
+.cgb .card { box-shadow: none; padding: 6px 0; margin: 0; background: none; }
+.cgb .add { margin: 8px 0 4px; }
+.cgall { display: flex; justify-content: flex-end; margin: -4px 2px 6px; }
+.cr.sh { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 10px 0 4px; }

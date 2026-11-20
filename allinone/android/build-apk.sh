@@ -32,7 +32,9 @@ fi
 
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/res"
 rm -rf assets && mkdir -p assets
-cp ../app/index.html ../app/app.css ../app/core.js ../app/ui.js ../app/money.js ../app/paste.js ../app/main.js assets/
+cp ../app/index.html ../app/app.css ../app/core.js ../app/ui.js ../app/library.js ../app/money.js ../app/paste.js ../app/main.js ../app/a1o.js ../app/a1o.css assets/
+# The lock-screen picture is someone's artwork: kept out of the repository, bundled when it is there.
+if [ -f ../app/lock-bg.jpg ]; then cp ../app/lock-bg.jpg assets/; fi
 cp -r ../app/fonts assets/fonts
 if [ -f "$DATA_JS" ]; then cp "$DATA_JS" assets/data.js; else echo 'window.AIO_DATA = { sheets: [], seeds: {} };' > assets/data.js; fi
 cp -r res/. "$OUT/res/"

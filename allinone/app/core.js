@@ -1,4 +1,4 @@
-/* All in One — data model: state, dates, recurring tasks, to-dos and the notification queue.
+/* A1O — data model: state, dates, recurring tasks, to-dos and the notification queue.
  * No DOM code here; the screens live in ui.js. */
 'use strict';
 
@@ -9,8 +9,9 @@ const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu
 const DAY_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 const ISO_SHORT = ['', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-const GROUP_ORDER = ['Acara', 'Jadwal harian', 'To Do Pulsek', 'Mingguan', 'Bulanan', 'Sosial', 'For Fun'];
-const HORIZON_DAYS = 30;     // how far ahead notifications are handed to Android
+const GROUP_ORDER = ['Ultimate Goal', 'Target', 'Acara', 'Jadwal harian', 'To Do Pulsek', 'Belajar', 'Mingguan', 'Bulanan', 'Proyek', 'Sosial', 'For Fun'];
+const HORIZON_DAYS = 30;
+const LONG_BUZZ = ['AaAaAa', 'AaAaBB', 'AaBBAa', 'AaBBBB', 'BBAaAa', 'BBAaBB', 'BBBBAa'];   // 7 buzzes × 3 s ≈ 20 s     // how far ahead notifications are handed to Android
 
 /* ---------- dates ---------- */
 const pad = (n) => String(n).padStart(2, '0');
@@ -74,8 +75,10 @@ function defaultState() {
 function loadState() {
   let raw = null;
   try { raw = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) { raw = null; }
+  if (!(raw && raw.v === 1) && DATA.backup) raw = JSON.parse(JSON.stringify(DATA.backup));   // first start: the backup bundled with this build
   S = Object.assign(defaultState(), raw && raw.v === 1 ? raw : {});
   S.settings = Object.assign(defaultState().settings, S.settings || {});
+  S.lock = S.lock || null;
   const keyed = () => seedTasks().filter((t) => t.id.startsWith('sd:'));
   if (!S.seeded) {
     S.tasks = seedTasks().concat(S.tasks.filter((t) => t.src === 'user')); S.seeded = true; S.seedSeen = keyed().map((t) => t.id);
@@ -86,6 +89,9 @@ function loadState() {
     const seen = (S.seedSeen = S.seedSeen || []);
     for (const t of keyed()) if (!seen.includes(t.id)) { seen.push(t.id); if (!S.tasks.some((x) => x.id === t.id)) S.tasks.push(t); }
   }
+  // To-dos added in an app update: each one goes in once, even on a phone that already has data.
+  const seenTodo = (S.todoSeen = S.todoSeen || []);
+  for (const t of DATA.addTodos || []) if (!seenTodo.includes(t.key)) { seenTodo.push(t.key); S.todos.push({ id: 'u' + (S.nid++), x: t.x, date: t.date, slot: t.slot || 'malam', done: 0 }); }
   pruneOld();
 }
 
@@ -148,6 +154,7 @@ function prettyTitle(s) {
 }
 
 function seedTasks() {
+  if (DATA.backup) return JSON.parse(JSON.stringify(DATA.backup.tasks.filter((t) => t.src !== 'user')));
   const tasks = [];
   let ord = 0;
   const push = (t) => { t.ord = ord++; t.notify = t.notify !== false; tasks.push(t); };
@@ -294,11 +301,25 @@ function setMark(ds, id, v) {
   save();
 }
 
+/** What the progress ring counts: real tasks only. Routine blocks (sleep, waking up, school, free time) are left out,
+ *  and the whole after-school list counts as one task that is done when every item in it is ticked. */
+const ROUTINE = /^(tidur|bangun|berangkat|sekolah|have fun|main sama kucing)\b/i;
+function countable(items) {
+  let total = 0, done = 0;
+  const pulsek = items.filter((i) => i.t.src === 'pulsek' && !i.extra);
+  for (const i of items) {
+    if (i.t.src === 'pulsek' || i.t.notify === false || ROUTINE.test(i.t.title)) continue;
+    total++; if (i.mark === 1) done++;
+  }
+  if (pulsek.length) { total++; if (pulsek.every((i) => i.mark === 1)) done++; }
+  return { total, done };
+}
 function dayProgress(d) {
   const items = dayItems(d);
   const ds = ymd(d);
   const events = items.filter((i) => i.t.rep && i.t.rep.k === 'once').length + S.deadlines.filter((n) => !n.done && n.due === ds).length;
-  return { total: items.length, done: items.filter((i) => i.mark === 1).length, events };
+  const c = countable(items);
+  return { total: c.total, done: c.done, events };
 }
 
 function monthCount(taskId, d) {
@@ -375,10 +396,14 @@ function dlPhrase(days) {
 }
 
 /* ---------- notifications ---------- */
+/** The reminder whose time came last before now (today's weekday or weekend time). */
 function reminderFor(date) {
-  const h = date.getHours() + date.getMinutes() / 60;
-  const id = h < 11 ? 'pagi' : h < 15 ? 'siang' : 'sore';
-  return S.reminders.find((r) => r.id === id) || S.reminders[0];
+  const hm = pad(date.getHours()) + ':' + pad(date.getMinutes()), we = isoDow(date) >= 6;
+  const on = S.reminders.filter((r) => r.lines.length);
+  if (!on.length) return S.reminders[0];
+  const at = (r) => (we && r.timeWE) || r.time || '00:00';
+  const past = on.filter((r) => at(r) <= hm).sort((a, b) => at(b).localeCompare(at(a)));
+  return past[0] || on.slice().sort((a, b) => at(b).localeCompare(at(a)))[0];
 }
 
 /** The list Android shows: reminders, and task groups whose items can be answered from the notification. */
@@ -393,7 +418,15 @@ function buildQueue() {
     for (const r of S.reminders) {
       if (!r.on || !timeOf(r) || !r.lines.length) continue;
       const at = atTime(d, timeOf(r));
-      if (at > now) out.push({ id: 'r|' + ds + '|' + r.id, at, ch: 'reminders', title: (r.icon || '🔔') + ' Pengingat ' + r.label.toLowerCase(), body: r.lines.map((l) => '• ' + l).join('\n') });
+      const note = { id: 'r|' + ds + '|' + r.id, at, ch: 'reminders', title: (r.icon || '🔔') + ' Pengingat ' + r.label.toLowerCase(), body: r.lines.map((l) => '• ' + l).join('\n') };
+      if (at > now) out.push(note);
+      // "Getar ±20 detik": the same notification again every 3 s. The suffixes ("AaAaAa", "AaAaBB", …) all share one
+      // Java hashCode, so Android replaces the one notification instead of stacking copies. Once the first one has
+      // fired, opening the app re-syncs and drops the rest.
+      if (S.settings.longBuzz !== false && at > now) {
+        for (let k = 1; k < LONG_BUZZ.length; k++) out.push(Object.assign({}, note, { id: note.id + LONG_BUZZ[k], at: at + k * 3000 }));
+        note.id += LONG_BUZZ[0];
+      }
     }
 
     const groups = new Map();
@@ -497,13 +530,15 @@ function nativeStatus() {
 
 /* ---------- backup ---------- */
 function exportData() {
-  return JSON.stringify({ app: 'all-in-one', exported: new Date().toISOString(), state: S });
+  return JSON.stringify({ app: 'all-in-one', name: 'A1O', exported: new Date().toISOString(), state: S });
 }
 function importData(text) {
   const o = JSON.parse(text);
-  const st = o && o.app === 'all-in-one' ? o.state : null;
-  if (!st || st.v !== 1 || !Array.isArray(st.tasks)) throw new Error('Bukan file backup All in One.');
+  const st = o && (o.app === 'all-in-one' || o.app === 'a1o') ? o.state : null;
+  if (!st || st.v !== 1 || !Array.isArray(st.tasks)) throw new Error('Bukan file backup A1O / All in One.');
+  const lock = S.lock;
   S = Object.assign(defaultState(), st);
+  if (!S.lock) S.lock = lock;          // restoring an old backup keeps the PIN set on this phone
   S.settings = Object.assign(defaultState().settings, st.settings || {});
   if (window.Money) Money.reset();
   saveNow();

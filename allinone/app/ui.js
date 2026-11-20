@@ -1,4 +1,4 @@
-/* All in One — screens. Renders HTML strings into #view and handles clicks by data-act. */
+/* A1O — screens. Renders HTML strings into #view and handles clicks by data-act. */
 'use strict';
 
 const $ = (sel, el) => (el || document).querySelector(sel);
@@ -6,6 +6,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const shortUrl = (u) => { const s = u.replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '').replace(/\/$/, ''); return s.length > 38 ? s.slice(0, 37) + '…' : s; };
 const rich = (text) => esc(text)
   .replace(/https?:\/\/[^\s<]+/g, (u) => { const tail = (u.match(/[).,;]+$/) || [''])[0]; const url = tail ? u.slice(0, -tail.length) : u; return `<a href="${url}" target="_blank" rel="noopener">${shortUrl(url.replace(/&amp;/g, '&'))}</a>${tail}`; })
+  .replace(/(^|[\s(>])\*([^*\n<]+?)\*(?=$|[\s).,:;!?<])/g, '$1<b>$2</b>')
   .replace(/\n/g, '<br>');
 const mostlyCaps = (s) => { const l = s.match(/\p{L}/gu) || []; return l.length > 2 && l.filter((c) => c === c.toUpperCase()).length / l.length >= 0.7; };
 const titleCase = (s) => (mostlyCaps(s) ? s.toLowerCase().replace(/(^|[\s(/&-])([a-zà-ÿ])/g, (m, a, c) => a + c.toUpperCase()) : s);
@@ -51,6 +52,7 @@ function render() {
   $('#view').innerHTML = VIEWS[view.v](view);
   $('#tabs').innerHTML = `<div class="in">${TABS.map(([id, label, icon]) => `<button class="${!top && UI.tab === id ? 'on' : ''}" data-act="tab" data-tab="${id}"><span class="pill">${icon}</span>${label}</button>`).join('')}</div>`;
   if (window.Money) Money.afterRender();
+  const fab = $('#qafab'); if (fab) fab.hidden = !!(top && /^(paste|manage)$/.test(top.v));
   if (view.focus != null) {
     const el = document.getElementById('b' + view.focus);
     delete view.focus;
@@ -138,7 +140,7 @@ function ring(done, total) {
 function reminderCard() {
   if (!S.reminders.length) return '';
   const r = (UI.rem && S.reminders.find((x) => x.id === UI.rem)) || reminderFor(new Date());
-  return `<section class="card remind"><header><h3>${r.icon || '🔔'} Pengingat ${esc(r.label.toLowerCase())}</h3>
+  return `<section class="card remind"><header><h3>${r.icon || '🔔'} Pengingat ${esc(r.label.toLowerCase())}</h3><button class="link" data-act="copyReminder" data-id="${esc(r.id)}">Salin</button>
     <div class="seg">${S.reminders.map((x) => `<button class="${x.id === r.id ? 'on' : ''}" data-act="rem" data-id="${esc(x.id)}">${esc(x.label)}</button>`).join('')}</div></header>
     <ul>${r.lines.map((l) => `<li>${rich(l)}</li>`).join('')}</ul></section>`;
 }
@@ -154,7 +156,7 @@ function todoCard(when) {
   const ds = when === 'besok' ? ymd(addDays(new Date(), 1)) : todayStr();
   const list = todosOn(ds), done = list.filter((t) => t.done).length;
   const besok = when === 'besok';
-  return `<section class="card"><header><h3>${besok ? '🌤️ To-do besok' : '🌙 To-do malam ini'}</h3>${list.length ? `<span class="count${done === list.length ? ' full' : ''}">${done}/${list.length}</span>` : ''}</header>
+  return `<section class="card"><header><h3>${besok ? '🌤️ To-do besok' : '🌙 To-do malam ini'}</h3>${list.length ? `<span class="count${done === list.length ? ' full' : ''}">${done}/${list.length}</span><button class="link" data-act="copyTodos" data-when="${when}">Salin</button>` : ''}</header>
     ${list.length ? list.map((t) => todoRow(t, when)).join('') : `<p class="muted small">${besok ? 'Belum ada. Catat sekarang biar besok nggak lupa.' : 'Belum ada. Apa yang harus beres malam ini?'}</p>`}
     <form class="add" data-form="todo" data-when="${when}"><input name="x" placeholder="${besok ? 'Tambah buat besok…' : 'Tambah buat malam ini…'}" autocomplete="off" enterkeyhint="done"><button aria-label="Tambah">＋</button></form></section>`;
 }
@@ -237,10 +239,12 @@ VIEWS.today = () => {
   const h = now.getHours();
   const greet = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 19 ? 'Selamat sore' : 'Selamat malam';
   const mottos = (DATA.seeds.home || []).filter((l) => !/all-in-one|dalam satu file/i.test(l));
-  const motto = mottos.length ? mottos[Math.floor(now.getTime() / 864e5) % mottos.length].replace(/\n/g, ' · ') : '';
+  const goal = S.tasks.find((t) => t.group === 'Ultimate Goal');
+  const motto = goal ? '🏆 ' + goal.title : mottos.length ? mottos[Math.floor(now.getTime() / 864e5) % mottos.length].replace(/\n/g, ' · ') : '';
   const todos = todosOn(ds);
-  const done = items.filter((i) => i.mark === 1).length + todos.filter((t) => t.done).length;
-  return `<header class="hero"><div class="grow"><p class="eyebrow">${longDate(now)}</p><h1>${greet}${S.settings.name ? ', ' + esc(S.settings.name) : ''}</h1>${motto ? `<p class="motto">${esc(motto)}</p>` : ''}</div>${ring(done, items.length + todos.length)}</header>
+  const c = countable(items);
+  const done = c.done + todos.filter((t) => t.done).length;
+  return `<header class="hero"><div class="grow"><p class="eyebrow">${longDate(now)}</p><h1>${greet}${S.settings.name ? ', ' + esc(S.settings.name) : ''}</h1>${motto ? `<p class="motto">${esc(motto)}</p>` : ''}</div>${ring(done, c.total + todos.length)}</header>
     ${reminderCard()}
     ${Money.todayCard()}
     ${overdueCard()}
@@ -272,16 +276,15 @@ VIEWS.cal = () => {
     grid = `<div class="month">${[1, 2, 3, 4, 5, 6, 7].map((i) => `<div class="dow">${ISO_SHORT[i]}</div>`).join('')}${cells}</div>`;
   }
   const items = dayItems(sel), todos = todosOn(c.sel);
-  const done = items.filter((i) => i.mark === 1).length;
+  const cnt = countable(items), done = cnt.done;
   return `<div class="title"><h1>Kalender</h1><div class="seg"><button class="${c.mode === 'week' ? 'on' : ''}" data-act="calMode" data-m="week">7 hari</button><button class="${c.mode === 'month' ? 'on' : ''}" data-act="calMode" data-m="month">Bulan</button></div></div>
     <div class="calnav"><b>${label}</b><button class="iconbtn" data-act="calNav" data-d="-1" aria-label="Sebelumnya">${ICON.back}</button><button class="link" data-act="calToday">Hari ini</button><button class="iconbtn" data-act="calNav" data-d="1" aria-label="Berikutnya" style="transform:scaleX(-1)">${ICON.back}</button></div>
     ${grid}
-    <h2 class="sec"><span class="grow">${longDate(sel)}</span><span class="count${items.length && done === items.length ? ' full' : ''}">${done}/${items.length}</span></h2>
+    <h2 class="sec"><span class="grow">${longDate(sel)}</span><span class="count${cnt.total && done === cnt.total ? ' full' : ''}">${done}/${cnt.total}</span><button class="link" data-act="addTask" data-date="${c.sel}">＋ Jadwal</button></h2>
     ${(() => { const due = dlOpen().filter((n) => n.due === c.sel); return due.length ? `<section class="card"><header><h3>⏰ Deadline</h3><span class="count">${due.length}</span></header>${due.map((n) => dlRow(n, { compact: true })).join('')}</section>` : ''; })()}
     ${Money.dayCard(c.sel)}
     ${todos.length ? `<section class="card"><header><h3>📝 To-do</h3></header>${todos.map((t) => todoRow(t, c.sel === todayStr() ? 'malam' : 'besok')).join('')}</section>` : ''}
-    ${timeline(c.sel, items, c.sel === todayStr())}
-    <button class="fab" data-act="addTask" data-date="${c.sel}" aria-label="Tambah jadwal">＋</button>`;
+    ${timeline(c.sel, items, c.sel === todayStr())}`;
 };
 
 /* ---------- To-Do ---------- */
@@ -370,11 +373,11 @@ VIEWS.section = (v) => {
   const { section } = SECTIONS[v.id];
   const heads = section.blocks.map((b, i) => (b.t === 'h' ? { i, x: titleCase(cleanTitle(b.x)) } : null)).filter(Boolean);
   const notes = S.notes[section.id] || [];
-  return `<div class="bar"><button class="back" data-act="back" aria-label="Kembali">${ICON.back}</button><h1>${esc(titleCase(section.title))}</h1></div>
+  return `<div class="bar"><button class="back" data-act="back" aria-label="Kembali">${ICON.back}</button><h1>${esc(titleCase(section.title))}</h1><button class="link" data-act="copySection" data-id="${esc(section.id)}">Salin</button></div>
     ${heads.length > 2 ? `<div class="scroll">${heads.map((h) => `<button class="chip" data-act="jump" data-i="${h.i}">${esc(h.x.length > 34 ? h.x.slice(0, 33) + '…' : h.x)}</button>`).join('')}</div>` : ''}
     <div class="doc">${section.blocks.map((b, i) => `<div id="b${i}">${renderBlock(b)}</div>`).join('')}
       ${Paste.sectionHtml(section.id)}
-      <h3>Catatan tambahan</h3>
+      <h3 id="bnotes">Catatan tambahan</h3>
       <div class="card">${notes.length ? `<ul class="blist">${notes.map((n, i) => `<li>${rich(n)} <button class="x" data-act="noteDel" data-id="${esc(section.id)}" data-i="${i}" aria-label="Hapus" style="float:right">×</button></li>`).join('')}</ul>` : ''}
         <form class="add" data-form="note" data-id="${esc(section.id)}"><input name="x" placeholder="Tulis catatan baru di sini…" autocomplete="off"><button aria-label="Tambah">＋</button></form></div>
     </div>`;
@@ -433,7 +436,7 @@ function taskBlock(b) {
   const doneOf = (list) => list.filter((t) => marks[t.id] === 1).length;
   const manage = '<button class="link" data-act="go" data-v="manage">Atur</button>';
   if (!due.length && other.every((t) => !t.rep || t.rep.k === 'none')) {
-    return `<div class="card"><header><h3>Centang yang dilakuin hari ini</h3><span class="count">${doneOf(other)}/${other.length}</span>${manage}</header>${other.map(row).join('')}</div>`;
+    return `<div class="card"><header><h3>${b.kind === 'goal' ? 'Daftar' : 'Centang yang dilakuin hari ini'}</h3><span class="count">${doneOf(other)}/${other.length}</span>${manage}</header>${other.map(row).join('')}</div>`;
   }
   const key = 'tb|' + b.id, open = !!UI.open[key];
   return `<div class="card"><header><h3>Hari ini</h3><span class="count${due.length && doneOf(due) === due.length ? ' full' : ''}">${doneOf(due)}/${due.length}</span>${manage}</header>
@@ -530,7 +533,7 @@ VIEWS.manage = () => {
     <p class="muted small" style="margin:0 4px 12px">Semua yang muncul di kalender. Pencet satu buat ganti jam, hari, atau notifikasinya.</p>
     ${[...groups].map(([g, list]) => {
       const key = 'mg|' + g, open = UI.open[key] !== undefined ? UI.open[key] : list.length <= 8;
-      return `<div class="card"><header><h3>${esc(g)}</h3><span class="count">${list.length}</span><button class="link" data-act="groupSheet" data-g="${esc(g)}">Jam grup</button><button class="link" data-act="toggleOpen" data-key="${esc(key)}">${open ? 'Tutup' : 'Lihat'}</button></header>
+      return `<div class="card"><header><h3>${esc(g)}</h3><span class="count">${list.length}</span><button class="link" data-act="copyGroup" data-g="${esc(g)}">Salin</button><button class="link" data-act="groupSheet" data-g="${esc(g)}">Jam grup</button><button class="link" data-act="toggleOpen" data-key="${esc(key)}">${open ? 'Tutup' : 'Lihat'}</button></header>
         ${open ? list.map((t) => `<button class="navrow" data-act="editTask" data-id="${esc(t.id)}"><span class="grow"><b>${esc(t.title)}</b><small>${esc(repLabel(t))}${t.notify === false ? ' · notif mati' : ''}</small></span><span class="chev">›</span></button>`).join('') : ''}</div>`;
     }).join('')}`;
 };
@@ -572,28 +575,32 @@ VIEWS.more = () => {
   const opts = (list, sel) => list.map(([v, label]) => `<option value="${v}"${String(v) === String(sel) ? ' selected' : ''}>${label}</option>`).join('');
   const queue = BRIDGE && s.notif !== false ? buildQueue() : [];
   const next = queue[0] ? (() => { const d = new Date(queue[0].at); return `Berikutnya: <b>${ymd(d) === todayStr() ? 'hari ini' : shortDate(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}</b> — ${esc(queue[0].title)} · ${queue.length} terjadwal untuk 30 hari ke depan`; })() : '';
-  const status = !BRIDGE ? '<p class="note">Notifikasi dengan tombol Sudah / Belum cuma jalan di aplikasi Android (AllInOne.apk). Di browser, semua list & kalender tetap bisa dipakai.</p>'
+  const status = !BRIDGE ? '<p class="note">Notifikasi dengan tombol Sudah / Belum cuma jalan di aplikasi Android (A1O). Di browser, semua list & kalender tetap bisa dipakai.</p>'
     : !st || st.notif ? '' : '<p class="note">Notifikasi belum diizinkan. Pencet <b>Izinkan notifikasi</b> di bawah.</p>';
   return `<div class="title"><h1>Lainnya</h1></div>
     <div class="card">
+      <button class="navrow" data-act="quickAdd"><span class="ico">➕</span><span class="grow"><b>Tambah cepat</b><small>Tulis sesuatu, pilih mau masuk ke mana sambil lihat isinya</small></span><span class="chev">›</span></button>
       <button class="navrow" data-act="openPaste"><span class="ico">📋</span><span class="grow"><b>Tempel catatan</b><small>Tempel semua catatan sekaligus, otomatis dirapihin ke bagiannya</small></span><span class="chev">›</span></button>
       <button class="navrow" data-act="go" data-v="manage"><span class="ico">🗓️</span><span class="grow"><b>Atur jadwal rutin</b><small>${S.tasks.length} kegiatan · jam, hari, notifikasi</small></span><span class="chev">›</span></button>
     </div>
+
+    ${window.A1O ? A1O.settingsHtml() : ''}
 
     <h2 class="sec">Notifikasi</h2>
     ${status}
     <div class="card">
       <div class="rowline"><div class="grow"><b>Notifikasi jadwal & to-do</b><small>Tiap jadwal muncul di jamnya dengan tombol Sudah / Belum</small></div><button class="switch${s.notif !== false ? ' on' : ''}" data-act="setFlag" data-k="notif" aria-label="Notifikasi"></button></div>
+      <div class="rowline"><div class="grow"><b>Pengingat getar ±20 detik</b><small>Eksperimen: notif pengingat bunyi & getar lagi tiap 3 detik. Buka aplikasinya buat berhentiin.</small></div><button class="switch${s.longBuzz !== false ? ' on' : ''}" data-act="setFlag" data-k="longBuzz" aria-label="Getar panjang"></button></div>
       <div class="rowline"><div class="grow"><b>Kalau dijawab “Belum”</b><small>Ingatkan lagi setelah</small></div><select data-change="setting" data-k="snooze">${opts([[0, 'Jangan'], [10, '10 menit'], [15, '15 menit'], [30, '30 menit'], [60, '1 jam']], s.snooze)}</select></div>
       <div class="rowline"><div class="grow"><b>To-do malam ini</b><small>Jam notifikasinya</small></div><input type="time" value="${esc(s.todoTime)}" data-change="setting" data-k="todoTime"></div>
       ${next ? `<p class="small muted" style="margin-top:8px">${next}</p>` : ''}
       ${BRIDGE && st && st.exact === false ? '<p class="small noc" style="margin-top:8px">HP ini belum mengizinkan alarm tepat waktu, jadi notifikasi bisa telat beberapa menit. Izinkan “Alarm & pengingat” di pengaturan aplikasi.</p>' : ''}
       ${BRIDGE ? `<div class="btnrow" style="margin-top:10px">${st && !st.notif ? '<button class="btn" data-act="askNotif">Izinkan notifikasi</button>' : ''}<button class="btn ghost" data-act="testNotif">Tes notifikasi</button><button class="btn ghost" data-act="appSettings">Pengaturan aplikasi</button></div>
-      <p class="muted small" style="margin-top:10px">Kalau notif suka telat / nggak muncul: di pengaturan aplikasi, izinkan autostart dan matikan penghemat baterai untuk All in One.</p>` : ''}
+      <p class="muted small" style="margin-top:10px">Kalau notif suka telat / nggak muncul: di pengaturan aplikasi, izinkan autostart dan matikan penghemat baterai untuk A1O.</p>` : ''}
     </div>
 
-    <h2 class="sec">Pengingat pagi · siang · sore</h2>
-    ${S.reminders.map((r, ri) => `<div class="card"><header><h3>${r.icon || '🔔'} ${esc(r.label)}</h3><button class="switch${r.on ? ' on' : ''}" data-act="remToggle" data-r="${ri}" aria-label="Aktif"></button></header>
+    <h2 class="sec"><span class="grow">Pengingat harian</span><button class="link" data-act="remNew">＋ Pengingat baru</button></h2>
+    ${S.reminders.map((r, ri) => `<div class="card"><header><h3>${r.icon || '🔔'} ${esc(r.label)}</h3>${['pagi', 'siang', 'sore'].includes(r.id) ? '' : `<button class="link" data-act="remDel" data-r="${ri}">Hapus</button>`}<button class="switch${r.on ? ' on' : ''}" data-act="remToggle" data-r="${ri}" aria-label="Aktif"></button></header>
       <div class="rowline"><div class="grow"><b>Senin – Jumat</b></div><input type="time" value="${esc(r.time || '')}" data-change="remTime" data-r="${ri}" data-k="time"></div>
       <div class="rowline"><div class="grow"><b>Sabtu – Minggu</b></div><input type="time" value="${esc(r.timeWE || '')}" data-change="remTime" data-r="${ri}" data-k="timeWE"></div>
       <div style="margin-top:8px">${r.lines.map((l, li) => `<div class="ed"><textarea rows="${Math.min(4, Math.ceil((l.length + 1) / 38))}" data-change="remLine" data-r="${ri}" data-i="${li}">${esc(l)}</textarea><button class="x" data-act="remLineDel" data-r="${ri}" data-i="${li}" aria-label="Hapus">×</button></div>`).join('')}</div>
@@ -609,7 +616,7 @@ VIEWS.more = () => {
     <div class="card">
       <p class="small muted" style="margin-bottom:10px">Semua centang, to-do, dan catatan disimpan di HP ini aja. Simpan backup sebelum uninstall atau ganti HP.</p>
       <div class="btnrow"><button class="btn" data-act="exportData">Simpan backup</button><button class="btn ghost" data-act="importData">Pulihkan backup</button></div>
-      <div class="btnrow" style="margin-top:8px"><button class="btn ghost" data-act="reseed">Reset jadwal dari spreadsheet</button><button class="btn danger" data-act="wipe">Hapus semua data</button></div>
+      <div class="btnrow" style="margin-top:8px"><button class="btn ghost" data-act="reseed">Reset jadwal ke awal</button><button class="btn danger" data-act="wipe">Hapus semua data</button></div>
       ${DATA.source ? `<p class="small muted" style="margin-top:10px">Isi dari ${esc(DATA.source)} · dibuat ${esc(DATA.generated || '')}</p>` : ''}
     </div>`;
 };
@@ -786,7 +793,7 @@ ACT.closeSheet = () => closeSheet();
 ACT.onboardDone = () => { S.settings.onboarded = true; save({ sync: false }); closeSheet(); };
 
 ACT.exportData = () => {
-  const text = exportData(), name = 'all-in-one-backup-' + todayStr() + '.json';
+  const text = exportData(), name = 'a1o-backup-' + todayStr() + '.json';
   if (BRIDGE && BRIDGE.aioSaveFile) return BRIDGE.aioSaveFile(name, text);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click();
@@ -801,7 +808,7 @@ ACT.importData = () => {
   input.onchange = () => { const file = input.files[0]; if (file) file.text().then(doImport); };
   input.click();
 };
-ACT.reseed = () => openSheet(`<h2>Reset jadwal dari spreadsheet?</h2><p class="muted" style="margin-bottom:14px">Jadwal rutin dikembalikan seperti di spreadsheet. Jadwal yang kamu tambah sendiri dan semua centang tetap ada.</p><div class="btnrow"><button class="btn wide" data-act="reseedYes">Ya, reset</button><button class="btn ghost wide" data-act="closeSheet">Batal</button></div>`);
+ACT.reseed = () => openSheet(`<h2>Reset jadwal ke awal?</h2><p class="muted" style="margin-bottom:14px">Jadwal rutin dikembalikan seperti waktu A1O pertama dipasang. Jadwal yang kamu tambah sendiri dan semua centang tetap ada.</p><div class="btnrow"><button class="btn wide" data-act="reseedYes">Ya, reset</button><button class="btn ghost wide" data-act="closeSheet">Batal</button></div>`);
 ACT.reseedYes = () => { reseedTasks(); closeSheet(); render(); toast('Jadwal direset'); };
 ACT.wipe = () => openSheet(`<h2>Hapus semua data?</h2><p class="muted" style="margin-bottom:14px">Semua centang, to-do, nilai, catatan tambahan, dan pengaturan di HP ini dihapus. Nggak bisa dibatalin — simpan backup dulu kalau ragu.</p><div class="btnrow"><button class="btn danger wide" data-act="wipeYes">Hapus semuanya</button><button class="btn ghost wide" data-act="closeSheet">Batal</button></div>`);
 ACT.wipeYes = () => { localStorage.removeItem(LS_KEY); loadState(); Money.reset(); saveNow(); syncNotifications(); applyTheme(); closeSheet(); UI.stack = []; UI.tab = 'today'; render(); toast('Data dihapus'); };

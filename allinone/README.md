@@ -47,6 +47,22 @@ a preview lets you change the destination, drop items, and send a dated group to
 **Lainnya** – routine manager (change time, days or notifications per item or per group), notification and reminder settings,
 theme, backup / restore.
 
+## A1O
+A1O is this app with a PIN / password lock, a quick-add button that lets you pick the destination while seeing what is
+already there, "Salin" buttons that copy a list in WhatsApp format, extra daily reminders and a longer vibration option
+(`app/a1o.js`, `app/a1o.css`). Its data is built by `tools/a1o_data.py` from the workbook (the All in 1 library), the data
+file of the previous A1O build (its own Tujuan and Catatan sections) and a backup exported from the app (the starting
+to-dos, routines, deadlines, money, reminders and notes). The lock-screen picture (`app/lock-bg.jpg`) is not committed.
+
+```bash
+python3 allinone/tools/a1o_data.py All-in-One.xlsx a1o-data.js a1o-backup.json allinone/app/data.js
+cd allinone/android && APP_ID=com.allinone.demo APP_LABEL=A1O OUT_APK=../A1O.apk ./build-apk.sh
+```
+
+**All in 1** shows each section as a short list (`app/library.js`): one folded group per heading with its line count and
+first line, lines cut to three until tapped, large groups cut after 12 lines until "Lihat semua". The wording is the
+workbook's own. "Lengkap" switches to the full view.
+
 ## Notifications (Android app)
 Each scheduled block appears at its time as a notification with **✓ Sudah / ✗ Belum / Sudah semua** buttons. A block with
 several items steps through them one at a time, so the whole list can be answered from the notification without opening the app;
