@@ -1,0 +1,6 @@
+build/
+assets/
+libs/
+*.keystore
+check/lib/
+check/out/

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f6f8">
+<title>A1O</title>
+<script>try { var s = JSON.parse(localStorage.getItem('aio.v1') || 'null'); if (s && s.lock && s.lock.hash) document.documentElement.className = 'locked'; } catch (e) {}</script>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="a1o.css">
+</head>
+<body>
+<div id="app">
+  <main id="view"></main>
+  <nav id="tabs" aria-label="Menu utama"></nav>
+</div>
+<button id="qafab" class="qafab" data-act="quickAdd" aria-label="Tambah cepat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+<div id="sheet" hidden></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="lock" hidden></div>
+<script src="data.js"></script>
+<script src="core.js"></script>
+<script src="ui.js"></script>
+<script src="library.js"></script>
+<script src="schedule.js"></script>
+<script src="money.js"></script>
+<script src="paste.js"></script>
+<script src="a1o.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
