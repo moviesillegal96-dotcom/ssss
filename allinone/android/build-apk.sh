@@ -39,6 +39,8 @@ cp -r ../app/fonts assets/fonts
 if [ -f "$DATA_JS" ]; then cp "$DATA_JS" assets/data.js; else echo 'window.AIO_DATA = { sheets: [], seeds: {} };' > assets/data.js; fi
 cp -r res/. "$OUT/res/"
 python3 make_icons.py "$OUT/res"
+# The original A1O icon is someone's artwork too: kept out of the repository, used instead of the drawn one when it is there.
+if [ -d icons ]; then cp -r icons/. "$OUT/res/"; fi
 printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <string name="app_name">%s</string>\n</resources>\n' "$APP_LABEL" > "$OUT/res/values/strings.xml"
 
 "$BT/aapt" package -f -m -J "$OUT/gen" -M AndroidManifest.xml -S "$OUT/res" -I "$PLATFORM_JAR"
