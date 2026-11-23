@@ -59,3 +59,6 @@ an APK signed with a different key can't be installed over the old app without u
 
 The app serves its files from `https://appassets.androidplatform.net/`, which is intercepted and never touches the
 network, so Web Workers, WebAssembly and the camera work inside the WebView.
+
+## Other apps in this repository
+[`allinone/`](allinone/) holds a separate app, the All in One planner. See its README.
