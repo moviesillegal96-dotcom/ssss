@@ -525,10 +525,29 @@
     else openTx({ d: b.dataset.date || (UI.m.view === 'calendar' && UI.m.selDay ? UI.m.selDay : undefined) });
   };
   ACT['m-edit-tx'] = (b) => openTx({ id: b.dataset.id });
-  ACT['m-del-tx'] = (b) => { if (!confirmTwice(b)) return; delTx(UI.m.editId); closeSheet(); commit(); };
+  /* Deleting goes to "Baru dihapus" (bin.js) and can be undone. */
+  const txLabel = (t) => (t.name || t.note || (t.t === 'in' ? 'Pemasukan' : 'Pengeluaran')) + ' · ' + fmt(t.a);
+  TRASH_KINDS.tx = { icon: '💸', name: 'Transaksi', restore: (t, i) => { if (!findTx(t.id)) { const mk = mkOf(t.d), ms = M().months; putAt((ms[mk] || (ms[mk] = { tx: [] })).tx, i, t); } memo = null; return true; } };
+  const putAt = (list, i, x) => (i == null ? list.push(x) : list.splice(Math.min(i, list.length), 0, x));
+  TRASH_KINDS.mitem = { icon: '💰', name: 'Pos anggaran', restore: (it, i) => { if (!cfg().items.some((x) => x.id === it.id)) putAt(cfg().items, i, it); memo = null; return true; } };
+  TRASH_KINDS.mlist = { icon: '🧾', name: 'Item list uang', restore: (l, i) => { if (!cfg().lists.some((x) => x.id === l.id)) putAt(cfg().lists, i, l); memo = null; return true; } };
+  TRASH_KINDS.money = { icon: '💰', name: 'Semua data uang', restore: (m) => { S.money = m; memo = null; return true; } };
+  ACT['m-del-tx'] = (b) => {
+    if (!confirmTwice(b)) return;
+    const f = findTx(UI.m.editId);
+    closeSheet();
+    if (!f) return;
+    delTx(f.t.id); memo = null;
+    trashed('tx', f.t, txLabel(f.t), 'Uang · ' + shortDate(parseYmd(f.t.d)), 'Transaksi dihapus', f.i);
+  };
   ACT['m-add-item'] = (b) => openItem({ g: b.dataset.g });
   ACT['m-edit-item'] = (b) => openItem({ id: b.dataset.id });
-  ACT['m-del-item'] = (b) => { if (!confirmTwice(b)) return; cfg().items = cfg().items.filter((i) => i.id !== UI.m.editId); closeSheet(); commit(); };
+  ACT['m-del-item'] = (b) => {
+    if (!confirmTwice(b)) return;
+    const at = cfg().items.findIndex((i) => i.id === UI.m.editId), it = cfg().items[at];
+    cfg().items = cfg().items.filter((i) => i.id !== UI.m.editId); closeSheet(); memo = null;
+    if (it) trashed('mitem', it, it.name + (it.amount ? ' · ' + fmt(it.amount) : ''), 'Uang', it.name + ' dihapus', at); else commit();
+  };
   ACT['m-tick'] = (b) => {
     const it = item(b.dataset.id), month = b.dataset.mk || UI.m.month, inc = it.group === 'income', ex = paidTx(it.id, month);
     if (ex) { delTx(ex.id); commit(); toast(it.name + ' dibatalkan'); return; }
@@ -537,7 +556,12 @@
   };
   ACT['m-add-list'] = (b) => openList({ l: b.dataset.l });
   ACT['m-edit-list'] = (b) => openList({ id: b.dataset.id });
-  ACT['m-del-list'] = (b) => { if (!confirmTwice(b)) return; cfg().lists = cfg().lists.filter((l) => l.id !== UI.m.editId); closeSheet(); commit(); };
+  ACT['m-del-list'] = (b) => {
+    if (!confirmTwice(b)) return;
+    const at = cfg().lists.findIndex((x) => x.id === UI.m.editId), l = cfg().lists[at];
+    cfg().lists = cfg().lists.filter((x) => x.id !== UI.m.editId); closeSheet(); memo = null;
+    if (l) trashed('mlist', l, l.name || l.title || 'List', 'Uang', 'List dihapus', at); else commit();
+  };
   ACT['m-tick-list'] = (b) => {
     const l = cfg().lists.find((x) => x.id === b.dataset.id);
     l.done = !l.done; commit();
@@ -551,7 +575,12 @@
     S.money = { cfg: d.cfg, months: d.months || {} };
     closeSheet(); commit(); toast('Data Dompet Planner dipulihkan');
   };
-  ACT['m-erase'] = (b) => { if (!confirmTwice(b)) return; S.money = { cfg: blankCfg(), months: {} }; closeSheet(); commit(); };
+  ACT['m-erase'] = (b) => {
+    if (!confirmTwice(b)) return;
+    const old = S.money, n = Object.values((old && old.months) || {}).reduce((k, m) => k + m.tx.length, 0);
+    S.money = { cfg: blankCfg(), months: {} }; closeSheet(); memo = null;
+    trashed('money', old, 'Semua data uang · ' + n + ' transaksi', 'Uang (memulihkan = mengganti data uang yang sekarang)', 'Data uang dihapus');
+  };
   ACT['m-open'] = () => { UI.stack = []; UI.scroll = []; UI.tab = 'money'; UI.m.view = 'home'; UI.m.month = mkOf(todayStr()); render(); window.scrollTo(0, 0); };
   /** The extra button on the "done, log it?" toast. */
   ACT['m-log-offer'] = () => {

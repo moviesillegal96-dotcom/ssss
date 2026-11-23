@@ -70,6 +70,11 @@ custom days, optional end date), notification (at the start, 5–60 minutes or a
 hour) and group. Each line becomes its own calendar entry with Sudah / Belum notifications; the "To-do" tab of the sheet
 puts them in tonight's or tomorrow's to-do instead. Scheduled lines show a 📅 badge that opens the entry again.
 
+**Baru dihapus** (`app/bin.js`): everything that can be deleted (to-dos, calendar entries, deadlines, list items,
+notes, pasted notes, reminders and their lines, grades, money transactions, budget items, money lists, erased money data)
+first offers *Urungkan* in the toast, then stays 30 days in Lainnya → Baru dihapus (to-dos also at the bottom of the
+To-Do tab), where *Pulihkan* puts it back in the same spot. It is part of the backup.
+
 ## Notifications (Android app)
 Each scheduled block appears at its time as a notification with **✓ Sudah / ✗ Belum / Sudah semua** buttons. A block with
 several items steps through them one at a time, so the whole list can be answered from the notification without opening the app;

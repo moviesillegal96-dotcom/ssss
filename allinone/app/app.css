@@ -473,3 +473,13 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding
 .bar:has(.pinbtn) h1 { flex: 1 1 calc(100% - 60px); }
 .bar:has(.pinbtn) .pinbtn { margin-left: 38px; }
 .bar:has(.pinbtn) .link { padding: 4px 6px; }
+
+/* ---------- Baru dihapus (bin.js) ---------- */
+.binrow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.card > .binrow:first-child, .card > header + .binrow { border-top: 0; }
+.binrow .ico { font-size: 18px; width: 26px; text-align: center; flex: none; }
+.binrow .grow { flex: 1; min-width: 0; }
+.binrow .bt { font-weight: 600; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.binrow small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.binrow .nb { flex: none; }
+.bincats { margin: 0 0 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }

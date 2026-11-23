@@ -163,15 +163,7 @@ function todoCard(when) {
     ${list.length ? list.map((t) => todoRow(t, when)).join('') : `<p class="muted small">${besok ? 'Belum ada. Catat sekarang biar besok nggak lupa.' : 'Belum ada. Apa yang harus beres malam ini?'}</p>`}
     <form class="add" data-form="todo" data-when="${when}"><input name="x" placeholder="${besok ? 'Tambah buat besok…' : 'Tambah buat malam ini…'}" autocomplete="off" enterkeyhint="done"><button aria-label="Tambah">＋</button></form></section>`;
 }
-/** Deleted to-dos, kept 30 days so a slip of the finger can be undone. */
-function trashCard() {
-  const list = S.trash || [];
-  if (!list.length) return '';
-  const open = !!UI.open.trash;
-  return `<section class="card"><header><h3>🗑️ Baru dihapus</h3><span class="count">${list.length}</span><button class="link" data-act="toggleOpen" data-key="trash">${open ? 'Tutup' : 'Lihat'}</button></header>
-    ${open ? list.map((x) => `<div class="it"><div class="tx"><span class="t">${rich(x.t.x)}</span><span class="meta">${x.t.slot === 'pagi' ? 'Besok' : 'Malam'} · ${shortDate(parseYmd(x.t.date))} · dihapus ${shortDate(new Date(x.at))}</span></div><button class="nb" data-act="todoRestore" data-id="${esc(x.t.id)}">Pulihkan</button></div>`).join('')
-      + '<p class="muted small" style="margin-top:6px">Disimpan 30 hari, lalu hilang sendiri.</p>' : ''}</section>`;
-}
+function trashCard() { return ''; }   // the To-Do tab's "Baru dihapus" card: filled in by bin.js
 function overdueCard() {
   const list = todosOverdue();
   if (!list.length) return '';
@@ -648,21 +640,7 @@ ACT.rem = (el) => { UI.rem = el.dataset.id; render(); };
 ACT.expand = (el) => el.parentElement.querySelector('.tx').classList.toggle('open');
 
 ACT.todoToggle = (el) => { const t = S.todos.find((x) => x.id === el.dataset.id); if (t) { t.done = t.done ? 0 : 1; t.doneAt = Date.now(); save(); render(); } };
-ACT.todoDel = (el) => {
-  const i = S.todos.findIndex((x) => x.id === el.dataset.id);
-  if (i < 0) return;
-  const [t] = S.todos.splice(i, 1);
-  S.trash = [{ at: Date.now(), t }].concat(S.trash || []).slice(0, 300);
-  save(); render();
-  toast('To-do dihapus', () => restoreTodo(t.id));
-};
-function restoreTodo(id) {
-  const k = (S.trash || []).findIndex((x) => x.t.id === id);
-  if (k < 0) return;
-  const [x] = S.trash.splice(k, 1);
-  if (!S.todos.some((y) => y.id === id)) S.todos.push(x.t);
-}
-ACT.todoRestore = (el) => { restoreTodo(el.dataset.id); save(); render(); toast('To-do dipulihkan'); };
+ACT.todoDel = (el) => { S.todos = S.todos.filter((x) => x.id !== el.dataset.id); save(); render(); };   // bin.js keeps a copy in "Baru dihapus"
 ACT.todoMove = (el) => {
   const t = S.todos.find((x) => x.id === el.dataset.id);
   if (!t) return;

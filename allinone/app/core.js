@@ -145,8 +145,35 @@ function pruneOld() {
   S.todos = S.todos.filter((t) => !(t.done && t.date < todoCut));
   const dlCut = Date.now() - 60 * 864e5;
   S.deadlines = (S.deadlines || []).filter((n) => !(n.done && n.doneAt && n.doneAt < dlCut));
-  // Deleted to-dos can be brought back from "Baru dihapus" for 30 days.
-  S.trash = (S.trash || []).filter((x) => x.at > Date.now() - 30 * 864e5);
+  // "Baru dihapus" keeps things 30 days. Entries from 1.9.2 held only a to-do ({ at, t }).
+  S.trash = (S.trash || []).map((x) => (x.kind ? x : { id: 'x' + x.at.toString(36) + x.t.id, at: x.at, kind: 'todo', label: x.t.x, where: 'To-do', data: x.t }))
+    .filter((x) => x.at > Date.now() - TRASH_DAYS * 864e5);
+}
+
+/* ---------- Baru dihapus: everything deleted can come back for 30 days ---------- */
+const TRASH_DAYS = 30;
+const TRASH_KINDS = {};   // kind -> { icon, name, restore(data) -> true | why it cannot come back }; filled in by bin.js and money.js
+function trashPut(kind, data, label, where, pos) {
+  const e = { id: 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), kind,
+    label: String(label == null ? '' : label).slice(0, 400), where: where || '', data: JSON.parse(JSON.stringify(data)) };
+  if (pos != null) e.pos = pos;   // where it was in its list, so it comes back to the same spot
+  S.trash = [e].concat(S.trash || []).slice(0, 500);
+  return e;
+}
+function trashRestore(id) {
+  const list = S.trash || [], k = list.findIndex((e) => e.id === id);
+  if (k < 0) return 'Sudah nggak ada di Baru dihapus';
+  const e = list[k], kind = TRASH_KINDS[e.kind];
+  const r = kind ? kind.restore(e.data, e.pos) : 'Yang ini nggak bisa dipulihkan';
+  if (r === true) list.splice(k, 1);
+  return r;
+}
+/** Puts something in "Baru dihapus" (after it has been taken out) and offers Urungkan. */
+function trashed(kind, data, label, where, msg, pos) {
+  const e = trashPut(kind, data, label, where, pos);
+  save(); render();
+  toast(msg || 'Dihapus', () => { trashRestore(e.id); });
+  return e;
 }
 
 /* ---------- seeding the calendar from the workbook ---------- */
