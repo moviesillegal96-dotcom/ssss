@@ -143,6 +143,8 @@ function pruneOld() {
   S.todos = S.todos.filter((t) => !(t.done && t.date < todoCut));
   const dlCut = Date.now() - 60 * 864e5;
   S.deadlines = (S.deadlines || []).filter((n) => !(n.done && n.doneAt && n.doneAt < dlCut));
+  // Deleted to-dos can be brought back from "Baru dihapus" for 30 days.
+  S.trash = (S.trash || []).filter((x) => x.at > Date.now() - 30 * 864e5);
 }
 
 /* ---------- seeding the calendar from the workbook ---------- */
