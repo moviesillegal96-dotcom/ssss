@@ -4,7 +4,10 @@
 const $ = (sel, el) => (el || document).querySelector(sel);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const shortUrl = (u) => { const s = u.replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '').replace(/\/$/, ''); return s.length > 38 ? s.slice(0, 37) + '…' : s; };
+const photoTag = (id) => (S.photos && S.photos[id] ? `<img class="nphoto" src="${S.photos[id]}" data-act="photoView" data-id="${esc(id)}" alt="foto">` : '<i class="muted">(foto tidak ada)</i>');
+const stripPhotos = (t) => String(t == null ? '' : t).replace(/\[\[foto:([\w-]+)\]\]\s*/g, '📷 ');
 const rich = (text) => esc(text)
+  .replace(/\[\[foto:([\w-]+)\]\]\s*/g, (m, id) => photoTag(id) + '<br>')
   .replace(/https?:\/\/[^\s<]+/g, (u) => { const tail = (u.match(/[).,;]+$/) || [''])[0]; const url = tail ? u.slice(0, -tail.length) : u; return `<a href="${url}" target="_blank" rel="noopener">${shortUrl(url.replace(/&amp;/g, '&'))}</a>${tail}`; })
   .replace(/(^|[\s(>])\*([^*\n<]+?)\*(?=$|[\s).,:;!?<])/g, '$1<b>$2</b>')
   .replace(/\n/g, '<br>');
@@ -175,11 +178,12 @@ function overdueCard() {
   return `<section class="card"><header><h3>⏳ Belum selesai kemarin</h3><span class="count">${list.length}</span></header>${list.map((t) => todoRow(t, 'lewat')).join('')}</section>`;
 }
 
+const DAY_NAMES_ID = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 function picksCard() {
   const dow = isoDow(new Date());
   return Object.values(BLOCKS).filter((b) => b.t === 'check' && b.day === dow).map((b) => {
     const home = BLOCK_HOME[b.id];
-    return `<h2 class="sec"><span class="grow">Pilihan hari ini</span><button class="link" data-act="openSection" data-id="${esc(home.section.id)}" data-b="${esc(b.id)}">Buka</button></h2>${checkBlock(b, titleCase(cleanTitle(home.title)))}`;
+    return `<h2 class="sec"><span class="grow">📌 Belajar hari ini · ${DAY_NAMES_ID[dow - 1]}</span><button class="link" data-act="openSection" data-id="${esc(home.section.id)}" data-b="${esc(b.id)}">Buka</button></h2>${checkBlock(b, titleCase(cleanTitle(home.title)))}`;
   }).join('');
 }
 
@@ -254,12 +258,12 @@ VIEWS.today = () => {
   const c = countable(items);
   const done = c.done + todos.filter((t) => t.done).length;
   return `<header class="hero"><div class="grow"><p class="eyebrow">${longDate(now)}</p><h1>${greet}${S.settings.name ? ', ' + esc(S.settings.name) : ''}</h1>${motto ? `<p class="motto">${esc(motto)}</p>` : ''}</div>${ring(done, c.total + todos.length)}</header>
+    ${picksCard()}
     ${reminderCard()}
     ${Money.todayCard()}
     ${overdueCard()}
     ${deadlineCard()}
     <div class="duo">${todoCard('malam')}${todoCard('besok')}</div>
-    ${picksCard()}
     <h2 class="sec"><span class="grow">Jadwal hari ini</span><button class="link" data-act="addTask" data-date="${ds}">＋ Tambah</button></h2>
     ${timeline(ds, items, true)}`;
 };
@@ -813,6 +817,7 @@ ACT.testNotif = () => {
   syncNotifications(); toast('Notifikasi muncul 5 detik lagi');
 };
 ACT.closeSheet = () => closeSheet();
+ACT.photoView = (el, ev) => { if (ev) ev.stopPropagation(); const src = S.photos && S.photos[el.dataset.id]; if (src) openSheet(`<img src="${src}" style="width:100%;border-radius:12px;display:block"><div class="btnrow" style="margin-top:12px"><button class="btn ghost wide" data-act="closeSheet">Tutup</button></div>`); };
 ACT.onboardDone = () => { S.settings.onboarded = true; save({ sync: false }); closeSheet(); };
 
 ACT.exportData = () => {

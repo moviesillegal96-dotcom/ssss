@@ -64,6 +64,8 @@ function defaultState() {
     picks: {},        // week (Monday date) -> { block id: { index: 1 } } for the per-weekday study picks
     notes: {},        // section id -> notes the user added
     grades: [],       // { id, date, subject, kind, score, note }
+    pins: [],         // section ids pinned to the top of Hari ini
+    photos: {},       // photo id -> JPEG data URL (shown where a note says [[foto:id]])
     pasted: [],       // notes filed by "Tempel catatan": { id, sec: section id, title, items, at }
     deadlines: [],    // { id, text, due: 'YYYY-MM-DD' | null, fast, done, created, doneAt }
     money: null,      // the Uang tab: { cfg, months } (see money.js)
@@ -423,7 +425,7 @@ function buildQueue() {
     for (const r of S.reminders) {
       if (!r.on || !timeOf(r) || !r.lines.length) continue;
       const at = atTime(d, timeOf(r));
-      const note = { id: 'r|' + ds + '|' + r.id, at, ch: 'reminders', title: (r.icon || '🔔') + ' Pengingat ' + r.label.toLowerCase(), body: r.lines.map((l) => '• ' + l).join('\n') };
+      const note = { id: 'r|' + ds + '|' + r.id, at, ch: 'reminders', title: (r.icon || '🔔') + ' Pengingat ' + r.label.toLowerCase(), body: r.lines.map((l) => '• ' + stripPhotos(l)).join('\n') };
       if (at > now) out.push(note);
       // "Getar ±20 detik": the same notification again every 3 s. The suffixes ("AaAaAa", "AaAaBB", …) all share one
       // Java hashCode, so Android replaces the one notification instead of stacking copies. Once the first one has
@@ -431,6 +433,18 @@ function buildQueue() {
       if (S.settings.longBuzz !== false && at > now) {
         for (let k = 1; k < LONG_BUZZ.length; k++) out.push(Object.assign({}, note, { id: note.id + LONG_BUZZ[k], at: at + k * 3000 }));
         note.id += LONG_BUZZ[0];
+      }
+    }
+
+    // Detail Belajar: that weekday's study list, at the Belajar reminder's time (16:15 by default).
+    if (S.settings.studyNotif !== false) {
+      const sb = Object.values(BLOCKS).find((b) => b.t === 'check' && b.day === isoDow(d));
+      const br = S.reminders.find((r) => r.id === 'belajar');
+      const at = atTime(d, (br && timeOf(br)) || '16:15');
+      if (sb && at > now) {
+        const names = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+        const its = listItems(sb).map((x) => '• ' + stripPhotos(String(x.x).split('\n')[0]));
+        if (its.length) out.push({ id: 'p|' + ds, at: at + 60000, ch: 'reminders', title: '📚 Belajar hari ini (' + names[isoDow(d) - 1] + ')', body: its.join('\n') });
       }
     }
 
@@ -469,7 +483,7 @@ function buildQueue() {
 
     const open = todosOn(ds).filter((t) => !t.done);
     const morning = open.filter((t) => t.slot === 'pagi'), evening = open.filter((t) => t.slot !== 'pagi');
-    const asItems = (list) => list.map((t) => ({ k: 'todo|' + t.id, x: t.x }));
+    const asItems = (list) => list.map((t) => ({ k: 'todo|' + t.id, x: stripPhotos(t.x) }));
     if (morning.length) {
       const at = atTime(d, pagi && timeOf(pagi) ? timeOf(pagi) : '06:00') + 60000;
       if (at > now) out.push({ id: 'q|' + ds + '|pagi', at, ch: 'tasks', title: '📝 To-do hari ini', items: asItems(morning) });

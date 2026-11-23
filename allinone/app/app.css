@@ -467,3 +467,9 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding
 .schitems { margin-bottom: 12px; }
 .schitem { display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px; margin-bottom: 6px; background: var(--soft); border-radius: 12px; font-weight: 600; line-height: 1.4; }
 .schitem .grow { flex: 1; min-width: 0; }
+
+/* A category's bar has five buttons (📌 Sematkan, Salin, 📅 Pilih, Lengkap): the name gets its own line, the buttons go under it. */
+.bar:has(.pinbtn) { flex-wrap: wrap; row-gap: 0; }
+.bar:has(.pinbtn) h1 { flex: 1 1 calc(100% - 60px); }
+.bar:has(.pinbtn) .pinbtn { margin-left: 38px; }
+.bar:has(.pinbtn) .link { padding: 4px 6px; }

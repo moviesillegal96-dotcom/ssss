@@ -3,7 +3,7 @@
 'use strict';
 (() => {
   /* ======================= copy (WhatsApp format) ======================= */
-  const waText = (title, items) => (title ? '*' + title + '*\n' : '') + items.filter(Boolean).map((x) => '• ' + x).join('\n');
+  const waText = (title, items) => (title ? '*' + title + '*\n' : '') + items.filter(Boolean).map((x) => '• ' + stripPhotos(x)).join('\n');
   function copyText(text, what) {
     let ok = false;
     try {
@@ -68,12 +68,25 @@
       });
     }
     for (const sheet of DATA.sheets) for (const section of sheet.sections) {
+      // One entry per heading: lists without their own title take the nearest heading above them,
+      // and lists that end up with the same name in the same section are merged into ONE entry
+      // (shows all their items; new items go to the last of them). Fixes the "clone" rows in the + menu.
+      const secName = titleCase(cleanTitle(section.title) || section.title);
+      const byLabel = new Map();
+      let head = '';
       for (const b of section.blocks) {
+        if (b.t === 'h') { head = cleanTitle(b.x); continue; }
         if (!((b.t === 'check' && !b.daily && !b.day) || b.t === 'ul')) continue;
-        out.push({ key: 'list:' + b.id, cat: 'List', icon: sheet.icon, label: titleCase(b.title || section.title), sub: titleCase(sheet.title), items: () => listItems(b).map((i) => i.x), add: (lines) => editList(b, (l) => lines.forEach((x) => l.push({ x }))), open: () => go({ v: 'section', id: section.id }) });
+        const label = titleCase(cleanTitle(b.title) || head || secName);
+        if (!byLabel.has(label)) byLabel.set(label, []);
+        byLabel.get(label).push(b);
+      }
+      for (const [label, blocks] of byLabel) {
+        const last = blocks[blocks.length - 1];
+        out.push({ key: 'list:' + blocks[0].id, alias: blocks.slice(1).map((b) => 'list:' + b.id), cat: 'List', icon: sheet.icon, label, sub: label === secName ? titleCase(sheet.title) : secName + ' · ' + titleCase(sheet.title), items: () => blocks.flatMap((b) => listItems(b).map((i) => i.x)), add: (lines) => editList(last, (l) => lines.forEach((x) => l.push({ x }))), open: () => go({ v: 'section', id: section.id }) });
       }
       out.push({
-        key: 'sec:' + section.id, cat: 'Catatan', icon: sheet.icon, label: titleCase(section.title), sub: titleCase(sheet.title),
+        key: 'sec:' + section.id, cat: 'Catatan', icon: sheet.icon, label: titleCase(section.title), sub: 'Catatan bebas · ' + titleCase(sheet.title),
         items: () => S.pasted.filter((p) => p.sec === section.id).flatMap((p) => p.items).concat(S.notes[section.id] || []),
         add: (lines) => { (S.notes[section.id] = S.notes[section.id] || []).push(...lines); },
         open: () => go({ v: 'section', id: section.id, focus: 'notes' }),
@@ -81,9 +94,9 @@
     }
     return out;
   }
-  function destByKey(k) { return dests().find((d) => d.key === k); }
+  function destByKey(k) { return dests().find((d) => d.key === k || (d.alias && d.alias.includes(k))); }
   function openTab(tab) { UI.stack = []; UI.scroll = []; UI.tab = tab; render(); window.scrollTo(0, 0); }
-  const recent = () => (S.settings.qaRecent || []).filter((k) => destByKey(k));
+  const recent = () => [...new Set((S.settings.qaRecent || []).map((k) => { const d = destByKey(k); return d && d.key; }).filter(Boolean))];
   function remember(k) { S.settings.qaRecent = [k].concat(recent().filter((x) => x !== k)).slice(0, 4); }
 
   /** The category list. Tapping one selects it and shows what is already inside. */
@@ -96,11 +109,11 @@
         ${on ? `<div class="pkprev">${items.length ? `<ul>${items.slice(0, 8).map((x) => `<li>${rich(x)}</li>`).join('')}</ul>${items.length > 8 ? `<p class="muted small">+ ${items.length - 8} lagi</p>` : ''}` : '<p class="muted small">Masih kosong.</p>'}
           <div class="pktools"><button type="button" class="link" data-act="copyDest" data-k="${esc(d.key)}">Salin isinya</button></div></div>` : ''}</div>`;
     };
-    const rec = needle ? [] : recent().map(destByKey);
+    const recKeys = needle ? [] : recent(), rec = recKeys.map((k) => all.find((d) => d.key === k)).filter(Boolean);
     let html = rec.length ? `<p class="pkcat">Terakhir dipakai</p>${rec.map(row).join('')}` : '';
     const cats = [...new Set(all.map((d) => d.cat))];
     for (const c of cats) {
-      const list = all.filter((d) => d.cat === c && match(d) && !rec.includes(d));
+      const list = all.filter((d) => d.cat === c && match(d) && !recKeys.includes(d.key));
       if (list.length) html += `<p class="pkcat">${esc(c)}</p>${list.map(row).join('')}`;
     }
     return html || '<p class="muted small" style="padding:10px 4px">Nggak ada kategori yang cocok.</p>';
@@ -120,6 +133,7 @@
     const split = Q.split == null ? multi : Q.split;
     return `<h2>Tambah cepat</h2>
       <div class="card composer qa"><textarea rows="3" placeholder="Tulis apa aja… (bisa banyak baris)" data-input="qaText">${esc(Q.text)}</textarea>
+        ${Q.photo ? `<div class="qaphoto"><img src="${Q.photo}"><button type="button" class="link" data-act="qaPhotoDel">Hapus foto</button></div>` : `<div class="qapaste" contenteditable="true" data-paste="photo">📷 Tempel foto di sini (tahan → Tempel / Paste)</div>`}
         ${multi ? `<div class="chips"><button type="button" class="chip${split ? ' on' : ''}" data-act="qaSplit" data-v="1">Tiap baris = 1 item (${lines.length && split ? lines.length : UI.qa.text.split('\n').filter((l) => l.trim()).length})</button><button type="button" class="chip${!split ? ' on' : ''}" data-act="qaSplit" data-v="0">Jadi 1 item</button></div>` : ''}</div>
       <div class="field" style="margin:4px 0 6px"><span class="lab">Simpan ke mana?</span></div>
       <div class="search small">${ICON.search}<input type="search" placeholder="Cari kategori…" value="${esc(Q.q)}" data-input="qaQ" autocomplete="off"></div>
@@ -129,9 +143,19 @@
   const redrawQa = () => { const p = $('#sheet .panel'); if (!p) return; const y = p.scrollTop; p.innerHTML = '<div class="grab"></div>' + qaHtml(); p.scrollTop = y; };
   ACT.quickAdd = () => { UI.qa = { text: '', split: null, sel: recent()[0] || null, q: '' }; openSheet(qaHtml()); $('#sheet').classList.add('tall'); const t = $('textarea[data-input="qaText"]'); if (t) t.focus(); };
   ACT.qaPick = (el) => { UI.qa.sel = UI.qa.sel === el.dataset.k ? null : el.dataset.k; redrawQa(); };
+  ACT.qaPhotoDel = () => { UI.qa.photo = null; redrawQa(); };
+  const shrinkPhoto = (blob) => new Promise((ok, bad) => { const u = URL.createObjectURL(blob), im = new Image(); im.onload = () => { const k = Math.min(1, 1280 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg', 0.8)); }; im.onerror = bad; im.src = u; });
+  document.addEventListener('paste', (e) => {
+    if (!UI.qa || !$('#sheet .qa')) return;
+    const f = [...((e.clipboardData && e.clipboardData.items) || [])].find((i) => i.type && i.type.startsWith('image/'));
+    if (!f) { if (e.target.dataset && e.target.dataset.paste) { e.preventDefault(); toast('Yang ditempel bukan foto'); } return; }
+    e.preventDefault();
+    shrinkPhoto(f.getAsFile()).then((d) => { UI.qa.photo = d; redrawQa(); toast('Foto ditempel'); }).catch(() => toast('Foto gagal dibaca'));
+  });
   ACT.qaSplit = (el) => { UI.qa.split = el.dataset.v === '1'; redrawQa(); };
   ACT.qaSave = () => {
     const lines = qaLines(), d = UI.qa.sel && destByKey(UI.qa.sel);
+    if (UI.qa.photo) { const pid = 'p' + Date.now().toString(36); (S.photos = S.photos || {})[pid] = UI.qa.photo; if (lines.length) lines[0] = '[[foto:' + pid + ']] ' + lines[0]; else lines.push('[[foto:' + pid + ']]'); }
     if (!lines.length) { toast('Tulis dulu yang mau ditambah'); const t = $('textarea[data-input="qaText"]'); if (t) t.focus(); return; }
     if (!d) return toast('Pilih kategorinya dulu');
     d.add(lines); remember(d.key); save(); closeSheet(); render();
@@ -313,6 +337,43 @@
     toast('Pengingat ' + r.label + ' dihapus', () => { S.reminders = before; });
   };
   document.addEventListener('change', (e) => { if (e.target.name === 'icon') e.target.closest('.chips').querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c.contains(e.target))); });
+
+  /* ======================= pinned (📌) sections on the Hari ini screen ======================= */
+  const pins = () => (S.pins = (S.pins || []).filter((id) => SECTIONS[id]));
+  ACT.pinToggle = (el, ev) => {
+    if (ev) ev.stopPropagation();
+    const id = el.dataset.id, list = pins(), i = list.indexOf(id);
+    if (i >= 0) list.splice(i, 1); else list.unshift(id);
+    save({ sync: false }); render();
+    toast(i >= 0 ? 'Dilepas dari Hari ini' : 'Disematkan di atas Hari ini');
+  };
+  ACT.pinMore = (el) => { UI.pinOpen = UI.pinOpen || {}; UI.pinOpen[el.dataset.id] = !UI.pinOpen[el.dataset.id]; render(); };
+  ACT.pinUp = (el) => { const list = pins(), i = list.indexOf(el.dataset.id); if (i > 0) { list.splice(i - 1, 0, list.splice(i, 1)[0]); save({ sync: false }); render(); } };
+  function pinCard(id) {
+    const home = SECTIONS[id], open = UI.pinOpen && UI.pinOpen[id];
+    const lines = sectionText(id).split('\n').filter((l) => l.trim());
+    const shown = open ? lines : lines.slice(0, 8);
+    const body = shown.map((l) => (/^\*.+\*$/.test(l) ? `<div class="pinh">${esc(l.slice(1, -1))}</div>` : `<div class="pinl">${rich(l.replace(/^• /, ''))}</div>`)).join('');
+    const first = pins()[0] === id;
+    return `<div class="card pincard"><header><h3>📌 ${esc(titleCase(home.section.title))}</h3>
+      ${first ? '' : `<button class="link" data-act="pinUp" data-id="${esc(id)}" aria-label="Naikkan">↑</button>`}
+      <button class="link" data-act="openSection" data-id="${esc(id)}">Buka</button><button class="link" data-act="pinToggle" data-id="${esc(id)}">Lepas</button></header>
+      ${body || '<p class="muted small">Masih kosong.</p>'}
+      ${lines.length > 8 ? `<button class="link" data-act="pinMore" data-id="${esc(id)}">${open ? 'Tutup' : 'Lihat semua (' + lines.length + ')'}</button>` : ''}</div>`;
+  }
+  const baseToday = VIEWS.today;
+  VIEWS.today = (...a) => {
+    const html = baseToday(...a), list = pins();
+    if (!list.length) return html;
+    const block = `<h2 class="sec"><span class="grow">📌 Disematkan</span></h2>` + list.map(pinCard).join('');
+    const k = html.indexOf('</header>');
+    return k < 0 ? block + html : html.slice(0, k + 9) + block + html.slice(k + 9);
+  };
+  const baseSection = VIEWS.section;
+  VIEWS.section = (v) => {
+    const html = baseSection(v), on = pins().includes(v.id);
+    return html.replace('</h1>', `</h1><button class="link pinbtn${on ? ' on' : ''}" data-act="pinToggle" data-id="${esc(v.id)}" aria-label="${on ? 'Lepas sematan' : 'Sematkan'}">${on ? '📌 Lepas' : '📌 Sematkan'}</button>`);
+  };
 
   window.A1O = { copyText, waText, sectionText, dests, destByKey, settingsHtml, showLock, lockOn, sha256 };
 })();

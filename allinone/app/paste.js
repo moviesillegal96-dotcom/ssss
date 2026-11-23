@@ -163,6 +163,6 @@
       return S.pasted.filter((g) => g.sec === id).map((g, i) => `<div${i === 0 ? ' id="bpasted"' : ''}><h3>${esc(g.title || 'Catatan')}</h3><div class="card"><div class="tools"><button data-act="copyPasted" data-id="${g.id}">Salin</button><button data-act="pDel" data-id="${g.id}">Hapus</button></div><ul class="blist">${g.items.map((x) => `<li>${rich(x)}</li>`).join('')}</ul></div></div>`).join('');
     },
     /** Lines for the search, with the section they live in. */
-    lines() { return S.pasted.flatMap((g) => [g.title].concat(g.items).filter(Boolean).map((x) => ({ sec: g.sec, x }))); },
+    lines() { return S.pasted.flatMap((g) => [g.title].concat(g.items).filter(Boolean).map((x) => ({ sec: g.sec, x: stripPhotos(x) }))); },
   };
 })();
