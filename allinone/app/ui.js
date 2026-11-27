@@ -26,7 +26,7 @@ const ICON = {
   back: svg('<path d="m14.5 5-7 7 7 7"/>'),
   search: svg('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>'),
 };
-const TABS = [['today', 'Hari ini', ICON.today], ['cal', 'Kalender', ICON.cal], ['todo', 'To-Do', ICON.todo], ['money', 'Uang', ICON.money], ['lib', 'All in 1', ICON.lib], ['more', 'Lainnya', ICON.more]];
+const TABS = [['today', 'Hari ini', ICON.today], ['cal', 'Kalender', ICON.cal], ['todo', 'To-Do', ICON.todo], ['lib', 'All in 1', ICON.lib], ['more', 'Lainnya', ICON.more], ['money', 'Uang', ICON.money]];
 
 const SECTIONS = {};
 for (const sheet of DATA.sheets) for (const section of sheet.sections) SECTIONS[section.id] = { sheet, section };
