@@ -730,7 +730,7 @@
       if (!rec) { rec = { id: uid(), acc: x.acc, every: D.every, day: +D.d.slice(8), next: step(D.d, D.every, +D.d.slice(8)), end: D.end || '', tpl }; m.recs.push(rec); }
       else Object.assign(rec, { every: D.every, end: D.end || '', tpl });
       x.rec = rec.id;
-    } else if (rec) { m.recs = m.recs.filter((r) => r !== rec); }
+    } else if (rec) { m.recs = m.recs.filter((r) => r !== rec); trashPut('mmr', rec, 'Berulang ' + (rec.tpl.desc || catOf(rec.tpl.cat).name), 'Uang'); }
     const future = D.every !== 'none' && !old && D.d > todayStr();
     if (future) rec.next = D.d;                       // a recurring record that starts later is only scheduled
     else if (old) Object.assign(old, x, x.type === 'tr' ? { cat: undefined } : { to: undefined, fee: undefined }, x.photos ? {} : { photos: undefined }, x.rec ? {} : { rec: undefined });
@@ -821,8 +821,10 @@
     if (i < 0) return;
     const used = M().tx.some((x) => x.cat === b.dataset.k);
     if (used && b.dataset.sure !== '1') { b.dataset.sure = '1'; toast('Records use this category; they will show as Others. Tap the bin again to delete'); return; }
-    l.splice(i, 1); commit();
+    const [c] = l.splice(i, 1);
+    trashed('mmcat', { t, i, c }, 'Kategori ' + c.name, 'Uang · ' + (t === 'in' ? 'Income' : 'Expense'), 'Kategori dihapus');
   };
+  TRASH_KINDS.mmcat = { icon: '🏷️', name: 'Kategori uang', restore: (d) => { const l = M().cats[d.t]; if (!l.some((c) => c.id === d.c.id)) l.splice(Math.min(d.i, l.length), 0, d.c); return true; } };
   ACT['mm-accdel'] = (b) => {
     const m = M(), a = m.accounts.find((x) => x.id === b.dataset.id);
     if (!a || m.accounts.length < 2) return;

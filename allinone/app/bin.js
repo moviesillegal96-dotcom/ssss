@@ -149,3 +149,69 @@
       ${all.length > todos.length ? `<button class="navrow" data-act="binOpen"><span class="grow"><small>Semua yang dihapus (${all.length}) — jadwal, catatan, list, uang…</small></span><span class="chev">›</span></button>` : ''}</section>`;
   };
 })();
+
+/* ---------- Versi sebelumnya: copies of all the data, for what Baru dihapus alone can't bring back ----------
+ * Once a day (the first time the app is used that day) and before "Hapus semua data", the whole state is copied to
+ * its own storage key. Bringing a copy back replaces everything, after saving the current data as a copy too, so
+ * that step can be undone the same way. Photos are not copied: they stay as they are. */
+(() => {
+  const KEY = 'aio.snap', KEEP_DAYS = 30, MAX_DAILY = 7, MAX_OTHER = 4;
+  const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]') || []; } catch (e) { return []; } };
+  function write(list) {
+    for (;;) {
+      try { localStorage.setItem(KEY, JSON.stringify(list)); return true; } catch (e) { if (list.length <= 1) return false; list.pop(); }
+    }
+  }
+  function snapshot(why, daily) {
+    if (!S) return;
+    const copy = Object.assign({}, S, { photos: {} });
+    const t = Date.now(), cut = t - KEEP_DAYS * 864e5;
+    let list = read().filter((x) => x.at > cut);
+    list.unshift({ id: 'v' + t.toString(36), at: t, why, daily: !!daily, n: { todo: S.todos.length, task: S.tasks.length, tx: S.mm ? S.mm.tx.length : 0 }, s: JSON.stringify(copy) });
+    const d = list.filter((x) => x.daily).slice(0, MAX_DAILY), o = list.filter((x) => !x.daily).slice(0, MAX_OTHER);
+    list = list.filter((x) => d.includes(x) || o.includes(x));
+    write(list);
+  }
+  function daily() {
+    if (!S) return;
+    const today = todayStr();
+    if (read().some((x) => x.daily && ymd(new Date(x.at)) === today)) return;
+    snapshot('Salinan harian', true);
+  }
+  setTimeout(daily, 4000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) daily(); });
+
+  for (const k of ['wipeYes', 'lkWipe']) {
+    const orig = ACT[k];
+    if (orig) ACT[k] = (el, ev) => { snapshot(k === 'lkWipe' ? 'Sebelum dihapus karena lupa PIN' : 'Sebelum "Hapus semua data"'); orig(el, ev); };
+  }
+  const when = (t) => { const d = new Date(t); return shortDate(d) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const trashView = VIEWS.trash;
+  VIEWS.trash = (v) => {
+    const list = read();
+    return trashView(v) + `<h2 class="sec">Versi sebelumnya</h2><p class="muted small" style="margin:0 4px 8px">Salinan semua data: tiap hari sekali, dan sebelum “Hapus semua data”. Buat balikin yang nggak ada di atas, misalnya isi yang udah diubah atau data yang kehapus semua.</p>
+      <div class="card">${list.length ? list.map((x) => `<div class="binrow"><span class="ico">🕘</span><div class="grow"><div class="bt">${esc(when(x.at))}</div><small>${esc(x.why)} · ${x.n.todo} to-do · ${x.n.task} jadwal · ${x.n.tx} transaksi</small></div><button class="nb" data-act="snapAsk" data-id="${esc(x.id)}">Kembalikan</button></div>`).join('')
+        : '<p class="muted small">Belum ada salinan. Yang pertama dibuat sebentar lagi, otomatis.</p>'}</div>`;
+  };
+  ACT.snapAsk = (el) => {
+    const x = read().find((y) => y.id === el.dataset.id);
+    if (!x) return toast('Salinan itu sudah nggak ada');
+    openSheet(`<h2>Kembalikan ke ${esc(when(x.at))}?</h2><p class="muted" style="margin-bottom:14px">Semua data diganti dengan salinan ini (${x.n.todo} to-do, ${x.n.task} jadwal, ${x.n.tx} transaksi). Data yang sekarang disimpan dulu jadi salinan, jadi bisa dibalikin lagi dari sini.</p>
+      <div class="btnrow"><button class="btn wide" data-act="snapYes" data-id="${esc(x.id)}">Kembalikan</button><button class="btn ghost wide" data-act="closeSheet">Batal</button></div>`);
+  };
+  ACT.snapYes = (el) => {
+    const x = read().find((y) => y.id === el.dataset.id);
+    if (!x) return closeSheet();
+    let st;
+    try { st = JSON.parse(x.s); } catch (e) { return toast('Salinan itu rusak'); }
+    snapshot('Sebelum dikembalikan ke ' + when(x.at));
+    const photos = S.photos, lock = S.lock;
+    S = Object.assign(defaultState(), st);
+    S.settings = Object.assign(defaultState().settings, st.settings || {});
+    S.photos = Object.assign({}, photos);
+    S.lock = lock || S.lock;
+    if (window.Money) Money.reset();
+    saveNow(); syncNotifications(); applyTheme(); closeSheet(); UI.stack = []; UI.tab = 'today'; render(); window.scrollTo(0, 0);
+    toast('Data dikembalikan ke ' + when(x.at));
+  };
+})();

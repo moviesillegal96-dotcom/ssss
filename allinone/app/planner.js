@@ -568,7 +568,13 @@
     l.done = !l.done; commit();
     if (l.done && l.amount) { UI.m.logOffer = l.id; toast('Selesai: ' + l.title, null, { label: 'Catat ' + fmt(l.amount), act: 'm-log-offer' }); }
   };
-  ACT['m-clear-done'] = (b) => { cfg().lists = cfg().lists.filter((l) => !(l.list === b.dataset.l && l.done)); commit(); };
+  ACT['m-clear-done'] = (b) => {
+    const gone = cfg().lists.map((l, i) => ({ l, i })).filter((o) => o.l.list === b.dataset.l && o.l.done);
+    cfg().lists = cfg().lists.filter((l) => !(l.list === b.dataset.l && l.done));
+    const es = gone.map((o) => trashPut('mlist', o.l, o.l.title, 'Uang › Planner · ' + LISTS[o.l.list].label, o.i));
+    commit();
+    toast(gone.length + ' item selesai dihapus', () => es.slice().sort((x, y) => x.pos - y.pos).forEach((e) => trashRestore(e.id)));
+  };
   ACT['m-import'] = () => {
     let d;
     try { d = JSON.parse($('#sheet textarea[name="backup"]').value); } catch (e) { return fail('Teks itu bukan backup. Tempel semuanya.'); }
