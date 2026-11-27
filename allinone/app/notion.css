@@ -225,3 +225,95 @@ mark { background: var(--tag-yellow); }
 .m-today b { font: 700 20px/1.2 var(--display); }
 .m-today .muted, .m-today .chev { color: var(--muted); }
 .card + .m-today { margin-top: 0; }
+
+/* ---------- colour: Notion's text and background colours, used in rotation ---------- */
+:root {
+  --c-blue: #337ea9; --c-purple: #9065b0; --c-pink: #c14c8a; --c-orange: #d9730d; --c-green: #448361; --c-yellow: #cb912f; --c-red: #d44c47; --c-brown: #9f6b53;
+  --b-blue: #e7f3f8; --b-purple: #f6f3f9; --b-pink: #faf1f5; --b-orange: #fbecdd; --b-green: #edf3ec; --b-yellow: #fbf3db; --b-red: #fdebec; --b-brown: #f4eeee;
+  --cv-today: linear-gradient(120deg, #ffd166 0%, #ef476f 55%, #7b5cff 100%);
+  --cv-cal: linear-gradient(120deg, #4facfe 0%, #00c6fb 50%, #43e97b 100%);
+  --cv-todo: linear-gradient(120deg, #43e97b 0%, #38f9d7 50%, #4facfe 100%);
+  --cv-lib: linear-gradient(120deg, #a18cd1 0%, #fbc2eb 60%, #fda085 100%);
+  --cv-more: linear-gradient(120deg, #f6d365 0%, #fda085 60%, #f5576c 100%);
+}
+:root[data-theme="dark"] {
+  --c-blue: #4ea8e0; --c-purple: #a87bd8; --c-pink: #dd6aa4; --c-orange: #e8893a; --c-green: #4cb37f; --c-yellow: #e0b04f; --c-red: #ec6a66; --c-brown: #c49478;
+  --b-blue: #16303f; --b-purple: #2e2440; --b-pink: #3b2233; --b-orange: #3d2a1a; --b-green: #1b3427; --b-yellow: #3a3019; --b-red: #3e2221; --b-brown: #352823;
+}
+body:not(.mm-on) .card:not(.m-today) { background: var(--cbg, transparent); border-radius: 8px; padding: 14px 16px 10px; margin-bottom: 12px; border: 0; }
+body:not(.mm-on) .card + .card { border-top: 0; padding-top: 14px; }
+body:not(.mm-on) .card > header h3 { color: var(--cc, var(--ink)); }
+section.card:nth-of-type(8n+1) { --cc: var(--c-blue); --cbg: var(--b-blue); }
+section.card:nth-of-type(8n+2) { --cc: var(--c-purple); --cbg: var(--b-purple); }
+section.card:nth-of-type(8n+3) { --cc: var(--c-green); --cbg: var(--b-green); }
+section.card:nth-of-type(8n+4) { --cc: var(--c-orange); --cbg: var(--b-orange); }
+section.card:nth-of-type(8n+5) { --cc: var(--c-pink); --cbg: var(--b-pink); }
+section.card:nth-of-type(8n+6) { --cc: var(--c-yellow); --cbg: var(--b-yellow); }
+section.card:nth-of-type(8n+7) { --cc: var(--c-red); --cbg: var(--b-red); }
+section.card:nth-of-type(8n+8) { --cc: var(--c-brown); --cbg: var(--b-brown); }
+div.card { --cbg: var(--side); }
+body:not(.mm-on) .remind { --cc: var(--c-orange); background: var(--b-yellow); }
+body:not(.mm-on) .remind ul li::before { background: var(--c-orange); }
+body:not(.mm-on) .card .rowline, body:not(.mm-on) .card .navrow { border-color: color-mix(in srgb, var(--cc, var(--ink)) 14%, transparent); }
+
+/* page covers */
+.hero .cover { background: var(--cv-today); }
+.hero .motto { background: var(--b-yellow); }
+.title { position: relative; margin: 0 -20px 6px; padding: calc(56px + env(safe-area-inset-top)) 20px 10px; }
+.title::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: calc(84px + env(safe-area-inset-top)); background: var(--pcover, var(--cv-more)); }
+.title > * { position: relative; }
+.title .seg { background: rgba(255, 255, 255, .7); }
+body[data-page="cal"] { --pcover: var(--cv-cal); }
+body[data-page="todo"] { --pcover: var(--cv-todo); }
+body[data-page="lib"] { --pcover: var(--cv-lib); }
+body[data-page="more"] { --pcover: var(--cv-more); }
+.title .link { background: rgba(255, 255, 255, .75); color: #37352f; }
+.sec { color: var(--c-purple); }
+
+/* tab bar: each tab its colour */
+#tabs button[data-tab="today"].on { color: var(--c-blue); }
+#tabs button[data-tab="cal"].on { color: var(--c-red); }
+#tabs button[data-tab="todo"].on { color: var(--c-green); }
+#tabs button[data-tab="money"].on { color: var(--c-orange); }
+#tabs button[data-tab="lib"].on { color: var(--c-purple); }
+#tabs button[data-tab="more"].on { color: var(--c-brown); }
+#tabs button.on .pill { background: color-mix(in srgb, currentColor 14%, transparent); }
+.qafab, :root[data-theme="dark"] .qafab { background: linear-gradient(135deg, #2383e2, #9065b0 60%, #c14c8a); color: #fff; border-radius: 50%; }
+.fab { background: linear-gradient(135deg, #2383e2, #9065b0); color: #fff; }
+
+/* timeline and calendar */
+.blk:nth-child(6n+1) { --cc: var(--c-blue); --cbg: var(--b-blue); }
+.blk:nth-child(6n+2) { --cc: var(--c-green); --cbg: var(--b-green); }
+.blk:nth-child(6n+3) { --cc: var(--c-purple); --cbg: var(--b-purple); }
+.blk:nth-child(6n+4) { --cc: var(--c-orange); --cbg: var(--b-orange); }
+.blk:nth-child(6n+5) { --cc: var(--c-pink); --cbg: var(--b-pink); }
+.blk:nth-child(6n+6) { --cc: var(--c-yellow); --cbg: var(--b-yellow); }
+.blk .body { border: 0; border-left: 4px solid var(--cc); background: var(--cbg); border-radius: 4px 8px 8px 4px; }
+.blk .when { color: var(--cc); }
+.blk .gh b { color: var(--cc); }
+.blk.now .body { box-shadow: 0 0 0 2px var(--cc); }
+.day.sel { background: var(--c-blue); border-color: var(--c-blue); }
+.day.sel small, .day.sel b, .day.sel i { color: #fff; }
+.week .day:nth-child(7n+1) { --cc: var(--c-red); } .week .day:nth-child(7n+2) { --cc: var(--c-orange); } .week .day:nth-child(7n+3) { --cc: var(--c-yellow); }
+.week .day:nth-child(7n+4) { --cc: var(--c-green); } .week .day:nth-child(7n+5) { --cc: var(--c-blue); } .week .day:nth-child(7n+6) { --cc: var(--c-purple); } .week .day:nth-child(7n+7) { --cc: var(--c-pink); }
+.week .day:not(.sel) { border-top: 3px solid var(--cc); }
+.week .day:not(.sel) small { color: var(--cc); }
+.month .day.sel { background: var(--b-blue); }
+.month .day.sel b { color: var(--c-blue); }
+
+/* All in 1 and Lainnya rows */
+.tile:nth-child(8n+1) { background: var(--b-blue); } .tile:nth-child(8n+2) { background: var(--b-green); } .tile:nth-child(8n+3) { background: var(--b-purple); } .tile:nth-child(8n+4) { background: var(--b-orange); }
+.tile:nth-child(8n+5) { background: var(--b-pink); } .tile:nth-child(8n+6) { background: var(--b-yellow); } .tile:nth-child(8n+7) { background: var(--b-red); } .tile:nth-child(8n+8) { background: var(--b-brown); }
+.tile { border: 0; }
+.navrow .ico { width: 34px; height: 34px; border-radius: 8px; background: var(--b-blue); }
+.navrow:nth-child(8n+2) .ico { background: var(--b-green); } .navrow:nth-child(8n+3) .ico { background: var(--b-purple); } .navrow:nth-child(8n+4) .ico { background: var(--b-orange); }
+.navrow:nth-child(8n+5) .ico { background: var(--b-pink); } .navrow:nth-child(8n+6) .ico { background: var(--b-yellow); } .navrow:nth-child(8n+7) .ico { background: var(--b-red); } .navrow:nth-child(8n+8) .ico { background: var(--b-brown); }
+.cg:nth-child(6n+1) .cgh b { color: var(--c-blue); } .cg:nth-child(6n+2) .cgh b { color: var(--c-green); } .cg:nth-child(6n+3) .cgh b { color: var(--c-purple); }
+.cg:nth-child(6n+4) .cgh b { color: var(--c-orange); } .cg:nth-child(6n+5) .cgh b { color: var(--c-pink); } .cg:nth-child(6n+6) .cgh b { color: var(--c-red); }
+.tag { background: var(--b-blue); color: var(--c-blue); } .tag.ev { background: var(--b-yellow); color: var(--c-orange); }
+.it.done .ck, .ck.on { background: var(--c-green); border-color: var(--c-green); }
+.ring .fg { stroke: url(#none); stroke: #ef476f; }
+.m-today { background: linear-gradient(120deg, var(--b-orange), var(--b-yellow)); border: 0; }
+.m-today .m-safe { font-size: 15px; color: var(--c-green); }
+.title .seg button { color: #55534e; }
+.title .seg button.on { background: #ffffff; color: #37352f; }

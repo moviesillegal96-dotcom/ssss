@@ -32,7 +32,7 @@ fi
 
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/res"
 rm -rf assets && mkdir -p assets
-cp ../app/index.html ../app/app.css ../app/core.js ../app/ui.js ../app/library.js ../app/schedule.js ../app/money.js ../app/paste.js ../app/main.js ../app/a1o.js ../app/bin.js ../app/a1o.css ../app/notion.css ../app/money.css assets/
+cp ../app/index.html ../app/app.css ../app/core.js ../app/ui.js ../app/library.js ../app/schedule.js ../app/planner.js ../app/money.js ../app/paste.js ../app/main.js ../app/a1o.js ../app/bin.js ../app/a1o.css ../app/notion.css ../app/money.css assets/
 # The lock-screen picture is someone's artwork: kept out of the repository, bundled when it is there.
 if [ -f ../app/lock-bg.jpg ]; then cp ../app/lock-bg.jpg assets/; fi
 cp -r ../app/fonts assets/fonts

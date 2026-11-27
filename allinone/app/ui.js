@@ -52,6 +52,7 @@ function applyTheme() {
 function render() {
   const top = UI.stack[UI.stack.length - 1];
   const view = top || { v: UI.tab };
+  document.body.dataset.page = view.v;
   $('#view').innerHTML = VIEWS[view.v](view);
   $('#tabs').innerHTML = `<div class="in">${TABS.map(([id, label, icon]) => `<button class="${!top && UI.tab === id ? 'on' : ''}" data-act="tab" data-tab="${id}"><span class="pill">${icon}</span>${label}</button>`).join('')}</div>`;
   if (window.Money) Money.afterRender();

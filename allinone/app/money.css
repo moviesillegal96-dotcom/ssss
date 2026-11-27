@@ -306,3 +306,43 @@ body.mm-on #toast { bottom: calc(84px + env(safe-area-inset-bottom)); background
 
 /* Uang rows on Hari ini / Kalender (outside .mm) */
 .mmday .m-row { grid-template-columns: minmax(0, 1fr) auto; cursor: pointer; }
+
+/* ---------- Planner (planner.js) inside Uang ---------- */
+body.mm-on {
+  --brand: var(--mm-blue); --brand-ink: #fff; --brand-soft: rgba(47, 124, 246, .18); --side: var(--mm-field);
+  --ok: #2fbf71; --ok-soft: rgba(47, 191, 113, .16); --no: var(--mm-exp); --no-soft: rgba(240, 74, 64, .16); --warn: #f2a516; --warn-soft: rgba(242, 165, 22, .16);
+  --needs: #3f8cff; --wants: #f2a516; --future: #2fbf71; --hero-bg: #2c2d33; --hero-dim: rgba(255, 255, 255, .72); --hero-line: rgba(255, 255, 255, .2);
+}
+body.mm-on.mm-light { --ok: #16a34a; --no: #e0342b; --warn: #d98a00; --needs: #1f6fe5; --wants: #e08a00; --future: #16a34a; }
+.mm-plan { padding: 10px 12px 110px; font: 14.5px/1.45 Roboto, system-ui, sans-serif; color: var(--mm-ink); }
+.mm-plan .card { background: var(--mm-surf); border: 0; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; box-shadow: none; }
+.mm-plan .card + .card { border-top: 0; padding-top: 12px; }
+.mm-plan .card > header h3 { font: 600 16px/1.3 Roboto, system-ui, sans-serif; color: var(--mm-ink); }
+.mm-plan .m-hero { background: linear-gradient(135deg, #1e5bd8 0%, #6d3ff0 60%, #b5338a 100%); color: #fff; border-radius: 12px; }
+.mm-plan .calnav { padding: 0 2px; }
+.mm-plan .calnav b { color: var(--mm-ink); }
+.mm-plan .iconbtn { color: var(--mm-ink); }
+.mm-plan .link { color: var(--mm-blue); background: none; }
+.mm-plan .seg { background: var(--mm-field); }
+.mm-plan .seg button { color: var(--mm-dim); }
+.mm-plan .seg button.on { background: var(--mm-blue); color: #fff; box-shadow: none; }
+.mm-plan .m-day { background: var(--mm-surf); box-shadow: none; }
+.mm-plan .m-row { border-color: var(--mm-line); }
+.mm-plan .chip { background: var(--mm-field); color: var(--mm-ink); }
+.mm-plan .chip.on { background: var(--mm-blue); color: #fff; box-shadow: none; }
+.mm-plan .ck { border-color: var(--mm-dim); }
+.mm-plan .ck.on { background: var(--ok); border-color: var(--ok); }
+.mm-plan .m-mini { border-color: var(--mm-line); color: var(--mm-ink); }
+.mm-plan .search input, body.mm-on .field input, body.mm-on .field select, body.mm-on .field textarea {
+  background: var(--mm-field); border: 1px solid var(--mm-line); color: var(--mm-ink); border-radius: 6px; }
+body.mm-on #sheet .panel { color: var(--mm-ink); }
+body.mm-on .btn.ghost { background: var(--mm-field); color: var(--mm-ink); box-shadow: none; }
+body.mm-on .btn.danger { background: rgba(240, 74, 64, .14); color: var(--mm-exp); box-shadow: none; }
+body.mm-on .segr { background: var(--mm-field); }
+body.mm-on .segr input:checked + span { background: var(--mm-blue); color: #fff; }
+.mm-plan .mm-fab { font-size: 28px; line-height: 1; }
+.mm-plancard { padding-top: 4px; padding-bottom: 4px; }
+.mm-plancard .mm-li { border-top: 0; }
+.mm .m-chart svg { width: 100%; height: auto; fill: none; stroke: none; stroke-width: 1; }
+.mm .m-chart text { stroke: none; }
+.mm .search svg { width: 20px; height: 20px; }

@@ -204,7 +204,6 @@
   const parseNum = (s) => Number(String(s || '').replace(/[^\d]/g, '')) || 0;
 
   /* ---------- view state ---------- */
-  UI.m = { month: todayStr().slice(0, 7) };      // kept for main.js
   UI.mm = { tab: 'tx', period: 'monthly', anchor: todayStr(), from: '', to: '', calMonth: todayStr().slice(0, 7), stack: [], q: '', calc: null, _next: null };
   // The draft being edited belongs to the page that opened it, so a page opened on top (a calculator, a new wallet)
   // can have its own and the one below is still there when it closes. Setting UI.mm.draft hands it to the next page pushed.
@@ -349,7 +348,9 @@
     const sec = (title, manage, items, add) => `<section class="mm-card mm-ws"><div class="mm-wsh"><b>${title}</b><button class="mm-link" data-act="mm-manage" data-k="${manage}">${manage === 'w' ? 'Manage(' + ws.length + ')' : 'Manage'}</button></div>${items}${add}</section>`;
     const list = (arr, fn) => arr.filter((o) => o.acc === a).map(fn).join('');
     const bs = m.budgets.filter((o) => o.acc === a), gs = m.goals.filter((o) => o.acc === a), ds = m.debts.filter((o) => o.acc === a), rs = m.recs.filter((o) => o.acc === a);
+    const sf = window.Planner ? Planner.safe() : null;
     return top('wal') + `<div class="mm-bal"><small>Account balance</small><div><b>${money(accBal())}</b><button class="mm-eye" data-act="mm-hide" aria-label="Hide amounts">${hidden() ? I.eyeOff : I.eye}</button></div></div>
+      <section class="mm-card mm-plancard"><button class="mm-li" data-act="mm-planner">${ico({ color: '#16a34a', icon: 'piggy' })}<span class="grow"><b>Planner</b><small>${sf ? 'Aman dipakai hari ini ' + money(sf.perDay) + ' · ' + (sf.bills ? 'tagihan ' + money(sf.bills) : 'tagihan lunas') : 'Budget Kebutuhan / Keinginan / Masa depan, jatuh tempo, list belanja'}</small></span>${I.right}</button></section>
       ${sec('WALLET', 'w', `<div class="mm-wgrid">${cards}<button class="mm-wc add" data-act="mm-new-w" aria-label="Add wallet">${I.plus}</button></div>`, '')}
       ${sec('BUDGET', 'b', list(bs, bRow), addBtn('Add Budget', 'mm-new-b'))}
       ${sec('GOAL', 'g', list(gs, gRow), addBtn('Add Goal', 'mm-new-g'))}
@@ -550,7 +551,10 @@
     const m = M();
     return bar('Accounts') + `<div class="mm-body"><section class="mm-card">${m.accounts.map((a) => `<div class="mm-pick"><input class="mm-f" data-mmacc="${a.id}" value="${esc(a.name)}" maxlength="40"><span class="mm-amt">${money(accBal(a.id))}</span>${m.accounts.length > 1 ? `<button class="mm-ib" data-act="mm-accdel" data-id="${a.id}" aria-label="Delete">${I.trash}</button>` : ''}</div>`).join('')}</section>${addBtn('Add Account', 'mm-accnew')}</div>`;
   }
-  const PAGES = { form: pForm, cat: pCat, wsel: pWsel, calc: pCalc, search: pSearch, cats: pCats, catx: pCatx, trend: pTrend, wallet: pWallet, wedit: pWedit, bedit: pBedit, gedit: pGedit, dedit: pDedit, redit: pRedit, manage: pManage, accnew: pAccNew, settings: pSettings, catman: pCatman, accman: pAccman };
+  function pPlanner() {
+    return bar('Planner', `<button class="mm-ib" data-act="m-settings" aria-label="Pengaturan planner">${I.gear}</button>`) + `<div class="mm-plan">${window.Planner ? Planner.view() : ''}</div>`;
+  }
+  const PAGES = { planner: pPlanner, form: pForm, cat: pCat, wsel: pWsel, calc: pCalc, search: pSearch, cats: pCats, catx: pCatx, trend: pTrend, wallet: pWallet, wedit: pWedit, bedit: pBedit, gedit: pGedit, dedit: pDedit, redit: pRedit, manage: pManage, accnew: pAccNew, settings: pSettings, catman: pCatman, accman: pAccman };
 
   VIEWS.money = () => {
     runRecs();
@@ -626,6 +630,7 @@
   ACT['mm-hide'] = () => { M().opt.hide = !M().opt.hide; commit(); };
   ACT['mm-catman'] = () => { UI.mm.cmNew = null; push({ p: 'catman' }); };
   ACT['mm-accman'] = () => push({ p: 'accman' });
+  ACT['mm-planner'] = () => { if (window.Planner) Planner.reset(); push({ p: 'planner' }); };
 
   /* ---------- add / edit a record ---------- */
   function startDraft(pre) {
@@ -718,6 +723,7 @@
     if (D.photos && D.photos.length) x.photos = D.photos.slice();
     const old = D.id && m.tx.find((t) => t.id === D.id);
     if (old) x.acc = old.acc;
+    if (old && old.g && (old.cat !== x.cat || old.type !== x.type)) x.g = undefined;
     let rec = old && old.rec ? m.recs.find((r) => r.id === old.rec) : null;
     if (D.every !== 'none' && D.type !== 'tr') {
       const tpl = Object.assign({}, x); delete tpl.id; delete tpl.d; delete tpl.photos;
@@ -864,12 +870,46 @@
   TRASH_KINDS.mmw = { icon: '👛', name: 'Wallet', restore: (o) => { const m = M(); if (!m.accounts.some((a) => a.id === o.w.acc)) return 'Its account is gone'; if (!m.wallets.some((w) => w.id === o.w.id)) m.wallets.push(o.w); for (const x of o.tx) if (!m.tx.some((t) => t.id === x.id)) m.tx.push(x); return true; } };
   TRASH_KINDS.mma = { icon: '🏦', name: 'Account', restore: (o) => { const m = M(); if (!m.accounts.some((a) => a.id === o.a.id)) m.accounts.push(o.a); for (const k of ['wallets', 'tx', 'budgets', 'goals', 'debts', 'recs']) for (const x of o[k]) if (!m[k].some((y) => y.id === x.id)) m[k].push(x); return true; } };
   TRASH_KINDS.mmall = { icon: '💰', name: 'Semua data uang', restore: (o) => { S.mm = o; return true; } };
-  // Kinds from the earlier Uang planner, so what it put in Baru dihapus can still come back.
-  const legacy = () => (S.money && S.money.cfg ? S.money : (S.money = { cfg: { v: 1, currency: 'Rp', opening: 0, goals: { needs: 50, wants: 30, future: 20 }, items: [], lists: [] }, months: {} }));
-  TRASH_KINDS.tx = { icon: '💸', name: 'Transaksi (lama)', restore: (t) => { const ms = legacy().months, mk = t.d.slice(0, 7); (ms[mk] || (ms[mk] = { tx: [] })).tx.push(t); return true; } };
-  TRASH_KINDS.mitem = { icon: '💰', name: 'Pos anggaran (lama)', restore: (it) => { legacy().cfg.items.push(it); return true; } };
-  TRASH_KINDS.mlist = { icon: '🧾', name: 'Item list uang (lama)', restore: (l) => { legacy().cfg.lists.push(l); return true; } };
-  TRASH_KINDS.money = { icon: '💰', name: 'Data uang (lama)', restore: (m) => { S.money = m; return true; } };
+  /* ---------- the planner's view of the records (planner.js) ---------- */
+  const GROUP_OF = { bills: 'needs', health: 'needs', education: 'needs', transportation: 'needs', food: 'needs', pet: 'needs', others: 'needs',
+    clothing: 'wants', entertainment: 'wants', gifts: 'wants', shopping: 'wants', travel: 'wants', furniture: 'wants', fitness: 'wants' };
+  window.MM = {
+    cur: () => M().opt.cur,
+    /** What the wallets in the total started with. */
+    opening: () => sum(wallets().filter((w) => !w.excl).map((w) => w.start || 0)),
+    /** Records of the open account as the planner's { 'YYYY-MM': { tx: [...] } }: money in and out of the wallets in the
+     * total. Moving money to a wallet outside the total counts as set aside (Masa depan); back from one, as income. */
+    planTx() {
+      const months = {}, put = (t) => { const mk = t.d.slice(0, 7); (months[mk] || (months[mk] = { tx: [] })).tx.push(t); };
+      const base = (x) => ({ id: x.id, mm: x.id, d: x.d, item: x.item || null, note: x.memo || '', occ: x.occ });
+      for (const x of accTx()) {
+        const w = wal(x.w), inc = !!(w && !w.excl);
+        if (x.type === 'tr') {
+          const to = wal(x.to), toInc = !!(to && !to.excl);
+          if (inc && !toInc) put(Object.assign(base(x), { t: 'out', a: x.a + (x.fee || 0), name: x.desc || 'Ke ' + (to ? to.name : 'dompet lain'), g: x.g || 'future' }));
+          else if (!inc && toInc) put(Object.assign(base(x), { t: 'in', a: x.a, name: x.desc || 'Dari ' + (w ? w.name : 'dompet lain'), g: 'income' }));
+          else if (inc && x.fee) put(Object.assign(base(x), { t: 'out', a: x.fee, name: 'Biaya transfer', g: 'needs' }));
+          continue;
+        }
+        if (!inc) continue;
+        const id = String(x.cat || '').split(':')[1];
+        put(Object.assign(base(x), { t: x.type, a: x.a, name: x.desc || catOf(x.cat).name, g: x.g || (x.type === 'in' ? 'income' : GROUP_OF[id] || 'needs') }));
+      }
+      return months;
+    },
+    /** A record logged from the planner (a bill ticked as paid, a list item bought): goes on the account's main wallet. */
+    add(t) {
+      const m = M(), ws = wallets(), main = ws.find((w) => !w.excl) || ws[0];
+      if (!main) return;
+      const cat = t.t === 'in' ? 'in:' + (/jajan|saku/i.test(t.name || '') ? 'allowance' : /gaji|salary/i.test(t.name || '') ? 'salary' : 'others') : guessCat((t.name || '') + ' ' + (t.note || ''));
+      const x = { id: t.id || uid(), acc: m.acc, type: t.t === 'in' ? 'in' : 'out', a: t.a, cat, w: main.id, d: t.d, tm: t.d === todayStr() ? nowHM() : '12:00', desc: t.name || '', memo: t.note || '' };
+      if (t.item) x.item = t.item;
+      if (t.occ) x.occ = t.occ;
+      if (t.g) x.g = t.g;
+      m.tx.push(x);
+    },
+    del(id) { const m = M(), i = m.tx.findIndex((x) => x.id === id); if (i >= 0) m.tx.splice(i, 1); },
+  };
 
   /* ---------- hooks for the rest of the app ---------- */
   const _close = closeSheet;
@@ -887,26 +927,27 @@
   }
   ACT['m-open'] = () => { UI.stack = []; UI.scroll = []; UI.tab = 'money'; UI.mm.stack = []; UI.mm.tab = 'tx'; render(); window.scrollTo(0, 0); };
   window.Money = {
-    reset() { UI.mm.stack = []; UI.mm.tab = 'tx'; UI.mm.draft = null; UI.mm.anchor = todayStr(); UI.mm.calMonth = todayStr().slice(0, 7); },
-    afterRender() { applyLook(); const t = $('.mm textarea'); if (t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; } },
+    reset() { UI.mm.stack = []; UI.mm.tab = 'tx'; UI.mm.draft = null; UI.mm.anchor = todayStr(); UI.mm.calMonth = todayStr().slice(0, 7); if (window.Planner) Planner.reset(); },
+    afterRender() { applyLook(); const t = $('.mm textarea'); if (t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; } if (window.Planner) Planner.afterRender(); },
     /** Android back inside Uang: close a page, then go back to the Transaction tab. */
     back() {
+      if (page() && page().p === 'planner' && UI.m.view !== 'home') { UI.m.view = 'home'; render(); window.scrollTo(0, 0); return true; }
       if (UI.mm.stack.length) { pop(); return true; }
       if (UI.mm.tab !== 'tx') { UI.mm.tab = 'tx'; render(); window.scrollTo(0, 0); return true; }
       return false;
     },
     todayCard() {
       runRecs();
-      const t = todayStr(), today = totals(accTx().filter((x) => x.d === t));
-      return `<button class="card m-today" data-act="m-open"><span class="grow"><small>${esc(acc().name)}</small><b>${money(accBal())}</b></span><span class="muted small">Hari ini ${today.exp ? '−' + num(today.exp) : '0'}</span><span class="chev">›</span></button>`;
+      const t = todayStr(), today = totals(accTx().filter((x) => x.d === t)), sf = window.Planner ? Planner.safe() : null;
+      return `<button class="card m-today" data-act="m-open"><span class="grow"><small>${esc(acc().name)}</small><b>${money(accBal())}</b></span><span class="muted small">${sf ? 'Aman dipakai hari ini<br><b class="m-safe">' + money(sf.perDay) + '</b>' : 'Hari ini ' + (today.exp ? '−' + num(today.exp) : '0')}</span><span class="chev">›</span></button>`;
     },
     dayCard(ds) {
-      const xs = M().tx.filter((x) => x.d === ds).sort(byTime);
-      if (!xs.length) return '';
+      const xs = M().tx.filter((x) => x.d === ds).sort(byTime), plan = window.Planner ? Planner.dayCard(ds) : '';
+      if (!xs.length) return plan;
       return `<section class="card mmday"><header><h3>💸 Uang</h3><span class="count">${xs.length}</span></header>${xs.map((x) => {
         const c = x.type === 'tr' ? TRANSFER : catOf(x.cat);
         return `<div class="m-row" data-act="m-open"><span class="m-main"><span class="m-name">${esc(x.desc || c.name)}</span><span class="m-meta">${esc(c.name)} · ${esc(x.tm || '')}</span></span><span class="m-amt ${x.type === 'in' ? 'okc' : ''}">${x.type === 'out' ? '−' : x.type === 'in' ? '+' : ''}${num(x.a)}</span></div>`;
-      }).join('')}</section>`;
+      }).join('')}</section>${plan}`;
     },
     summaryCard() {
       const mk = todayStr().slice(0, 7), t = totals(accTx().filter((x) => x.d.slice(0, 7) === mk));
@@ -914,6 +955,7 @@
         <button class="btn wide" data-act="m-open">Buka Uang — catat transaksi</button></div>`;
     },
     queue(d, ds, now, out) {
+      if (window.Planner) Planner.queue(d, ds, now, out);
       if (!S.mm) return;
       const m = M(), o = m.opt;
       if (o.remind) { const at = atTime(d, o.remindAt || '20:00'); if (at > now) out.push({ id: 'mmr|' + ds, at, ch: 'reminders', title: '📝 Catat pengeluaran hari ini', body: 'Buka Uang dan catat yang keluar & masuk hari ini.' }); }
@@ -926,10 +968,11 @@
       if (items.length && at > now) out.push({ id: 'mmd|' + ds, at, ch: 'tasks', title: '💸 Utang jatuh tempo', items });
     },
     result(key, v) {
+      if (window.Planner) Planner.result(key, v);
       if (!S.mm || v !== 1 || !key.startsWith('mmd|')) return;
       const x = S.mm.debts.find((o) => o.id === key.slice(4));
       if (x) x.paid = x.amount;
     },
-    doneKeys() { return S.mm ? S.mm.debts.filter((x) => x.due && (x.paid || 0) >= x.amount).map((x) => 'mmd|' + x.id) : []; },
+    doneKeys() { return (window.Planner ? Planner.doneKeys() : []).concat(S.mm ? S.mm.debts.filter((x) => x.due && (x.paid || 0) >= x.amount).map((x) => 'mmd|' + x.id) : []); },
   };
 })();
