@@ -866,9 +866,9 @@
 
   /* ---------- Baru dihapus ---------- */
   const putAt = (list, i, x) => (i == null ? list.push(x) : list.splice(Math.min(i, list.length), 0, x));
-  TRASH_KINDS.mmtx = { icon: '💸', name: 'Record', restore: (x, i) => { const m = M(); if (!m.tx.some((t) => t.id === x.id)) putAt(m.tx, i, x); return true; } };
-  TRASH_KINDS.mmw = { icon: '👛', name: 'Wallet', restore: (o) => { const m = M(); if (!m.accounts.some((a) => a.id === o.w.acc)) return 'Its account is gone'; if (!m.wallets.some((w) => w.id === o.w.id)) m.wallets.push(o.w); for (const x of o.tx) if (!m.tx.some((t) => t.id === x.id)) m.tx.push(x); return true; } };
-  TRASH_KINDS.mma = { icon: '🏦', name: 'Account', restore: (o) => { const m = M(); if (!m.accounts.some((a) => a.id === o.a.id)) m.accounts.push(o.a); for (const k of ['wallets', 'tx', 'budgets', 'goals', 'debts', 'recs']) for (const x of o[k]) if (!m[k].some((y) => y.id === x.id)) m[k].push(x); return true; } };
+  TRASH_KINDS.mmtx = { icon: '💸', name: 'Transaksi', restore: (x, i) => { const m = M(); if (!m.tx.some((t) => t.id === x.id)) putAt(m.tx, i, x); return true; } };
+  TRASH_KINDS.mmw = { icon: '👛', name: 'Dompet', restore: (o) => { const m = M(); if (!m.accounts.some((a) => a.id === o.w.acc)) return 'Its account is gone'; if (!m.wallets.some((w) => w.id === o.w.id)) m.wallets.push(o.w); for (const x of o.tx) if (!m.tx.some((t) => t.id === x.id)) m.tx.push(x); return true; } };
+  TRASH_KINDS.mma = { icon: '🏦', name: 'Akun uang', restore: (o) => { const m = M(); if (!m.accounts.some((a) => a.id === o.a.id)) m.accounts.push(o.a); for (const k of ['wallets', 'tx', 'budgets', 'goals', 'debts', 'recs']) for (const x of o[k]) if (!m[k].some((y) => y.id === x.id)) m[k].push(x); return true; } };
   TRASH_KINDS.mmall = { icon: '💰', name: 'Semua data uang', restore: (o) => { S.mm = o; return true; } };
   /* ---------- the planner's view of the records (planner.js) ---------- */
   const GROUP_OF = { bills: 'needs', health: 'needs', education: 'needs', transportation: 'needs', food: 'needs', pet: 'needs', others: 'needs',

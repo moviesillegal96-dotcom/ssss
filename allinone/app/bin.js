@@ -134,7 +134,8 @@
   const more = VIEWS.more;
   VIEWS.more = (v) => {
     const n = (S.trash || []).length;
-    return more(v).replace('<div class="title"><h1>Lainnya</h1></div>', `<div class="title"><h1>Lainnya</h1></div>
+    // Goes right after the page title, whatever the title holds (an icon, say).
+    return more(v).replace(/(<div class="title">[\s\S]*?<\/div>)/, (title) => title + `
       <div class="card"><button class="navrow" data-act="binOpen"><span class="ico">🗑️</span><span class="grow"><b>Baru dihapus</b><small>${n ? n + ' item · bisa dipulihkan selama ' + TRASH_DAYS + ' hari' : 'Kosong · yang kamu hapus disimpan di sini ' + TRASH_DAYS + ' hari'}</small></span>${n ? `<span class="count">${n}</span>` : ''}<span class="chev">›</span></button></div>`);
   };
 
