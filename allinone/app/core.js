@@ -94,6 +94,15 @@ function loadState() {
   // To-dos added in an app update: each one goes in once, even on a phone that already has data.
   const seenTodo = (S.todoSeen = S.todoSeen || []);
   for (const t of DATA.addTodos || []) if (!seenTodo.includes(t.key)) { seenTodo.push(t.key); S.todos.push({ id: 'u' + (S.nid++), x: t.x, date: t.date, slot: t.slot || 'malam', done: 0 }); }
+  // A to-do list shipped with an update replaces the to-dos once. Old ones that are not on it go to Baru dihapus.
+  const L = DATA.todoList;
+  if (L && L.key && !seenTodo.includes(L.key)) {
+    seenTodo.push(L.key);
+    const keep = new Set(L.todos.map((t) => t.date + '|' + t.slot + '|' + t.x));
+    for (const t of S.todos) if (!keep.has(t.date + '|' + t.slot + '|' + t.x)) trashPut('todo', t, t.x, 'To-do');
+    const done = new Set(S.todos.filter((t) => t.done).map((t) => t.date + '|' + t.slot + '|' + t.x));
+    S.todos = L.todos.map((t) => ({ id: 'u' + (S.nid++), x: t.x, date: t.date, slot: t.slot, done: done.has(t.date + '|' + t.slot + '|' + t.x) ? 1 : 0 }));
+  }
   pruneOld();
 }
 
